@@ -7,6 +7,10 @@ resolution = 2**8 # 1/nm high precision using 2**10, utral high precision using 
 cell_size_x = 298 # nm
 cell_size_y = 298 # nm
 # generate an array of a circle
+## deccroation of periodic boundary condition
+def periodically_continued(a, b):
+    interval = b - a
+    return lambda f: lambda x: f((x - a) % interval + a)
 
 def eps_circle(r, eps_bulk, cell_size_x=cell_size_x, cell_size_y=cell_size_y):
     # r = kwargs.get('r', 100)
@@ -16,9 +20,7 @@ def eps_circle(r, eps_bulk, cell_size_x=cell_size_x, cell_size_y=cell_size_y):
     r__2 = r**2
     half_cell_size_x = cell_size_x/2
     half_cell_size_y = cell_size_y/2
-    def periodically_continued(a, b):
-        interval = b - a
-        return lambda f: lambda x: f((x - a) % interval + a)
+
     @periodically_continued(0, cell_size_x)
     def _x(x_):
         return x_
@@ -39,7 +41,7 @@ def eps_circle(r, eps_bulk, cell_size_x=cell_size_x, cell_size_y=cell_size_y):
     #     return eps_
     eps = np.vectorize(eps)
     return eps
-eps = eps_circle(100, 3.34)
+eps = eps_circle(100, 3.1)
 # %%
 # draw a circle
 import matplotlib.pyplot as plt
@@ -73,31 +75,37 @@ def xi_func(eps_func, cell_size_x=cell_size_x, cell_size_y=cell_size_y, resoluti
 # print(xi[1,1])
 
 # %%
-r_ls = np.linspace(10, 140, 50)
+r_ls = np.linspace(0, cell_size_x/2, 50)
 kappa_1d_lst = []
 kappa_2d_lst = []
+kappa_0_lst = []
 for r in r_ls:
-    eps = eps_circle(r, 3.1)
+    eps = eps_circle(r, 3.3)
     xi_array = xi_func(eps)
     kappa_array = xi_array*0.3
-    kappa_1d_lst.append(xi_array[1, 0])
+    kappa_0_lst.append(xi_array[0, 0])
+    kappa_1d_lst.append(xi_array[2, 0])
     kappa_2d_lst.append(xi_array[1, 1])
 # %%
+kappa_0_array = np.array(kappa_0_lst)
+kappa_0_array_real = np.abs(kappa_0_array.real)
 kappa_1d_array = np.array(kappa_1d_lst)
 kappa_1d_array_real = np.abs(kappa_1d_array.real)
 kappa_2d_array = np.array(kappa_2d_lst)
 kappa_2d_array_real = np.abs(kappa_2d_array.real)
+r_a = r_ls/np.sqrt(cell_size_x*cell_size_y)
 FF = np.pi*r_ls**2/cell_size_x/cell_size_y
 x = FF
 
 fig, ax = plt.subplots()
-ax.plot(x_coords, kappa_1d_array_real, label='$\kappa_{1D}$')
-ax.plot(x_coords, kappa_2d_array_real, label='$\kappa_{2D}$')
-ax.set_xlabel('D/a')
+# ax.plot(x, kappa_0_array_real, label='$\kappa_{0}$')
+ax.plot(x, kappa_1d_array_real, label='$\kappa_{1D}$')
+ax.plot(x, kappa_2d_array_real, label='$\kappa_{2D}$')
+ax.set_xlabel('Filling Factor')
 ax.set_ylabel('$\kappa$')
 twinx = ax.twinx()
 kappa_2d_1d = kappa_2d_array_real/kappa_1d_array_real
-twinx.plot(x_coords, kappa_2d_1d, label='$\kappa_{2D}/\kappa_{1D}$', color='r')
+twinx.plot(x, kappa_2d_1d, label='$\kappa_{2D}/\kappa_{1D}$', linestyle='--', color='r')
 twinx.set_ylabel('$\kappa_{2D}/\kappa_{1D}$')
 twinx.spines['right'].set_color('red')
 plt.legend(ax.get_lines() + twinx.get_lines(), [line.get_label() for line in ax.get_lines()] + [line.get_label() for line in twinx.get_lines()])
@@ -105,7 +113,7 @@ plt.show()
 # %%
 # inverse Fourier transform
 z = np.fft.ifft2(xi_array)
-plt.imshow(z.real)
+plt.imshow(z.real*resolution**2)
 plt.colorbar()
 plt.show()
 # %%
