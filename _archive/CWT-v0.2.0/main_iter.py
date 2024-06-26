@@ -9,7 +9,7 @@ import scipy.integrate as si
 import matlab.engine
 eng_m = matlab.engine.start_matlab()
 
-import util
+import utils
 
 # %%
 a = 0.295
@@ -24,7 +24,7 @@ for order in order_lst:
     r = np.sqrt(FF*2)*a
     z_lst_raw = np.array([1.5,0.0885,0.1180,0.0590,1.5])
     eps_lst_raw = np.array([11.0224,12.8603,FF+(1-FF)*12.7449,12.7449,11.0224])
-    k0 = util.find_k0(beta_0, z_lst_raw, eps_lst_raw)[0]
+    k0 = utils.find_k0(beta_0, z_lst_raw, eps_lst_raw)[0]
     n_eff = beta_0/k0
     z_phc_min = 1.5 + 0.0885
     z_phc_max = 1.5 + 0.0885 + 0.1180
@@ -36,7 +36,7 @@ for order in order_lst:
 
 
     z_mesh_raw = np.linspace(0, np.sum(z_lst_raw), int(np.sum(z_lst_raw)//1e-3+1))
-    E_profile_raw = util.TMM_cal(k0, z_lst_raw, eps_lst_raw, beta_0).E_field(z_mesh_raw)[0]
+    E_profile_raw = utils.TMM_cal(k0, z_lst_raw, eps_lst_raw, beta_0).E_field(z_mesh_raw)[0]
     intensity_integral = si.trapz(np.abs(E_profile_raw)**2, z_mesh_raw)
     E_profile_norm = E_profile_raw/np.sqrt(intensity_integral)
 
