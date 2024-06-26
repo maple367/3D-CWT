@@ -1,2 +1,1 @@
-from .xi import xi_func
-from .kappa import kappa_func
+from ._collection import (xi_func, xi_func_DFT, kappa_func)
