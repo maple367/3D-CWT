@@ -40,7 +40,7 @@ class TMM():
         T_mat_s_01 = (1-coeff_s)*np.exp(-prime)/2
         T_mat_s_10 = (1-coeff_s)*np.exp(prime)/2
         T_mat_s_11 = (1+coeff_s)*np.exp(-prime)/2
-        self.T_mat_s = np.zeros((len(self.layer_thicknesses)-1,2,2)) # Must define the dtype, otherwise the default dtype is float64, which will cause error in assign complex number to float64.
+        self.T_mat_s = np.zeros((len(self.layer_thicknesses)-1,2,2), dtype=np.longcomplex) # Must define the dtype, otherwise the default dtype is float64, which will cause error in assign complex number to float64.
         self.T_mat_s[:,0,0] = T_mat_s_00
         self.T_mat_s[:,0,1] = T_mat_s_01
         self.T_mat_s[:,1,0] = T_mat_s_10
@@ -113,9 +113,6 @@ class TMM():
             self._construct_matrix(k0)
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
-        def t_11_func_k(k0):
-            self._construct_matrix(k0)
-            return np.abs(self.t_11)
         if self.k0_init is None:
             k0_min = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons).max())), dtype=np.longdouble) # k0 must be smaller than wave in highest epsilon medium
             k0_max = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons)[0])), dtype=np.longdouble) # k0 must be bigger than wave in cladding medium
@@ -124,12 +121,11 @@ class TMM():
         else:
             k0_init = self.k0_init
         k_sol = minimize(t_11_func_k_log, x0=k0_init, method='Nelder-Mead')
-        k_sol = minimize(t_11_func_k, x0=k_sol.x, method='Nelder-Mead')
         while k_sol.fun > -15.0 and self.find_modes_iter < 5:
             self.find_modes_iter += 1
             if k_sol.fun < -10.0:
                 self.k0_init = k_sol.x
-            warnings.warn(f't11 is larger than 1e-15 after {k_sol.nit} iter, t11 = {k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
+            warnings.warn(f't11 is larger than 1e-15 after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
             self.find_modes()
         self.k0 = k_sol.x
         self._construct_matrix(self.k0)
@@ -140,10 +136,8 @@ class TMM():
         e_amp_min_l = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[0], method='Nelder-Mead')
         e_amp_min_boundary_distance = min(np.abs(e_amp_min_r.x-self.z_boundary[-1]), np.abs(e_amp_min_l.x-self.z_boundary[0]))
         self._normlized_bd = e_amp_min_boundary_distance
-        print(f'Boundary distance: {self._normlized_bd}')
         e_amp_integral = quad(lambda z: np.square(np.real(self.e_amplitude(z)[0])), self.z_boundary[0]-self._normlized_bd, self.z_boundary[-1]+self._normlized_bd)
         self._normlized_constant = 1/e_amp_integral[0]
-        print(f'Normlized constant: {self._normlized_constant}')
 
     def __getattr__(self, name):
         if name == '_normlized_constant':

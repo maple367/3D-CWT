@@ -8,7 +8,7 @@ class eps_circle():
     The rectangular lattice with circular holes.
     The center of the circular hole is at the center of the cell.
     The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
-
+    The discontinuity of the dielectric constant has been optimized.
     Parameters
     ----------
     r : float
