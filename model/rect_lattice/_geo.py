@@ -2,67 +2,6 @@ import numpy as np
 from typing import Callable
 from .._boundary import _periodically_continued
 
-# air hole class
-class eps_circle():
-    """
-    The rectangular lattice with circular holes.
-    The center of the circular hole is at the center of the cell.
-    The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
-    The discontinuity of the dielectric constant has been optimized.
-    Parameters
-    ----------
-    r : float
-        The radius of the circular hole.
-    cell_size_x : float
-        The size of the cell in the x direction.
-    cell_size_y : float
-        The size of the cell in the y direction.
-    eps_bulk : float
-        The dielectric constant of the bulk material.
-    eps_hole : float
-        The dielectric constant of the hole. Default is 1.0 (air).
-
-    Returns
-    -------
-    out : class
-        call the class with x and y.
-        The class returns the dielectric constant distribution in the cell.
-    """
-    def __init__(self, rel_r, cell_size_x, cell_size_y, eps_bulk, eps_hole=1.0):
-        self.rel_r = rel_r
-        self.r = self.rel_r*np.sqrt(cell_size_x*cell_size_y)
-        r__2 = self.r**2
-        self.cell_size_x = cell_size_x
-        self.cell_size_y = cell_size_y
-        half_cell_size_x = cell_size_x/2
-        half_cell_size_y = cell_size_y/2
-        self.eps_bulk = eps_bulk
-        self.eps_hole = eps_hole
-        @_periodically_continued(0, cell_size_x)
-        def _x(x_):
-            return x_
-        @_periodically_continued(0, cell_size_y)
-        def _y(y_):
-            return y_
-        self._x = np.vectorize(_x)
-        self._y = np.vectorize(_y)
-        def eps(x_, y_): #TODO: Ctype call function to speedup
-            x_ = self._x(x_)
-            y_ = self._y(y_)
-            if (x_ - half_cell_size_x)**2 + (y_ - half_cell_size_y)**2 < r__2:
-                return eps_hole
-            else:
-                return eps_bulk
-        self.eps = np.vectorize(eps)
-    
-    def __call__(self, x, y):
-        return self.eps(x, y)
-    
-    def __getattr__(self, name: str):
-        if name == 'eps_type':
-            return 'circle'
-
-    
 class eps_userdefine():
     """
     The rectangular lattice with userdefine eps_func in one period.
@@ -87,6 +26,7 @@ class eps_userdefine():
         call the class with x and y.
         The class returns the dielectric constant distribution in the cell.
     """
+    eps_type = 'userdefine'
     def __init__(self, eps_func:Callable[[float,float], complex], cell_size_x, cell_size_y):
         self.eps_func = eps_func
         self.cell_size_x = cell_size_x
@@ -97,18 +37,85 @@ class eps_userdefine():
         @_periodically_continued(0, cell_size_y)
         def _y(y_):
             return y_
-        self._x = np.vectorize(_x)
-        self._y = np.vectorize(_y)
-        def eps(x_, y_):
-            x_ = self._x(x_)
-            y_ = self._y(y_)
-            eps_val = self.eps_func(x_, y_)
-            return eps_val
-        self.eps = np.vectorize(eps)
+        self._x = _x
+        self._y = _y
+        x_mesh = np.linspace(0, self.cell_size_x, 2**10+1)
+        y_mesh = np.linspace(0, self.cell_size_y, 2**10+1)
+        XX, YY = np.meshgrid(x_mesh, y_mesh)
+        eps_array = self.eps(XX, YY)
+        self.avg_eps = np.mean(eps_array)
+
+    def eps(self, x, y):
+        x = self._x(x)
+        y = self._y(y)
+        return self.eps_func(x, y)
     
     def __call__(self, x, y):
         return self.eps(x, y)
     
     def __getatt__(self, name: str):
-        if name == 'eps_type':
-            return 'userdefine'
+        if name == 'FF':
+            print('The FF is not supported in eps_userdefine.')
+            return None
+        
+    def __repr__(self):
+        return f"eps_class({self.eps_type}: {self.eps_func}, {self.cell_size_x}, {self.cell_size_y}, id: {id(self)})"
+    
+    def __len__(self):
+        return 1
+
+
+# air hole class
+class eps_circle(eps_userdefine):
+    """
+    The rectangular lattice with circular holes.
+    The center of the circular hole is at the center of the cell.
+    The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
+    The discontinuity of the dielectric constant has been optimized.
+    Parameters
+    ----------
+    r : float
+        The radius of the circular hole.
+    cell_size_x : float
+        The size of the cell in the x direction.
+    cell_size_y : float
+        The size of the cell in the y direction.
+    eps_bulk : float
+        The dielectric constant of the bulk material.
+    eps_hole : float
+        The dielectric constant of the hole. Default is 1.0 (air).
+
+    Returns
+    -------
+    out : class
+        call the class with x and y.
+        The class returns the dielectric constant distribution in the cell.
+    """
+    eps_func = None
+    def __init__(self, rel_r, cell_size_x, cell_size_y, eps_bulk, eps_hole=1.0):
+        self.rel_r = rel_r
+        self.r = self.rel_r*np.sqrt(cell_size_x*cell_size_y)
+        self.cell_size_x = cell_size_x
+        self.cell_size_y = cell_size_y
+        self.eps_bulk = eps_bulk
+        self.eps_hole = eps_hole
+        @_periodically_continued(0, cell_size_x)
+        def _x(x_):
+            return x_
+        @_periodically_continued(0, cell_size_y)
+        def _y(y_):
+            return y_
+        self._x = _x
+        self._y = _y
+        self.eps_type = 'circle'
+        self.FF = np.pi*self.rel_r**2
+        self.avg_eps = self.eps_bulk*(1-self.FF) + self.eps_hole*self.FF
+
+    def eps(self, x, y):
+        x = self._x(x)
+        y = self._y(y)
+        r__2 = self.r**2
+        return np.where((x - self.cell_size_x/2)**2 + (y - self.cell_size_y/2)**2 < r__2, self.eps_hole, self.eps_bulk)
+    
+    def __call__(self, x, y):
+        return self.eps(x, y)

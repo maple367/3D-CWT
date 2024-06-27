@@ -2,6 +2,8 @@ import numpy as np
 from scipy.optimize import Bounds, dual_annealing, minimize, direct
 from scipy.integrate import quad
 import warnings
+from model.rect_lattice import eps_userdefine
+vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
 
 class TMM():
     """
@@ -31,6 +33,8 @@ class TMM():
         self.epsilons = np.array(epsilons, dtype=np.longcomplex)
         self.beta = np.array(beta, dtype=np.longcomplex)
         self.z_boundary = np.insert(np.cumsum(self.layer_thicknesses), 0, 0) # the z position of the boundary of each layer
+        self._z_boundary_without_lb = self.z_boundary[1:]
+        self._len_z_boundary = len(self.z_boundary)
 
     def _construct_matrix(self, k0):
         self.gamma_s = np.sqrt(np.square(self.beta)-np.square(k0)*self.epsilons)
@@ -75,11 +79,14 @@ class TMM():
         out : int
             The index of the layer.
         """
-        z_s = self.z_boundary[1:]
-        for i in range(len(z_s)):
-            if z < z_s[i]:
-                break
-        return i
+        __find_layer = np.vectorize(self.__find_layer)
+        return __find_layer(z)
+    
+    def __find_layer(self, z):
+        i = 0
+        while z >= self._z_boundary_without_lb[i] and i <= self._len_z_boundary-3:
+            i += 1
+        return i  
     
     def e_amplitude(self, z):
         """
@@ -154,4 +161,105 @@ class TMM():
         return: the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
         """
         return self.e_normlized_intensity(z)
+    
 
+class model_parameters():
+    """
+    Parameters
+    ----------
+    layer : tuple[list[float],list[complex|eps_userdefine]]
+        The layer information of the model.
+        The first element is the thickness of each layer.
+        The second element is the dielectric constant of each layer. If the dielectric constant is eps_userdefine, the cell size of the eps_userdefine must be the same.
+    **kwargs : dict
+        The other parameters of the model.
+
+    Returns
+    -------
+    out : class
+        The model parameters.
+    """
+    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine]], **kwargs):
+        self.layer_thicknesses = np.array(layer[0])
+        self.epsilons = np.array(layer[1])
+        self.kwargs = kwargs
+        self._check_para()
+        self.beta = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
+        self._gen_avg_eps()
+
+    def _check_para(self):
+        cellsize_x = []
+        cellsize_y = []
+        for _ in self.epsilons:
+            if isinstance(_, eps_userdefine):
+                cellsize_x.append(_.cell_size_x)
+                cellsize_y.append(_.cell_size_y)
+        print(cellsize_x)
+        if len(set(cellsize_x)) == 0: raise ValueError("At least one eps_userdefine is needed in epsilons.")
+        assert len(set(cellsize_x)) == 1, 'The cellsize_x of eps_userdefine must be the same.'
+        assert len(set(cellsize_y)) == 1, 'The cellsize_y of eps_userdefine must be the same.'
+        self.cellsize_x = cellsize_x[0]
+        self.cellsize_y = cellsize_y[0]
+
+    def _gen_avg_eps(self):
+        avg_eps = []
+        for _ in self.epsilons:
+            if isinstance(_, eps_userdefine):
+                avg_eps.append(_.avg_eps)
+            else:
+                avg_eps.append(_)
+        self.avg_epsilons = np.array(avg_eps)
+
+class Model():
+    """
+    TODO
+    """
+    def __init__(self, paras:model_parameters):
+        self.paras = paras
+        self.tmm = TMM(paras.layer_thicknesses, paras.avg_epsilons, paras.beta, paras.kwargs.get('k0_init', None))
+        self.tmm.find_modes()
+        self.k0 = self.tmm.k0
+
+    def e_profile(self, z):
+        return self.tmm(z)
+    
+    def eps_profile(self, x=None, y=None, z=None):
+        if z is None:
+            raise RuntimeError('z could not be None.')
+        if (x is None) or (y is None):
+            return self.__eps_profile_z(z=z)
+        x = np.array(x, dtype=np.longdouble)
+        y = np.array(y, dtype=np.longdouble)
+        z = np.array(z, dtype=np.longdouble)
+        if x.shape != y.shape:
+            raise ValueError('The shape of x, y must be the same.')
+        return self.__eps_profile(x, y, z)
+
+    def __eps_profile(self, x, y, z):
+        num_layer = self.tmm._find_layer(z)
+        eps = self.paras.epsilons[num_layer]
+        is_eps_userdefine = vectorize_isinstance(eps, eps_userdefine)
+        eps_array = np.empty_like(z, dtype=object)
+        for i in range(len(z)):
+            if is_eps_userdefine[i]:
+                eps_array[i] = eps[i](x, y)
+            else:
+                eps_array[i] = np.ones_like(x)*eps[i]
+        return eps_array
+    
+    def __eps_profile_z(self, z):
+        num_layer = self.tmm._find_layer(z)
+        return self.paras.avg_epsilons[num_layer]
+    
+    def is_in_phc(self, z):
+        def _is_in_phc(z):
+            num_layer = self.tmm._find_layer(z)
+            if isinstance(self.paras.epsilons[num_layer], eps_userdefine):
+                return True
+            else:
+                return False
+        _is_in_phc = np.vectorize(_is_in_phc)
+        return _is_in_phc(z)  
+
+    def __call__(self, x=None, y=None, z=None):
+        return self.eps_profile(x, y, z)
