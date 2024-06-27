@@ -2,7 +2,7 @@ first_run = True
 # %%
 import model
 import coeff_func
-from model.layers import TMM
+from model._Model import TMM
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,13 +33,13 @@ if first_run:
 # calculate Fourier coefficients in different methods
 # step 1: define the calculation class
 
-xi_dft = coeff_func.xi_func_DFT(eps_func, resolution)
-xi_trapz = coeff_func.xi_func(eps_func, method='dbltrapezoid', resolution=resolution)
-xi_simps = coeff_func.xi_func(eps_func, method='dblsimpson', resolution=resolution)
-xi_romb = coeff_func.xi_func(eps_func, method='dblromb', resolution=resolution)
-xi_qmc_quad = coeff_func.xi_func(eps_func, method='dblqmc_quad', n_points=resolution)
+xi_dft = coeff_func.xi_calculator_DFT(eps_func, resolution)
+xi_trapz = coeff_func.xi_calculator(eps_func, method='dbltrapezoid', resolution=resolution)
+xi_simps = coeff_func.xi_calculator(eps_func, method='dblsimpson', resolution=resolution)
+xi_romb = coeff_func.xi_calculator(eps_func, method='dblromb', resolution=resolution)
+xi_qmc_quad = coeff_func.xi_calculator(eps_func, method='dblqmc_quad', n_points=resolution)
 if first_run: # dblquad is too slow, only run when necessary
-    xi_quad = coeff_func.xi_func(eps_func, method='dblquad', epsabs=1e-15, epsrel=1e-6)
+    xi_quad = coeff_func.xi_calculator(eps_func, method='dblquad', epsabs=1e-15, epsrel=1e-6)
 # %%
 # step 2: visualize the Fourier coefficients
 # Timeit

@@ -4,10 +4,14 @@ from scipy.integrate import quad
 import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
+from coeff_func import xi_calculator
+from coeff_func import _dblquad_complex as dblquad_complex
+
 
 class TMM():
     """
     Use TMM method to calculate the electrical field distribution of fundamental mode in a multilayer planar waveguide.
+
     Parameters
     ----------
     k0 : float, complex
@@ -194,7 +198,6 @@ class model_parameters():
             if isinstance(_, eps_userdefine):
                 cellsize_x.append(_.cell_size_x)
                 cellsize_y.append(_.cell_size_y)
-        print(cellsize_x)
         if len(set(cellsize_x)) == 0: raise ValueError("At least one eps_userdefine is needed in epsilons.")
         assert len(set(cellsize_x)) == 1, 'The cellsize_x of eps_userdefine must be the same.'
         assert len(set(cellsize_y)) == 1, 'The cellsize_y of eps_userdefine must be the same.'
@@ -212,13 +215,23 @@ class model_parameters():
 
 class Model():
     """
-    TODO
+    Parameters
+    ----------
+    paras : class model_parameters
+        The model parameters.
+
+    Returns
+    -------
+    out : class callable
+        x, y, z : the position. When called, return epsilon. If not given x, y, average epsilon is return.
     """
     def __init__(self, paras:model_parameters):
         self.paras = paras
         self.tmm = TMM(paras.layer_thicknesses, paras.avg_epsilons, paras.beta, paras.kwargs.get('k0_init', None))
         self.tmm.find_modes()
         self.k0 = self.tmm.k0
+        self.beta0 = self.tmm.beta
+        self.prepare_calculator()
 
     def e_profile(self, z):
         return self.tmm(z)
@@ -263,3 +276,28 @@ class Model():
 
     def __call__(self, x=None, y=None, z=None):
         return self.eps_profile(x, y, z)
+    
+    def prepare_calculator(self):
+        xi_class_collect = []
+        for _ in self.paras.epsilons:
+            if isinstance(_, eps_userdefine):
+                xi_class_collect.append(xi_calculator(_))
+    
+    def Green_func_fundamental(self, z, z_prime):
+        # Approximatly Green function
+        return -1j/(2*self.beta_z_func_fundamental(z))*np.exp(-1j*self.beta_z_func_fundamental(z)*np.abs(z-z_prime))
+    
+    def beta_z_func_fundamental(self, z):
+        return self.k0*self.__eps_profile_z(z)
+    
+    def Green_func_higher_order(self, z, z_prime, order):
+        # Approximatly Green function of higher order
+        return -1j/(2*self.beta_z_func_higher_order(z, order))*np.exp(-1j*self.beta_z_func_higher_order(z, order)*np.abs(z-z_prime))
+    
+    def beta_z_func_higher_order(self, z, order):
+        # TODO: Check the formula. The formulas may be in the wrong order.
+        m, n = order
+        return np.sqrt( (np.square(m)+np.square(n))*np.square(self.beta0) - np.square(self.beta_z_func_fundamental(z)) )
+    
+    def mu_func(self, m, n, r, s):
+        
