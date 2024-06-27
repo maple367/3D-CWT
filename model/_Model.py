@@ -1,11 +1,11 @@
 import numpy as np
 from scipy.optimize import Bounds, dual_annealing, minimize, direct
-from scipy.integrate import quad
 import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
 from coeff_func import xi_calculator
 from coeff_func import _dblquad_complex as dblquad_complex
+from coeff_func import _quad_complex as quad_complex
 
 
 class TMM():
@@ -116,6 +116,15 @@ class TMM():
         e_intensity = np.square(np.abs(e_amp))*self._normlized_constant
         return e_intensity, eps
     
+    def e_normlized_amplitude(self, z):
+        """
+        z: the position of the field, the z = 0 is the boundary of the first layer
+        return: the E field normlized amplitude. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
+        """
+        e_amp, eps = self.e_amplitude(z)
+        e_norm_amp = e_amp*np.sqrt(self._normlized_constant)
+        return e_norm_amp, eps
+    
     def find_modes(self):
         """
         return: the k0 of the mode
@@ -143,6 +152,7 @@ class TMM():
         self._cal_normlized_constant()
 
     def _cal_normlized_constant(self):
+        from scipy.integrate import quad
         e_amp_min_r = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[-1], method='Nelder-Mead')
         e_amp_min_l = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[0], method='Nelder-Mead')
         e_amp_min_boundary_distance = min(np.abs(e_amp_min_r.x-self.z_boundary[-1]), np.abs(e_amp_min_l.x-self.z_boundary[0]))
@@ -278,10 +288,13 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self):
-        xi_class_collect = []
+        self.xi_calculator_collect = []
         for _ in self.paras.epsilons:
             if isinstance(_, eps_userdefine):
-                xi_class_collect.append(xi_calculator(_))
+                self.xi_calculator_collect.append(xi_calculator(_))
+            else:
+                self.xi_calculator_collect.append(None)
+        
     
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
@@ -299,5 +312,16 @@ class Model():
         m, n = order
         return np.sqrt( (np.square(m)+np.square(n))*np.square(self.beta0) - np.square(self.beta_z_func_fundamental(z)) )
     
-    def mu_func(self, m, n, r, s):
-        
+    def xi_z_func(self, z, order):
+        m, n = order
+        i = self.tmm._find_layer(z)
+        if self.xi_calculator_collect[i] is not None:
+            return self.xi_calculator_collect[i][order]
+        else:
+            return 0+0j
+
+    def mu_func(self, index):
+        m, n, r, s = index
+        def integrated_func(z, z_prime):
+            return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
+        return 1/np.square(self.k0)*dblquad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
