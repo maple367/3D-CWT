@@ -1,11 +1,10 @@
 import numpy as np
 from scipy.optimize import Bounds, dual_annealing, minimize, direct
+from scipy.integrate import quad
 import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
-from coeff_func import xi_calculator, Array_calculator
-from coeff_func import _dblquad_complex as dblquad_complex
-from coeff_func import _quad_complex as quad_complex
+from coeff_func import xi_calculator, Array_calculator, integral_method
 
 
 class TMM():
@@ -83,29 +82,22 @@ class TMM():
         out : int
             The index of the layer.
         """
-        __find_layer = np.vectorize(self.__find_layer)
-        return __find_layer(z)
-    
-    def __find_layer(self, z):
-        i = 0
-        while z >= self._z_boundary_without_lb[i] and i <= self._len_z_boundary-3:
-            i += 1
-        return i  
+        res = np.searchsorted(self._z_boundary_without_lb, z, side='right')
+        return np.where(z >= self._z_boundary_without_lb[-1], self._len_z_boundary-2, res)
     
     def e_amplitude(self, z):
         """
         z: the position of the field, the z = 0 is the boundary of the first layer
         return: the E field amplitude
         """
-        def _e_amplitude(z):
-            i = self._find_layer(z)
-            V = self.V_s[i].flatten()
-            z_b = self.z_boundary[i]
-            e_amp = V[0]*np.exp(self.gamma_s[i]*(z-z_b))+V[1]*np.exp(-self.gamma_s[i]*(z-z_b))
-            eps = self.epsilons[i]
-            return e_amp, eps
-        _e_amplitude = np.vectorize(_e_amplitude)
-        return _e_amplitude(z)
+        i = self._find_layer(z)
+        V = self.V_s_flatten[i]
+        z_b = self.z_boundary[i]
+        V_0 = np.take(V,0,axis=-1)
+        V_1 = np.take(V,1,axis=-1)
+        e_amp = V_0*np.exp(self.gamma_s[i]*(z-z_b))+V_1*np.exp(-self.gamma_s[i]*(z-z_b))
+        eps = self.epsilons[i]
+        return e_amp, eps
     
     def e_normlized_intensity(self, z):
         """
@@ -150,9 +142,9 @@ class TMM():
         self.k0 = k_sol.x
         self._construct_matrix(self.k0)
         self._cal_normlized_constant()
+        self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
 
     def _cal_normlized_constant(self):
-        from scipy.integrate import quad
         e_amp_min_r = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[-1], method='Nelder-Mead')
         e_amp_min_l = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[0], method='Nelder-Mead')
         e_amp_min_boundary_distance = min(np.abs(e_amp_min_r.x-self.z_boundary[-1]), np.abs(e_amp_min_l.x-self.z_boundary[0]))
@@ -168,6 +160,9 @@ class TMM():
                 warnings.warn('The normlized constant is not calculated yet, because find_modes is not called.')
                 print('Force calculate normlized constant now...')
                 self._cal_normlized_constant()
+        elif name == 'V_s_flatten':
+            self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
+            return self.V_s_flatten
 
     def __call__(self, z):
         """
@@ -242,6 +237,8 @@ class Model():
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
         self.prepare_calculator()
+        self.integrated_func_2d = integral_method(3, method='dbltrapezoid')()
+        self.integrated_func_1d = integral_method(3, method='quad')()
 
     def e_profile(self, z):
         return self.tmm(z)
@@ -288,17 +285,28 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self):
-        # Detect the boundary of the eps_userdefine
+        # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are cont
+        self.phc_boundary = []
+        for i in range(len(self.paras.epsilons)):
+            if isinstance(self.paras.epsilons[i], eps_userdefine):
+                self.phc_boundary.append(self.tmm.z_boundary[i])
+                self.phc_boundary.append(self.tmm.z_boundary[i+1])
+        self.phc_boundary = np.array(self.phc_boundary)
+        self.phc_boundary.sort()
+        self.gamma_phc = quad(lambda z: self.tmm.e_normlized_intensity(z)[0], self.phc_boundary[0], self.phc_boundary[-1])[0]
         self.xi_calculator_collect = []
         for _ in self.paras.epsilons:
             if isinstance(_, eps_userdefine):
                 self.xi_calculator_collect.append(xi_calculator(_))
             else:
                 self.xi_calculator_collect.append(None)
+        self.xi_calculator_collect = np.array(self.xi_calculator_collect)
         self.mu_calculator = Array_calculator(self._mu_func, notes='mu(index=(m,n,r,s))')
         self.nu_calculator = Array_calculator(self._nu_func, notes='nu(index=(m,n,r,s))')
         self.varsigma_matrix_calculator = Array_calculator(self._varsigma_matrix_func, notes='varsigma_matrix(index=(m,n))')
-    
+        self.zeta_calculator = Array_calculator(self._zeta_func, notes='zeta(index=(p,q,r,s))')
+        self.kappa_calculator = Array_calculator(self._kappa_func, notes='kappa(index=(m,n))')
+
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
         return -1j/(2*self.beta_z_func_fundamental(z))*np.exp(-1j*self.beta_z_func_fundamental(z)*np.abs(z-z_prime))
@@ -317,22 +325,29 @@ class Model():
     
     def xi_z_func(self, z, order):
         i = self.tmm._find_layer(z)
-        if self.xi_calculator_collect[i] is not None:
-            return self.xi_calculator_collect[i][order]
-        else:
-            return 0+0j
+        xi_calculator_i = self.xi_calculator_collect[i]
+        order1, order2 = order
+        def process_element(elem,order1,order2):
+            if elem:
+                return elem[order1,order2]
+            else:
+                return 0 + 0j
+        vectorized_process = np.vectorize(process_element)
+        xi_calculator_i = vectorized_process(xi_calculator_i,order1,order2)
+        return xi_calculator_i
+
 
     def _mu_func(self, order):
         m, n, r, s = order
         def integrated_func(z, z_prime):
             return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
-        return 1/np.square(self.k0)*dblquad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
+        return 1/np.square(self.k0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
     
     def _nu_func(self, order):
         m, n, r, s = order
         def integrated_func(z):
             return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)[0]
-        return -quad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
+        return -self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])[0]
     
     def _varsigma_matrix_func(self, order):
         m, n = order
@@ -342,7 +357,6 @@ class Model():
                          [n*self.nu_calculator[m,n,1,0], n*self.nu_calculator[m,n,-1,0], m*self.nu_calculator[m,n,0,1], m*self.nu_calculator[m,n,0,-1]]])
         return 1/(np.square(m)+np.square(n))*np.dot(mat1, mat2)
     
-    r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
     def get_varsigma(self, order, direction:str):
         m, n, r, s = order
         r_s_order = np.where(self.r_s_order_ref == (r,s))
@@ -353,8 +367,51 @@ class Model():
         else:
             raise ValueError('direction must be x or y.')
         
-    def _xi_func(self, order):
+    def _zeta_func(self, order):
         p, q, r, s = order
         def integrated_func(z, z_prime):
             return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
-        return -np.square(np.square(self.k0))/(2*self.beta0)*dblquad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
+        return -np.square(np.square(self.k0))/(2*self.beta0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
+    
+    def _chi_func(self, order, direction:str):
+        cut_off = self._cut_off
+        p, q, r, s = order
+        def sumed_func(m, n): # TODO: Check the formula. The formulas may be wrong in integration.
+            return self.xi_calculator_collect[2][p-m,q-n]*self.get_varsigma((m,n,r,s), direction)
+        sumed_func = np.vectorize(sumed_func)
+        m_mesh = np.arange(-cut_off, cut_off+1)
+        n_mesh = np.arange(-cut_off, cut_off+1)
+        MM, NN = np.meshgrid(m_mesh, n_mesh)
+        sum_array = sumed_func(MM.flatten(), NN.flatten())
+        return  np.sum(sum_array)
+    
+    def _kappa_func(self, order):
+        m, n = order
+        return -np.square(self.k0)/(2*self.beta0)*self.integrated_func_1d(lambda z: self.xi_z_func(z,(m,n))*self.tmm.e_normlized_intensity(z)[0], self.phc_boundary[0], self.phc_boundary[-1])[0]
+    
+    def cal_coupling_martix(self, cut_off=10):
+        self._cut_off = cut_off
+        kappa = self.kappa_calculator
+        zeta = self.zeta_calculator
+        chi = self._chi_func
+        C_mat_1D = np.array([[0, kappa[2,0], 0, 0],
+                              [kappa[-2,0], 0, 0, 0],
+                              [0, 0, 0, kappa[0,2]],
+                              [0, 0, kappa[0,-2], 0]])
+        C_mat_rad = np.array([[zeta[1,0,1,0], zeta[1,0,-1,0], 0, 0],
+                              [zeta[-1,0,1,0], zeta[-1,0,-1,0], 0, 0],
+                              [0, 0, zeta[0,1,0,1], zeta[0,1,0,-1]],
+                              [0, 0, zeta[0,-1,0,1], zeta[0,-1,0,-1]]])
+        C_mat_2D = np.array([[chi((1,0,1,0),'y'), chi((1,0,-1,0),'y'), chi((1,0,0,1),'y'), chi((1,0,0,-1),'y')],
+                             [chi((-1,0,1,0),'y'), chi((-1,0,-1,0),'y'), chi((-1,0,0,1),'y'), chi((-1,0,0,-1),'y')],
+                             [chi((0,1,1,0),'x'), chi((0,1,-1,0),'x'), chi((0,1,0,1),'x'), chi((0,1,0,-1),'x')],
+                             [chi((0,-1,1,0),'x'), chi((0,-1,-1,0),'x'), chi((0,-1,0,1),'x'), chi((0,-1,0,-1),'x')]])
+        self.C_mats = {'1D':C_mat_1D, 'rad':C_mat_rad, '2D':C_mat_2D}
+
+    def __getattr__(self, name):
+        if name == '_cut_off':
+            self._cut_off = 10
+            return self._cut_off
+        if name == 'r_s_order_ref':
+            self.r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
+            return self.r_s_order_ref

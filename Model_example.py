@@ -45,6 +45,7 @@ for FF in FF_lst:
     cb.ax.xaxis.set_ticks_position('top')
     cb.ax.xaxis.set_label_position('top')
     plt.show()
+    # pcsel_model.cal_coupling_martix(3)
 # %%
 def func_model():
     XX, YY = np.meshgrid(x_mesh, y_mesh)
@@ -70,4 +71,32 @@ with cProfile.Profile() as pr:
         pstats.Stats( pr, stream=f ).strip_dirs().sort_stats("cumtime").print_stats()
 
 # Optimized speed
+# %%
+with cProfile.Profile() as pr:
+    pcsel_model.zeta_calculator((1,0,1,0))
+    with open( './__speed_test__/cal_test.txt', 'w' ) as f:
+        sortkey = SortKey.TIME
+        pstats.Stats( pr, stream=f ).strip_dirs().sort_stats("cumtime").print_stats()
+
+# %%
+def __find_layer(z):
+    i = 0
+    while z >= pcsel_model.tmm._z_boundary_without_lb[i] and i <= pcsel_model.tmm._len_z_boundary-3:
+        i += 1
+    return i
+find_layer = np.vectorize(__find_layer)
+
+def find_layer_np(z):
+    res = np.searchsorted(pcsel_model.tmm._z_boundary_without_lb, z, side='right')
+    return np.where(z >= pcsel_model.tmm._z_boundary_without_lb[-1], pcsel_model.tmm._len_z_boundary-2, res)
+
+import random
+sample_points = np.array([random.Random().random()*4-0.3 for i in range(5000)])
+sample_points = [1.5   , 1.5885, 1.7065, 1.7655, 3.2655]
+sample_points = 1.6
+print(find_layer(sample_points))
+print(find_layer_np(sample_points))
+(find_layer(sample_points) == find_layer_np(sample_points)).all()
+# %timeit find_layer(sample_points)
+# %timeit find_layer_np(sample_points)
 # %%

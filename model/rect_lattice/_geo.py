@@ -1,4 +1,5 @@
 import numpy as np
+import numba as nb
 from typing import Callable
 from .._boundary import _periodically_continued
 
@@ -95,8 +96,11 @@ class eps_circle(eps_userdefine):
     def __init__(self, rel_r, cell_size_x, cell_size_y, eps_bulk, eps_hole=1.0):
         self.rel_r = rel_r
         self.r = self.rel_r*np.sqrt(cell_size_x*cell_size_y)
+        self.r__2 = self.r**2
         self.cell_size_x = cell_size_x
         self.cell_size_y = cell_size_y
+        self.half_cell_size_x = cell_size_x/2
+        self.half_cell_size_y = cell_size_y/2
         self.eps_bulk = eps_bulk
         self.eps_hole = eps_hole
         @_periodically_continued(0, cell_size_x)
@@ -114,8 +118,7 @@ class eps_circle(eps_userdefine):
     def eps(self, x, y):
         x = self._x(x)
         y = self._y(y)
-        r__2 = self.r**2
-        return np.where((x - self.cell_size_x/2)**2 + (y - self.cell_size_y/2)**2 < r__2, self.eps_hole, self.eps_bulk)
+        return np.where((x - self.half_cell_size_x)**2 + (y - self.half_cell_size_y)**2 < self.r__2, self.eps_hole, self.eps_bulk)
     
     def __call__(self, x, y):
         return self.eps(x, y)
