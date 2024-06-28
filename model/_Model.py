@@ -294,7 +294,8 @@ class Model():
                 self.xi_calculator_collect.append(xi_calculator(_))
             else:
                 self.xi_calculator_collect.append(None)
-        # self.mu_calculator = Array_calculator(self)
+        self.mu_calculator = Array_calculator(self.mu_func, notes='mu(index=(m,n,r,s))')
+        self.nu_calculator = Array_calculator(self.nu_func, notes='nu(index=(m,n,r,s))')
         
     
     def Green_func_fundamental(self, z, z_prime):
