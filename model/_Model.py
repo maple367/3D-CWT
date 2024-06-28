@@ -288,15 +288,16 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self):
+        # Detect the boundary of the eps_userdefine
         self.xi_calculator_collect = []
         for _ in self.paras.epsilons:
             if isinstance(_, eps_userdefine):
                 self.xi_calculator_collect.append(xi_calculator(_))
             else:
                 self.xi_calculator_collect.append(None)
-        self.mu_calculator = Array_calculator(self.mu_func, notes='mu(index=(m,n,r,s))')
-        self.nu_calculator = Array_calculator(self.nu_func, notes='nu(index=(m,n,r,s))')
-        
+        self.mu_calculator = Array_calculator(self._mu_func, notes='mu(index=(m,n,r,s))')
+        self.nu_calculator = Array_calculator(self._nu_func, notes='nu(index=(m,n,r,s))')
+        self.varsigma_matrix_calculator = Array_calculator(self._varsigma_matrix_func, notes='varsigma_matrix(index=(m,n))')
     
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
@@ -315,22 +316,45 @@ class Model():
         return np.sqrt( (np.square(m)+np.square(n))*np.square(self.beta0) - np.square(self.beta_z_func_fundamental(z)) )
     
     def xi_z_func(self, z, order):
-        m, n = order
         i = self.tmm._find_layer(z)
         if self.xi_calculator_collect[i] is not None:
             return self.xi_calculator_collect[i][order]
         else:
             return 0+0j
 
-    def mu_func(self, index):
-        m, n, r, s = index
+    def _mu_func(self, order):
+        m, n, r, s = order
         def integrated_func(z, z_prime):
             return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
         return 1/np.square(self.k0)*dblquad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
     
-    def nu_func(self, index):
-        m, n, r, s = index
+    def _nu_func(self, order):
+        m, n, r, s = order
         def integrated_func(z):
             return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)[0]
         return -quad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
     
+    def _varsigma_matrix_func(self, order):
+        m, n = order
+        mat1 = np.array([[n, m],
+                         [-m, n]])
+        mat2 = np.array([[-m*self.mu_calculator[m,n,1,0], -m*self.mu_calculator[m,n,-1,0], n*self.mu_calculator[m,n,0,1], n*self.mu_calculator[m,n,0,-1]],
+                         [n*self.nu_calculator[m,n,1,0], n*self.nu_calculator[m,n,-1,0], m*self.nu_calculator[m,n,0,1], m*self.nu_calculator[m,n,0,-1]]])
+        return 1/(np.square(m)+np.square(n))*np.dot(mat1, mat2)
+    
+    r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
+    def get_varsigma(self, order, direction:str):
+        m, n, r, s = order
+        r_s_order = np.where(self.r_s_order_ref == (r,s))
+        if direction == 'x':
+            return self.varsigma_matrix_calculator((m,n))[0][r_s_order]
+        elif direction == 'y':
+            return self.varsigma_matrix_calculator((m,n))[1][r_s_order]
+        else:
+            raise ValueError('direction must be x or y.')
+        
+    def _xi_func(self, order):
+        p, q, r, s = order
+        def integrated_func(z, z_prime):
+            return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
+        return -np.square(np.square(self.k0))/(2*self.beta0)*dblquad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]

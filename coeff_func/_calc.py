@@ -199,6 +199,10 @@ class Array_calculator():
             self.array[index] = self._cal(index)
             return self.array[index]
         
+    def __call__(self, index):
+        """Allow the object to be called directly. Not recommanded to use this method."""
+        return self.__getitem__(index)
+        
     def __len__(self):
         return len(self.array)
         

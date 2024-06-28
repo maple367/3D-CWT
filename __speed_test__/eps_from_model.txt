@@ -1,18 +1,18 @@
-         134 function calls in 0.014 seconds
+         134 function calls in 0.011 seconds
 
    Ordered by: cumulative time
 
    ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-        1    0.000    0.000    0.014    0.014 <ipython-input-4-82034a023886>:2(func_model)
-        1    0.000    0.000    0.013    0.013 _Model.py:248(eps_profile)
-        1    0.000    0.000    0.012    0.012 _Model.py:260(__eps_profile)
-        1    0.000    0.000    0.012    0.012 _geo.py:120(__call__)
-        1    0.005    0.005    0.011    0.011 _geo.py:114(eps)
+        1    0.000    0.000    0.011    0.011 <ipython-input-12-82034a023886>:2(func_model)
+        1    0.000    0.000    0.010    0.010 _Model.py:249(eps_profile)
+        1    0.000    0.000    0.010    0.010 _Model.py:261(__eps_profile)
+        1    0.000    0.000    0.009    0.009 _geo.py:120(__call__)
+        1    0.003    0.003    0.009    0.009 _geo.py:114(eps)
         2    0.007    0.003    0.007    0.003 _boundary.py:4(<lambda>)
         1    0.000    0.000    0.001    0.001 function_base.py:5011(meshgrid)
-        7    0.001    0.000    0.001    0.000 {built-in method numpy.array}
         1    0.000    0.000    0.001    0.001 function_base.py:5164(<listcomp>)
         2    0.001    0.000    0.001    0.000 {method 'copy' of 'numpy.ndarray' objects}
+        7    0.001    0.000    0.001    0.000 {built-in method numpy.array}
         1    0.000    0.000    0.000    0.000 interactiveshell.py:301(_modified_open)
         1    0.000    0.000    0.000    0.000 {built-in method io.open}
         2    0.000    0.000    0.000    0.000 function_base.py:2367(__call__)
@@ -23,52 +23,52 @@
         1    0.000    0.000    0.000    0.000 stride_tricks.py:480(broadcast_arrays)
         1    0.000    0.000    0.000    0.000 stride_tricks.py:546(<listcomp>)
         2    0.000    0.000    0.000    0.000 stride_tricks.py:340(_broadcast_to)
-        1    0.000    0.000    0.000    0.000 function_base.py:2285(__init__)
         1    0.000    0.000    0.000    0.000 pstats.py:108(__init__)
+        1    0.000    0.000    0.000    0.000 function_base.py:2285(__init__)
         1    0.000    0.000    0.000    0.000 pstats.py:118(init)
+        1    0.000    0.000    0.000    0.000 pstats.py:137(load_stats)
         1    0.000    0.000    0.000    0.000 function_base.py:5151(<listcomp>)
-        7    0.000    0.000    0.000    0.000 {built-in method numpy.asanyarray}
         2    0.000    0.000    0.000    0.000 {built-in method numpy.frompyfunc}
         5    0.000    0.000    0.000    0.000 {built-in method numpy.asarray}
+        7    0.000    0.000    0.000    0.000 {built-in method numpy.asanyarray}
         2    0.000    0.000    0.000    0.000 function_base.py:2356(func)
-        1    0.000    0.000    0.000    0.000 pstats.py:137(load_stats)
         2    0.000    0.000    0.000    0.000 function_base.py:2404(<listcomp>)
-        2    0.000    0.000    0.000    0.000 function_base.py:2453(<listcomp>)
         1    0.000    0.000    0.000    0.000 stride_tricks.py:416(_broadcast_shape)
+        2    0.000    0.000    0.000    0.000 function_base.py:2453(<listcomp>)
         2    0.000    0.000    0.000    0.000 function_base.py:2433(<listcomp>)
-        4    0.000    0.000    0.000    0.000 {built-in method builtins.any}
-        3    0.000    0.000    0.000    0.000 function_base.py:348(iterable)
         2    0.000    0.000    0.000    0.000 _Model.py:89(__find_layer)
-        2    0.000    0.000    0.000    0.000 function_base.py:2409(<listcomp>)
-        2    0.000    0.000    0.000    0.000 {method 'reshape' of 'numpy.ndarray' objects}
-        3    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
+        4    0.000    0.000    0.000    0.000 {built-in method builtins.any}
         1    0.000    0.000    0.000    0.000 cProfile.py:51(create_stats)
-        6    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+        3    0.000    0.000    0.000    0.000 function_base.py:348(iterable)
+        2    0.000    0.000    0.000    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+        2    0.000    0.000    0.000    0.000 function_base.py:2409(<listcomp>)
+        3    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
         1    0.000    0.000    0.000    0.000 stride_tricks.py:538(<listcomp>)
         1    0.000    0.000    0.000    0.000 enum.py:193(__get__)
-        5    0.000    0.000    0.000    0.000 function_base.py:2405(<genexpr>)
+        6    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
         1    0.000    0.000    0.000    0.000 <frozen codecs>:186(__init__)
+        5    0.000    0.000    0.000    0.000 function_base.py:2405(<genexpr>)
         9    0.000    0.000    0.000    0.000 {built-in method builtins.len}
         2    0.000    0.000    0.000    0.000 {method 'update' of 'dict' objects}
-        2    0.000    0.000    0.000    0.000 stride_tricks.py:25(_maybe_view_as_subclass)
-        6    0.000    0.000    0.000    0.000 stride_tricks.py:345(<genexpr>)
         1    0.000    0.000    0.000    0.000 {built-in method builtins.all}
-        1    0.000    0.000    0.000    0.000 function_base.py:2353(<listcomp>)
         3    0.000    0.000    0.000    0.000 {built-in method builtins.iter}
+        6    0.000    0.000    0.000    0.000 stride_tricks.py:345(<genexpr>)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        2    0.000    0.000    0.000    0.000 stride_tricks.py:25(_maybe_view_as_subclass)
         1    0.000    0.000    0.000    0.000 multiarray.py:346(where)
         2    0.000    0.000    0.000    0.000 stride_tricks.py:542(<genexpr>)
-        1    0.000    0.000    0.000    0.000 _geo.py:102(_x)
+        1    0.000    0.000    0.000    0.000 function_base.py:2353(<listcomp>)
         2    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 _geo.py:102(_x)
         1    0.000    0.000    0.000    0.000 _geo.py:105(_y)
         1    0.000    0.000    0.000    0.000 function_base.py:2362(<listcomp>)
-        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
         2    0.000    0.000    0.000    0.000 {method '__exit__' of 'numpy.nditer' objects}
         1    0.000    0.000    0.000    0.000 multiarray.py:85(empty_like)
         1    0.000    0.000    0.000    0.000 function_base.py:2352(<listcomp>)
-        1    0.000    0.000    0.000    0.000 {built-in method builtins.callable}
-        1    0.000    0.000    0.000    0.000 stride_tricks.py:476(_broadcast_arrays_dispatcher)
         1    0.000    0.000    0.000    0.000 function_base.py:2363(<listcomp>)
         1    0.000    0.000    0.000    0.000 function_base.py:5006(_meshgrid_dispatcher)
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.callable}
+        1    0.000    0.000    0.000    0.000 stride_tricks.py:476(_broadcast_arrays_dispatcher)
         1    0.000    0.000    0.000    0.000 {method 'extend' of 'list' objects}
 
 
