@@ -1,4 +1,4 @@
-from ._calc import (xi_calculator, xi_calculator_DFT, _dblquad_complex, _quad_complex)
+from ._calc import (xi_calculator, xi_calculator_DFT, Array_calculator)
 
 import numpy as np
 from scipy.integrate import dblquad, quad, trapezoid, simpson, romb, qmc_quad

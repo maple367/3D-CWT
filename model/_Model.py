@@ -3,7 +3,7 @@ from scipy.optimize import Bounds, dual_annealing, minimize, direct
 import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
-from coeff_func import xi_calculator
+from coeff_func import xi_calculator, Array_calculator
 from coeff_func import _dblquad_complex as dblquad_complex
 from coeff_func import _quad_complex as quad_complex
 
@@ -141,11 +141,11 @@ class TMM():
         else:
             k0_init = self.k0_init
         k_sol = minimize(t_11_func_k_log, x0=k0_init, method='Nelder-Mead')
-        while k_sol.fun > -15.0 and self.find_modes_iter < 5:
+        while k_sol.fun > -14.0 and self.find_modes_iter < 5:
             self.find_modes_iter += 1
             if k_sol.fun < -10.0:
                 self.k0_init = k_sol.x
-            warnings.warn(f't11 is larger than 1e-15 after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
+            warnings.warn(f't11 is larger than 1e-14 after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
             self.find_modes()
         self.k0 = k_sol.x
         self._construct_matrix(self.k0)
@@ -294,6 +294,7 @@ class Model():
                 self.xi_calculator_collect.append(xi_calculator(_))
             else:
                 self.xi_calculator_collect.append(None)
+        # self.mu_calculator = Array_calculator(self)
         
     
     def Green_func_fundamental(self, z, z_prime):
@@ -325,3 +326,10 @@ class Model():
         def integrated_func(z, z_prime):
             return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
         return 1/np.square(self.k0)*dblquad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
+    
+    def nu_func(self, index):
+        m, n, r, s = index
+        def integrated_func(z):
+            return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)[0]
+        return -quad_complex(integrated_func, self.tmm.z_boundary[0], self.tmm.z_boundary[-1])[0]
+    
