@@ -4,8 +4,10 @@ from scipy.integrate import quad
 import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
-from coeff_func import xi_calculator, Array_calculator, integral_method
-
+from coeff_func import xi_calculator, Array_calculator, integral_method, varsigma_matrix_calculator
+from pathos import multiprocessing
+import dill
+dill.extend(use_dill=True)
 
 class TMM():
     """
@@ -236,9 +238,9 @@ class Model():
         self.tmm.find_modes()
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
-        self.prepare_calculator()
-        self.integrated_func_2d = integral_method(3, method='dbltrapezoid')()
+        self.integrated_func_2d = integral_method(3, method='dblquad')()
         self.integrated_func_1d = integral_method(3, method='quad')()
+        self.prepare_calculator()
 
     def e_profile(self, z):
         return self.tmm(z)
@@ -285,7 +287,7 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self):
-        # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are cont
+        # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
         self.phc_boundary = []
         for i in range(len(self.paras.epsilons)):
             if isinstance(self.paras.epsilons[i], eps_userdefine):
@@ -301,11 +303,6 @@ class Model():
             else:
                 self.xi_calculator_collect.append(None)
         self.xi_calculator_collect = np.array(self.xi_calculator_collect)
-        self.mu_calculator = Array_calculator(self._mu_func, notes='mu(index=(m,n,r,s))')
-        self.nu_calculator = Array_calculator(self._nu_func, notes='nu(index=(m,n,r,s))')
-        self.varsigma_matrix_calculator = Array_calculator(self._varsigma_matrix_func, notes='varsigma_matrix(index=(m,n))')
-        self.zeta_calculator = Array_calculator(self._zeta_func, notes='zeta(index=(p,q,r,s))')
-        self.kappa_calculator = Array_calculator(self._kappa_func, notes='kappa(index=(m,n))')
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
@@ -326,16 +323,12 @@ class Model():
     def xi_z_func(self, z, order):
         i = self.tmm._find_layer(z)
         xi_calculator_i = self.xi_calculator_collect[i]
-        order1, order2 = order
-        def process_element(elem,order1,order2):
-            if elem:
-                return elem[order1,order2]
+        def _process_element(input_element):
+            if input_element:
+                return input_element[order]
             else:
-                return 0 + 0j
-        vectorized_process = np.vectorize(process_element)
-        xi_calculator_i = vectorized_process(xi_calculator_i,order1,order2)
-        return xi_calculator_i
-
+                return 0+0j
+        return np.vectorize(_process_element)(xi_calculator_i)
 
     def _mu_func(self, order):
         m, n, r, s = order
@@ -347,50 +340,81 @@ class Model():
         m, n, r, s = order
         def integrated_func(z):
             return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)[0]
-        return -self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])[0]
-    
-    def _varsigma_matrix_func(self, order):
-        m, n = order
-        mat1 = np.array([[n, m],
-                         [-m, n]])
-        mat2 = np.array([[-m*self.mu_calculator[m,n,1,0], -m*self.mu_calculator[m,n,-1,0], n*self.mu_calculator[m,n,0,1], n*self.mu_calculator[m,n,0,-1]],
-                         [n*self.nu_calculator[m,n,1,0], n*self.nu_calculator[m,n,-1,0], m*self.nu_calculator[m,n,0,1], m*self.nu_calculator[m,n,0,-1]]])
-        return 1/(np.square(m)+np.square(n))*np.dot(mat1, mat2)
-    
-    def get_varsigma(self, order, direction:str):
-        m, n, r, s = order
-        r_s_order = np.where(self.r_s_order_ref == (r,s))
-        if direction == 'x':
-            return self.varsigma_matrix_calculator((m,n))[0][r_s_order]
-        elif direction == 'y':
-            return self.varsigma_matrix_calculator((m,n))[1][r_s_order]
-        else:
-            raise ValueError('direction must be x or y.')
-        
+        return -self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])
+
     def _zeta_func(self, order):
+        print(f'zeta: {order}')
         p, q, r, s = order
         def integrated_func(z, z_prime):
             return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
         return -np.square(np.square(self.k0))/(2*self.beta0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
     
+    def _kappa_func(self, order):
+        m, n = order
+        return -np.square(self.k0)/(2*self.beta0)*self.integrated_func_1d(lambda z: self.xi_z_func(z,(m,n))*self.tmm.e_normlized_intensity(z)[0], self.phc_boundary[0], self.phc_boundary[-1])
+
+class CWT_solver():
+    """
+    
+    """
+    def __init__(self, model:Model):
+        self.model = model
+        self.prepare_calculator()
+
+    def __getattr__(self, name):
+        if name == '_cut_off':
+            print('cut_off not set. Use default value 10.')
+            self._cut_off = 10
+            return self._cut_off
+        if name == 'r_s_order_ref':
+            self.r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
+            return self.r_s_order_ref
+    
+    def prepare_calculator(self):
+        self.xi_calculator_collect = self.model.xi_calculator_collect
+        self.varsigma_matrix_calculator_collect = [varsigma_matrix_calculator(self.model, notes='varsigma_matrix((m,n))')]
+        self.zeta_calculator_collect = [Array_calculator(self.model._zeta_func, notes='zeta(index=(p,q,r,s))')]
+        self.kappa_calculator = Array_calculator(self.model._kappa_func, notes='kappa(index=(m,n))')
+        self.get_varsigma = self.varsigma_matrix_calculator_collect[0].get_varsigma
+
     def _chi_func(self, order, direction:str):
         cut_off = self._cut_off
         p, q, r, s = order
-        def sumed_func(m, n): # TODO: Check the formula. The formulas may be wrong in integration.
+        def sumed_func(input): # TODO: Check the formula. The formulas may be wrong in integration.
+            m, n = input
             return self.xi_calculator_collect[2][p-m,q-n]*self.get_varsigma((m,n,r,s), direction)
-        sumed_func = np.vectorize(sumed_func)
         m_mesh = np.arange(-cut_off, cut_off+1)
         n_mesh = np.arange(-cut_off, cut_off+1)
         MM, NN = np.meshgrid(m_mesh, n_mesh)
-        sum_array = sumed_func(MM.flatten(), NN.flatten())
-        return  np.sum(sum_array)
-    
-    def _kappa_func(self, order):
-        m, n = order
-        return -np.square(self.k0)/(2*self.beta0)*self.integrated_func_1d(lambda z: self.xi_z_func(z,(m,n))*self.tmm.e_normlized_intensity(z)[0], self.phc_boundary[0], self.phc_boundary[-1])[0]
-    
-    def cal_coupling_martix(self, cut_off=10):
+        MM, NN = MM.flatten(), NN.flatten()
+        iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 > 1]
+        result = np.array([sumed_func(i) for i in iter])
+        return  np.sum(result)
+
+    def _pre_cal_(self):
+        m_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
+        n_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
+        MM, NN = np.meshgrid(m_mesh, n_mesh)
+        MM, NN = MM.flatten(), NN.flatten()
+        with multiprocessing.Pool() as pool:
+            # xi
+            iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 >= 1]
+            for f in self.xi_calculator_collect:
+                if f:
+                    pool.map(f, iter)
+            # varsigma
+            iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 > 1]
+            for f in self.varsigma_matrix_calculator_collect:
+                pool.map(f, iter)
+            # zeta
+            iter=[(1,0,1,0),(1,0,-1,0),(-1,0,1,0),(-1,0,-1,0),(0,1,0,1),(0,1,0,-1),(0,-1,0,1),(0,-1,0,-1)]
+            for f in self.zeta_calculator_collect:
+                pool.map(f, iter)
+        print('Pre-calculation finished.')
+
+    def cal_coupling_martix(self, cut_off=10, parallel=True):
         self._cut_off = cut_off
+        if parallel: self._pre_cal_()
         kappa = self.kappa_calculator
         zeta = self.zeta_calculator
         chi = self._chi_func
@@ -407,11 +431,3 @@ class Model():
                              [chi((0,1,1,0),'x'), chi((0,1,-1,0),'x'), chi((0,1,0,1),'x'), chi((0,1,0,-1),'x')],
                              [chi((0,-1,1,0),'x'), chi((0,-1,-1,0),'x'), chi((0,-1,0,1),'x'), chi((0,-1,0,-1),'x')]])
         self.C_mats = {'1D':C_mat_1D, 'rad':C_mat_rad, '2D':C_mat_2D}
-
-    def __getattr__(self, name):
-        if name == '_cut_off':
-            self._cut_off = 10
-            return self._cut_off
-        if name == 'r_s_order_ref':
-            self.r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
-            return self.r_s_order_ref

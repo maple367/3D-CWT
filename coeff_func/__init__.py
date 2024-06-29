@@ -1,2 +1,2 @@
-from ._calc import (xi_calculator, xi_calculator_DFT, Array_calculator)
+from ._calc import (xi_calculator, xi_calculator_DFT, Array_calculator, varsigma_matrix_calculator)
 from ._collection import integral_method

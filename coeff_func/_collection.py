@@ -49,7 +49,8 @@ class integral_method():
             The result and absolute error of the double integration."""
         real_integral = dblquad(lambda y,x: func(x,y,*args).real, a, b, gfun, hfun, epsrel=self.epsrel, **kwargs)
         imag_integral = dblquad(lambda y,x: func(x,y,*args).imag, a, b, gfun, hfun, epsrel=self.epsrel, **kwargs)
-        return real_integral[0] + 1j*imag_integral[0], real_integral[1] + 1j*imag_integral[1]
+        print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
+        return real_integral[0] + 1j*imag_integral[0]
 
     def _dbltrapezoid(self, func, a, b, c, d, args=(), **kwargs):
         """Double trapezoid integration. Only siutable for rectangular zone."""
@@ -110,7 +111,8 @@ class integral_method():
             return np.imag(func(x, *args))
         real_integral = quad(real_func, a, b, args=args, epsrel=self.epsrel, **kwargs)
         imag_integral = quad(imag_func, a, b, args=args, epsrel=self.epsrel, **kwargs)
-        return real_integral[0] + 1j*imag_integral[0], real_integral[1] + 1j*imag_integral[1]
+        print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
+        return real_integral[0] + 1j*imag_integral[0]
     
     def __getattr__(self, name):
         if name == 'epsrel':

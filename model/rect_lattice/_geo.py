@@ -103,22 +103,14 @@ class eps_circle(eps_userdefine):
         self.half_cell_size_y = cell_size_y/2
         self.eps_bulk = eps_bulk
         self.eps_hole = eps_hole
-        @_periodically_continued(0, cell_size_x)
-        def _x(x_):
-            return x_
-        @_periodically_continued(0, cell_size_y)
-        def _y(y_):
-            return y_
-        self._x = _x
-        self._y = _y
         self.eps_type = 'circle'
         self.FF = np.pi*self.rel_r**2
         self.avg_eps = self.eps_bulk*(1-self.FF) + self.eps_hole*self.FF
 
     def eps(self, x, y):
-        x = self._x(x)
-        y = self._y(y)
-        return np.where((x - self.half_cell_size_x)**2 + (y - self.half_cell_size_y)**2 < self.r__2, self.eps_hole, self.eps_bulk)
+        x_mapped = np.mod(x, self.cell_size_x)
+        y_mapped = np.mod(y, self.cell_size_y)
+        return np.where((x_mapped - self.half_cell_size_x)**2 + (y_mapped - self.half_cell_size_y)**2 < self.r__2, self.eps_hole, self.eps_bulk)
     
     def __call__(self, x, y):
         return self.eps(x, y)
