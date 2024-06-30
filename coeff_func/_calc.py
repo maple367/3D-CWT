@@ -177,7 +177,7 @@ class varsigma_matrix_calculator(Array_calculator):
     def get_varsigma(self, order, direction:str):
         m, n, r, s = order
         r_s_order = np.where(self.r_s_order_ref == (r,s))
-        varsigma_matrix = self.array[m,n]
+        varsigma_matrix = self[m,n]
         if direction == 'x':
             return varsigma_matrix[0][r_s_order]
         elif direction == 'y':

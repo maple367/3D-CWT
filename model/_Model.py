@@ -291,9 +291,9 @@ class Model():
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
         self.lock = self.paras.lock
-        self.prepare_calculator()
         self.integrated_func_2d = integrated_func_2d
         self.integrated_func_1d = integrated_func_1d
+        self.prepare_calculator()
 
     def e_profile(self, z):
         return self.tmm(z)
@@ -343,20 +343,19 @@ class Model():
         from coeff_func import xi_calculator
         # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
         self.phc_boundary = []
+        self.xi_calculator_collect = []
         for i in range(len(self.paras.epsilons)):
             if isinstance(self.paras.epsilons[i], eps_userdefine):
                 self.phc_boundary.append(self.tmm.z_boundary[i])
                 self.phc_boundary.append(self.tmm.z_boundary[i+1])
-        self.phc_boundary = np.array(self.phc_boundary)
-        self.phc_boundary.sort()
-        self.gamma_phc = quad(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])[0]
-        self.xi_calculator_collect = []
-        for _ in self.paras.epsilons:
-            if isinstance(_, eps_userdefine):
-                self.xi_calculator_collect.append(xi_calculator(_, 'xi(index=(m,n))', self.pathname_suffix, lock=self.lock))
+                self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], 'xi(index=(m,n))', self.pathname_suffix, lock=self.lock))
             else:
                 self.xi_calculator_collect.append(None)
         self.xi_calculator_collect = np.array(self.xi_calculator_collect)
+        self.phc_boundary = np.array(self.phc_boundary)
+        self.phc_boundary.sort()
+        self.gamma_phc = self.integrated_func_1d(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])        
+        self.coupling_coeff = np.array([self.integrated_func_1d(self.tmm.e_normlized_intensity, self.tmm.z_boundary[i], self.tmm.z_boundary[i+1]) for i in range(len(self.tmm.z_boundary)-1)])
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
@@ -441,7 +440,8 @@ class CWT_solver():
         p, q, r, s = order
         def sumed_func(input): # TODO: Check the formula. The formulas may be wrong in integration.
             m, n = input
-            return self.xi_calculator_collect[2][p-m,q-n]*self.get_varsigma((m,n,r,s), direction)
+            avg_xi = np.sum([self.xi_calculator_collect[_][p-m,q-n]*self.model.coupling_coeff[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])
+            return avg_xi*self.get_varsigma((m,n,r,s), direction)
         m_mesh = np.arange(-cut_off, cut_off+1)
         n_mesh = np.arange(-cut_off, cut_off+1)
         MM, NN = np.meshgrid(m_mesh, n_mesh)
@@ -488,7 +488,8 @@ class CWT_solver():
                 self.zeta_calculator[i] = r
             self.zeta_calculator.disable_edit()
         t2 = time.time()
-        print('Pre-calculation finished. Time cost: ', t2-t1, 's.')
+        self._pre_cal_time = t2-t1
+        print('Pre-calculation finished. Time cost: ', self._pre_cal_time, 's.')
 
     def cal_coupling_martix(self, cut_off=10, parallel=True):
         self._cut_off = cut_off
