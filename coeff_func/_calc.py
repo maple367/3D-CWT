@@ -1,9 +1,8 @@
 import numpy as np
-from ._collection import integral_method
+from ._collection import integral_method, Array_calculator
 from model.rect_lattice import eps_userdefine
-import uuid, os, warnings, time
-# filelock is not properly supported
-# from filelock import FileLock
+import warnings
+import numba
 
 
 class xi_calculator_DFT():
@@ -24,7 +23,6 @@ class xi_calculator_DFT():
         The Fourier coefficients.
     """
     def __init__(self, eps_func:eps_userdefine, resolution:int):
-        import warnings
         warnings.warn("The DFT method is deprecated.", DeprecationWarning)
         cell_size_x = eps_func.cell_size_x
         cell_size_y = eps_func.cell_size_y
@@ -47,72 +45,9 @@ class xi_calculator_DFT():
         return self.xi_array
 
 
-# not vectorized
-# The fucking thing is function cannot be pickled and at least a circular reference is created. I must use normal container class without function in class.
-class Array_calculator():
-    """
-    Calculate the coefficients array and store them.
-
-    Parameters
-    ----------
-    func : callable
-        The function to be integrated.
-
-    Returns
-    -------
-    out : class
-        The array can be get by index or call directly.
-    """
-    def __init__(self, func, notes='',pathname_suffix='', **kwargs):
-        self.func = func
-        self.notes = notes
-        self.kwargs = kwargs
-        self.pathname = f'__temp_data__{pathname_suffix}'
-        self.array = {'notes':notes,'kwargs':kwargs}
-        self.unique_id = uuid.uuid4()
-        self.array_path = f'./{self.pathname}/{self.unique_id}.npy'
-        if not os.path.exists(f'./{self.pathname}/'):
-            os.mkdir(f'./{self.pathname}/')
-        np.save(self.array_path, self.array)
-
-    def _cal(self, index):
-        val = self.func(index, **self.kwargs)
-        if isinstance(val, np.ndarray) and (val.size == 1):
-            return val.item()
-        return val
-    
-    def _update_array(self, index, value):
-        try:
-            self.array = np.load(self.array_path, allow_pickle=True).item()
-            self.array[index] = value
-            np.save(self.array_path, self.array)
-        except:
-            print('File may be occupied by other process. Try again')
-            time.sleep(0)
-            self._update_array(index, value)
-
-    def __getitem__(self, index):
-        try: # if exist, return directly
-            self.array = np.load(self.array_path, allow_pickle=True).item()
-            item = self.array[index]
-            if item == 'placeholder':
-                print(f'Calculating {index} is in progress...\nCheck again in 5 seconds.')
-                time.sleep(5)
-                warnings.warn(f'It will reduce the efficiency of the calculation. Please check the calculation progress.')
-                return self.__getitem__(index)
-            return item
-        except: # if not exist, calculate and store, then return
-            self._update_array(index, 'placeholder')
-            item = self._cal(index)
-            self._update_array(index, item)
-            return item
-        
-    def __call__(self, index):
-        """Allow the object to be called directly. Not recommanded to use this method."""
-        return self.__getitem__(index)
-        
-    def __repr__(self):
-        return f"Array_calculator({self.notes}, id: {id(self)})"
+@numba.njit(cache=True)
+def __xi__integrated_func__(val, x, y, m, n, beta_0_x, beta_0_y):
+    return val*np.exp(1j*(beta_0_x*m*x+beta_0_y*n*y))
 
 # not vectorized
 class xi_calculator(Array_calculator):
@@ -132,7 +67,7 @@ class xi_calculator(Array_calculator):
     out : class
         The Fourier coefficients.
     """
-    def __init__(self, eps_func:eps_userdefine, method='dblquad', **kwargs):
+    def __init__(self, eps_func:eps_userdefine, notes, pathname_suffix, method='dblquad', **kwargs):
         self.eps_func = eps_func
         self.eps_type = self.eps_func.eps_type
         self.method = method
@@ -141,12 +76,19 @@ class xi_calculator(Array_calculator):
         self.cell_size_y = eps_func.cell_size_y
         self.beta_0_x = 2*np.pi/self.cell_size_x
         self.beta_0_y = 2*np.pi/self.cell_size_y
-        super().__init__(eps_func, notes=f'xi_calculator_{self.eps_type}_{self.method}', **kwargs)
-    
+        super().__init__(eps_func, notes, pathname_suffix, **kwargs)
+        self._check_method()
+
+    def _check_method(self):
+        if self.method not in ['dbltrapezoid', 'dblsimpson', 'dblquad', 'dblromb', 'dblqmc_quad']:
+            raise ValueError('Method not supported.')
+
     def _integrated_func(self, x, y, m:int, n:int):
-        return self.eps_func(x, y)*np.exp(1j*(self.beta_0_x*m*x+self.beta_0_y*n*y))
+        val = self.eps_func.eps(x, y)
+        return __xi__integrated_func__(val, x, y, m, n, self.beta_0_x, self.beta_0_y)
     
     def _cal(self, index:tuple[int, int]):
+        print(f'xi: {index}')
         if self.eps_type == 'circle':
             self._xi = self._cal_circle(index) # maybe not need to assign?
         else:
@@ -155,7 +97,6 @@ class xi_calculator(Array_calculator):
     
     def _cal_circle(self, index:tuple[int, int]):
         """Calculate the Fourier coefficients of the dielectric constant distribution for circle eps_func. Circle has discontinuity, so the integration should be separated into 3 zones."""
-        print(f'xi: {index}')
         m, n = index
         if self.method == 'dblquad':
             integral_func = integral_method(3, method=self.method)()
@@ -180,39 +121,13 @@ class xi_calculator(Array_calculator):
             print(f'{self.method} not supported for circle eps_func now. Use userdefine instead.')
             self.eps_type = 'userdefine'
             return self._cal(index)
-        else:
-            raise ValueError('Method not supported.')
         self._xi = self._xi/(self.cell_size_x*self.cell_size_y)
         return self._xi
     
     def _cal_general(self, index:tuple[int, int]):
+        integral_func = integral_method(3, method=self.method)()
         m, n = index
-        if self.method == 'dbltrapezoid':
-            integral_func = integral_method(3, method=self.method)()
-            x_mesh = np.linspace(0, self.cell_size_x, num=self.kwargs['resolution'])
-            y_mesh = np.linspace(0, self.cell_size_y, num=self.kwargs['resolution'])
-            XX, YY = np.meshgrid(x_mesh, y_mesh, indexing='ij')
-            self._xi = integral_func(self._integrated_func, XX, YY, args=(m, n))
-        elif self.method == 'dblsimpson':
-            integral_func = integral_method(3, method=self.method)()
-            x_mesh = np.linspace(0, self.cell_size_x, num=self.kwargs['resolution'])
-            y_mesh = np.linspace(0, self.cell_size_y, num=self.kwargs['resolution'])
-            XX, YY = np.meshgrid(x_mesh, y_mesh, indexing='ij')
-            self._xi = integral_func(self._integrated_func, XX, YY, args=(m, n))
-        elif self.method == 'dblquad':
-            integral_func = integral_method(3, method=self.method)()
-            self._xi, self._abserr = integral_func(self._integrated_func, 0, self.cell_size_x, 0, self.cell_size_y, args=(m, n), **self.kwargs)
-        elif self.method == 'dblromb':
-            integral_func = integral_method(3, method=self.method)()
-            x_mesh = np.linspace(0, self.cell_size_x, num=self.kwargs['resolution'], retstep=True)
-            y_mesh = np.linspace(0, self.cell_size_y, num=self.kwargs['resolution'], retstep=True)
-            XX, YY = np.meshgrid(x_mesh[0], y_mesh[0], indexing='ij')
-            self._xi = integral_func(self._integrated_func, XX, YY, x_mesh[1], y_mesh[1], args=(m, n))
-        elif self.method == 'dblqmc_quad':
-            integral_func = integral_method(3, method=self.method)()
-            self._xi, self._abserr = integral_func(self._integrated_func, 0, self.cell_size_x, 0, self.cell_size_y, args=(m, n), **self.kwargs)
-        else:
-            raise ValueError('Method not supported.')
+        self._xi, self._abserr = integral_func(self._integrated_func, 0, self.cell_size_x, 0, self.cell_size_y, args=(m, n), **self.kwargs)
         self._xi = self._xi/(self.cell_size_x*self.cell_size_y)
         return self._xi
 
@@ -233,39 +148,40 @@ class varsigma_matrix_calculator(Array_calculator):
     """
     def __init__(self, model, notes='',pathname_suffix='', **kwargs):
         self.model = model
-        self.notes = notes
-        self.kwargs = kwargs
-        self.pathname = f'__temp_data__{pathname_suffix}'
-        self.array = {'notes':notes,'kwargs':kwargs}
-        self.unique_id = uuid.uuid4()
-        self.array_path = f'./{self.pathname}/{self.unique_id}.npy'
-        if not os.path.exists(f'./{self.pathname}/'):
-            os.mkdir(f'./{self.pathname}/')
-        np.save(self.array_path, self.array)
+        self.pathname_suffix = pathname_suffix
+        super().__init__(model, notes=notes, pathname_suffix=pathname_suffix, **kwargs)
         self._prepare_calculator()
+        self.r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
 
     def _prepare_calculator(self):
         self._mu_func = self.model._mu_func
         self._nu_func = self.model._nu_func
-        self.mu_calculator = Array_calculator(self.model._mu_func, notes='mu(index=(m,n,r,s))')
-        self.nu_calculator = Array_calculator(self.model._nu_func, notes='nu(index=(m,n,r,s))')
-        self.varsigma_matrix_calculator = Array_calculator(self._varsigma_matrix_func, notes='varsigma_matrix(index=(m,n))', **self.kwargs)
+        self.mu_calculator = Array_calculator(self.model._mu_func, notes='mu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
+        self.nu_calculator = Array_calculator(self.model._nu_func, notes='nu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
+        self.varsigma_matrix_calculator = Array_calculator(self._varsigma_matrix_func, notes='varsigma_matrix((m,n))', pathname_suffix=self.pathname_suffix, lock=self.lock)
         
     def _cal(self, index):
+        print(f'varsigma_matrix: {index}')
         m, n = index
-        return self.varsigma_matrix_calculator[m,n]
+        return self._varsigma_matrix_func((m, n))
+
+    
+    def _varsigma_matrix_func(self, order):
+        m, n = order
+        mat1 = np.array([[n, m],
+                         [-m, n]])
+        mat2 = np.array([[-m*self.mu_calculator[m,n,1,0], -m*self.mu_calculator[m,n,-1,0], n*self.mu_calculator[m,n,0,1], n*self.mu_calculator[m,n,0,-1]],
+                         [n*self.nu_calculator[m,n,1,0], n*self.nu_calculator[m,n,-1,0], m*self.nu_calculator[m,n,0,1], m*self.nu_calculator[m,n,0,-1]]])
+        return 1/(np.square(m)+np.square(n))*np.dot(mat1, mat2)
     
     def get_varsigma(self, order, direction:str):
         m, n, r, s = order
         r_s_order = np.where(self.r_s_order_ref == (r,s))
+        varsigma_matrix = self.array[m,n]
         if direction == 'x':
-            return self.varsigma_matrix_calculator[m,n][0][r_s_order]
+            return varsigma_matrix[0][r_s_order]
         elif direction == 'y':
-            return self.varsigma_matrix_calculator[m,n][1][r_s_order]
+            return varsigma_matrix[1][r_s_order]
         else:
             raise ValueError('direction must be x or y.')
-
-    def __getattr__(self, name):
-        if name == 'r_s_order_ref':
-            self.r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
-            return self.r_s_order_ref
+        

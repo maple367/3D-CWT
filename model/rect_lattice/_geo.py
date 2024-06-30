@@ -1,7 +1,7 @@
 import numpy as np
-import numba as nb
 from typing import Callable
 from .._boundary import _periodically_continued
+import numba
 
 class eps_userdefine():
     """
@@ -65,6 +65,11 @@ class eps_userdefine():
     def __len__(self):
         return 1
 
+@numba.njit(cache=True)
+def __eps_circle__(x, y, cell_size_x, cell_size_y, half_cell_size_x, half_cell_size_y, r__2, eps_hole, eps_bulk):
+    x_mapped = np.mod(x, cell_size_x)
+    y_mapped = np.mod(y, cell_size_y)
+    return np.where((x_mapped - half_cell_size_x)**2 + (y_mapped - half_cell_size_y)**2 < r__2, eps_hole, eps_bulk)
 
 # air hole class
 class eps_circle(eps_userdefine):
@@ -108,9 +113,7 @@ class eps_circle(eps_userdefine):
         self.avg_eps = self.eps_bulk*(1-self.FF) + self.eps_hole*self.FF
 
     def eps(self, x, y):
-        x_mapped = np.mod(x, self.cell_size_x)
-        y_mapped = np.mod(y, self.cell_size_y)
-        return np.where((x_mapped - self.half_cell_size_x)**2 + (y_mapped - self.half_cell_size_y)**2 < self.r__2, self.eps_hole, self.eps_bulk)
+        return __eps_circle__(x, y, self.cell_size_x, self.cell_size_y, self.half_cell_size_x, self.half_cell_size_y, self.r__2, self.eps_hole, self.eps_bulk)
     
     def __call__(self, x, y):
         return self.eps(x, y)

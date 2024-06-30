@@ -1,13 +1,31 @@
 import numpy as np
 from scipy.optimize import Bounds, dual_annealing, minimize, direct
 from scipy.integrate import quad
+import numba
 import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
-from coeff_func import xi_calculator, Array_calculator, integral_method, varsigma_matrix_calculator
-from pathos import multiprocessing
+import multiprocessing as mp
+# from pathos import multiprocessing as mp
 import dill
 dill.extend(use_dill=True)
+
+@numba.njit(cache=True)
+def __find_layer__(z, _z_boundary_without_lb, _len_z_boundary_2):
+    """
+    Parameters
+    ----------
+    z : float
+        The position of the field, the z = 0 is the boundary of the first layer
+
+    Returns
+    -------
+    out : int
+        The index of the layer.
+    """
+    res = np.searchsorted(_z_boundary_without_lb, z, side='right')
+    return np.where(z >= _z_boundary_without_lb[-1], _len_z_boundary_2, res)
+
 
 class TMM():
     """
@@ -84,8 +102,7 @@ class TMM():
         out : int
             The index of the layer.
         """
-        res = np.searchsorted(self._z_boundary_without_lb, z, side='right')
-        return np.where(z >= self._z_boundary_without_lb[-1], self._len_z_boundary-2, res)
+        return __find_layer__(z, self._z_boundary_without_lb, self._len_z_boundary-2)
     
     def e_amplitude(self, z):
         """
@@ -106,18 +123,18 @@ class TMM():
         z: the position of the field, the z = 0 is the boundary of the first layer
         return: the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
         """
-        e_amp, eps = self.e_amplitude(z)
+        e_amp, _ = self.e_amplitude(z)
         e_intensity = np.square(np.abs(e_amp))*self._normlized_constant
-        return e_intensity, eps
+        return e_intensity
     
     def e_normlized_amplitude(self, z):
         """
         z: the position of the field, the z = 0 is the boundary of the first layer
         return: the E field normlized amplitude. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
         """
-        e_amp, eps = self.e_amplitude(z)
+        e_amp, _ = self.e_amplitude(z)
         e_norm_amp = e_amp*np.sqrt(self._normlized_constant)
-        return e_norm_amp, eps
+        return e_norm_amp
     
     def find_modes(self):
         """
@@ -135,7 +152,7 @@ class TMM():
         else:
             k0_init = self.k0_init
         k_sol = minimize(t_11_func_k_log, x0=k0_init, method='Nelder-Mead')
-        while k_sol.fun > -14.0 and self.find_modes_iter < 5:
+        while (not (k_sol.success and k_sol.status == 0)) and self.find_modes_iter < 3:
             self.find_modes_iter += 1
             if k_sol.fun < -10.0:
                 self.k0_init = k_sol.x
@@ -147,11 +164,15 @@ class TMM():
         self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
 
     def _cal_normlized_constant(self):
-        e_amp_min_r = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[-1], method='Nelder-Mead')
-        e_amp_min_l = minimize(lambda z: np.abs(np.real(self.e_amplitude(z)[0])), x0=self.z_boundary[0], method='Nelder-Mead')
+        def e_amp_real_func(z):
+            return np.abs(np.real(self.e_amplitude(z)[0]))
+        def e_amp_square_func(z):
+            return np.square(np.abs(self.e_amplitude(z)[0]))
+        e_amp_min_r = minimize(e_amp_real_func, x0=self.z_boundary[-1], method='Nelder-Mead')
+        e_amp_min_l = minimize(e_amp_real_func, x0=self.z_boundary[0], method='Nelder-Mead')
         e_amp_min_boundary_distance = min(np.abs(e_amp_min_r.x-self.z_boundary[-1]), np.abs(e_amp_min_l.x-self.z_boundary[0]))
         self._normlized_bd = e_amp_min_boundary_distance
-        e_amp_integral = quad(lambda z: np.square(np.real(self.e_amplitude(z)[0])), self.z_boundary[0]-self._normlized_bd, self.z_boundary[-1]+self._normlized_bd)
+        e_amp_integral = quad(e_amp_square_func, self.z_boundary[0]-self._normlized_bd, self.z_boundary[-1]+self._normlized_bd)
         self._normlized_constant = 1/e_amp_integral[0]
 
     def __getattr__(self, name):
@@ -173,6 +194,14 @@ class TMM():
         """
         return self.e_normlized_intensity(z)
     
+    # fixed for the problem of pickle
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Perform additional initialization if needed
+
+    def __getstate__(self):
+        return self.__dict__
+
 
 class model_parameters():
     """
@@ -190,13 +219,22 @@ class model_parameters():
     out : class
         The model parameters.
     """
-    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine]], **kwargs):
+    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine]], lock=None, **kwargs):
+        import uuid
+        if lock is None: lock = mp.Manager().Lock()
         self.layer_thicknesses = np.array(layer[0])
         self.epsilons = np.array(layer[1])
         self.kwargs = kwargs
         self._check_para()
         self.beta = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
         self._gen_avg_eps()
+        self._define_kwargs()
+        self.tmm = TMM(self.layer_thicknesses, self.avg_epsilons, self.beta, self.kwargs.get('k0_init', None))
+        self.tmm.find_modes()
+        # Generate a unique id for the model parameters.
+        self.uuid = uuid.uuid4().hex
+        self._save()
+        self.lock = lock
 
     def _check_para(self):
         cellsize_x = []
@@ -220,6 +258,17 @@ class model_parameters():
                 avg_eps.append(_)
         self.avg_epsilons = np.array(avg_eps)
 
+    def _define_kwargs(self):
+        for key, value in self.kwargs.items():
+            setattr(self, key, value)
+
+    def _save(self):
+        import os
+        if not os.path.exists('./history_res/'):
+            os.mkdir('./history_res/')
+        np.save(f'./history_res/{self.uuid}_para.npy', self.__dict__)
+
+
 class Model():
     """
     Parameters
@@ -233,14 +282,18 @@ class Model():
         x, y, z : the position. When called, return epsilon. If not given x, y, average epsilon is return.
     """
     def __init__(self, paras:model_parameters):
+        from coeff_func import integral_method
+        integrated_func_2d = integral_method(3, 'dblquad')()
+        integrated_func_1d = integral_method(3, 'quad')()
         self.paras = paras
-        self.tmm = TMM(paras.layer_thicknesses, paras.avg_epsilons, paras.beta, paras.kwargs.get('k0_init', None))
-        self.tmm.find_modes()
+        self.pathname_suffix = self.paras.uuid
+        self.tmm = self.paras.tmm
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
-        self.integrated_func_2d = integral_method(3, method='dblquad')()
-        self.integrated_func_1d = integral_method(3, method='quad')()
+        self.lock = self.paras.lock
         self.prepare_calculator()
+        self.integrated_func_2d = integrated_func_2d
+        self.integrated_func_1d = integrated_func_1d
 
     def e_profile(self, z):
         return self.tmm(z)
@@ -287,6 +340,7 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self):
+        from coeff_func import xi_calculator
         # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
         self.phc_boundary = []
         for i in range(len(self.paras.epsilons)):
@@ -295,11 +349,11 @@ class Model():
                 self.phc_boundary.append(self.tmm.z_boundary[i+1])
         self.phc_boundary = np.array(self.phc_boundary)
         self.phc_boundary.sort()
-        self.gamma_phc = quad(lambda z: self.tmm.e_normlized_intensity(z)[0], self.phc_boundary[0], self.phc_boundary[-1])[0]
+        self.gamma_phc = quad(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])[0]
         self.xi_calculator_collect = []
         for _ in self.paras.epsilons:
             if isinstance(_, eps_userdefine):
-                self.xi_calculator_collect.append(xi_calculator(_))
+                self.xi_calculator_collect.append(xi_calculator(_, 'xi(index=(m,n))', self.pathname_suffix, lock=self.lock))
             else:
                 self.xi_calculator_collect.append(None)
         self.xi_calculator_collect = np.array(self.xi_calculator_collect)
@@ -333,25 +387,28 @@ class Model():
     def _mu_func(self, order):
         m, n, r, s = order
         def integrated_func(z, z_prime):
-            return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
+            return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)*np.conj(self.tmm.e_normlized_amplitude(z))
         return 1/np.square(self.k0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
     
     def _nu_func(self, order):
         m, n, r, s = order
         def integrated_func(z):
-            return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)[0]
+            return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)
         return -self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])
 
     def _zeta_func(self, order):
         print(f'zeta: {order}')
         p, q, r, s = order
         def integrated_func(z, z_prime):
-            return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)[0]*np.conj(self.tmm.e_normlized_amplitude(z)[0])
+            return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)*np.conj(self.tmm.e_normlized_amplitude(z))
         return -np.square(np.square(self.k0))/(2*self.beta0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
     
     def _kappa_func(self, order):
         m, n = order
-        return -np.square(self.k0)/(2*self.beta0)*self.integrated_func_1d(lambda z: self.xi_z_func(z,(m,n))*self.tmm.e_normlized_intensity(z)[0], self.phc_boundary[0], self.phc_boundary[-1])
+        def integrated_func(z):
+            return self.xi_z_func(z,(m,n))*self.tmm.e_normlized_intensity(z)
+        return -np.square(self.k0)/(2*self.beta0)*self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])
+
 
 class CWT_solver():
     """
@@ -359,6 +416,7 @@ class CWT_solver():
     """
     def __init__(self, model:Model):
         self.model = model
+        self.lock = self.model.lock
         self.prepare_calculator()
 
     def __getattr__(self, name):
@@ -371,11 +429,12 @@ class CWT_solver():
             return self.r_s_order_ref
     
     def prepare_calculator(self):
+        from coeff_func import Array_calculator, varsigma_matrix_calculator
         self.xi_calculator_collect = self.model.xi_calculator_collect
-        self.varsigma_matrix_calculator_collect = [varsigma_matrix_calculator(self.model, notes='varsigma_matrix((m,n))')]
-        self.zeta_calculator_collect = [Array_calculator(self.model._zeta_func, notes='zeta(index=(p,q,r,s))')]
-        self.kappa_calculator = Array_calculator(self.model._kappa_func, notes='kappa(index=(m,n))')
-        self.get_varsigma = self.varsigma_matrix_calculator_collect[0].get_varsigma
+        self.varsigma_matrix_calculator = varsigma_matrix_calculator(self.model, notes='varsigma_matrix((m,n))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
+        self.zeta_calculator = Array_calculator(self.model._zeta_func, notes='zeta(index=(p,q,r,s))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
+        self.kappa_calculator = Array_calculator(self.model._kappa_func, notes='kappa(index=(m,n))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
+        self.get_varsigma = self.varsigma_matrix_calculator.get_varsigma
 
     def _chi_func(self, order, direction:str):
         cut_off = self._cut_off
@@ -392,25 +451,44 @@ class CWT_solver():
         return  np.sum(result)
 
     def _pre_cal_(self):
+        import time
+        t1 = time.time()
         m_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
         n_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
         MM, NN = np.meshgrid(m_mesh, n_mesh)
         MM, NN = MM.flatten(), NN.flatten()
-        with multiprocessing.Pool() as pool:
+        with mp.Pool() as pool:
             # xi
             iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 >= 1]
             for f in self.xi_calculator_collect:
                 if f:
-                    pool.map(f, iter)
-            # varsigma
+                    res = pool.map(f, iter)
+                    f.enable_edit()
+                    for i, r in zip(iter, res):
+                        f[i] = r
+                    f.disable_edit()
+        m_mesh = np.arange(-self._cut_off, self._cut_off+1)
+        n_mesh = np.arange(-self._cut_off, self._cut_off+1)
+        MM, NN = np.meshgrid(m_mesh, n_mesh)
+        MM, NN = MM.flatten(), NN.flatten()
+        with mp.Pool() as pool:
+            # # varsigma
             iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 > 1]
-            for f in self.varsigma_matrix_calculator_collect:
-                pool.map(f, iter)
+            res = pool.map(self.varsigma_matrix_calculator, iter)
+            self.varsigma_matrix_calculator.enable_edit()
+            for i, r in zip(iter, res):
+                self.varsigma_matrix_calculator[i] = r
+            self.varsigma_matrix_calculator.disable_edit()
+        with mp.Pool() as pool:
             # zeta
             iter=[(1,0,1,0),(1,0,-1,0),(-1,0,1,0),(-1,0,-1,0),(0,1,0,1),(0,1,0,-1),(0,-1,0,1),(0,-1,0,-1)]
-            for f in self.zeta_calculator_collect:
-                pool.map(f, iter)
-        print('Pre-calculation finished.')
+            res = pool.map(self.zeta_calculator, iter)
+            self.zeta_calculator.enable_edit()
+            for i, r in zip(iter, res):
+                self.zeta_calculator[i] = r
+            self.zeta_calculator.disable_edit()
+        t2 = time.time()
+        print('Pre-calculation finished. Time cost: ', t2-t1, 's.')
 
     def cal_coupling_martix(self, cut_off=10, parallel=True):
         self._cut_off = cut_off
@@ -431,3 +509,24 @@ class CWT_solver():
                              [chi((0,1,1,0),'x'), chi((0,1,-1,0),'x'), chi((0,1,0,1),'x'), chi((0,1,0,-1),'x')],
                              [chi((0,-1,1,0),'x'), chi((0,-1,-1,0),'x'), chi((0,-1,0,1),'x'), chi((0,-1,0,-1),'x')]])
         self.C_mats = {'1D':C_mat_1D, 'rad':C_mat_rad, '2D':C_mat_2D}
+        self.cal_eign_value()
+        np.save(f'./history_res/{self.model.pathname_suffix}_res.npy', self.__dict__)
+    
+    def cal_eign_value(self):
+        from scipy.linalg import eig
+        from scipy.constants import c
+        self.c = c*1e6 # um/s
+        self.C_mat_sum = np.sum([_ for _ in self.C_mats.values()], axis=0)
+        self.eigen_values, self.eigen_vectors = eig(self.C_mat_sum)
+        self.delta = np.real(self.eigen_values)
+        self.alpha = np.imag(self.eigen_values)
+        self.alpha_r = 2*self.alpha
+        self.beta0 = self.model.beta0
+        self.beta = self.beta0+self.delta
+        self.k0 = self.model.k0
+        self.omega0 = self.k0*self.c
+        self.n_eff = self.beta0/self.k0
+        self.omega = self.omega0+self.delta/self.n_eff*self.c
+        self.Q = self.beta/self.alpha_r
+
+        

@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.integrate import dblquad, quad, trapezoid, simpson, romb, qmc_quad
+import os, warnings, time
+import multiprocessing
 
 class integral_method():
     """
@@ -49,7 +51,7 @@ class integral_method():
             The result and absolute error of the double integration."""
         real_integral = dblquad(lambda y,x: func(x,y,*args).real, a, b, gfun, hfun, epsrel=self.epsrel, **kwargs)
         imag_integral = dblquad(lambda y,x: func(x,y,*args).imag, a, b, gfun, hfun, epsrel=self.epsrel, **kwargs)
-        print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
+        # print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
         return real_integral[0] + 1j*imag_integral[0]
 
     def _dbltrapezoid(self, func, a, b, c, d, args=(), **kwargs):
@@ -84,7 +86,8 @@ class integral_method():
             return np.imag(func(x, y, *args))
         real_integral = qmc_quad(real_func, np.array([a, c]), np.array([b, d]), **kwargs)
         imag_integral = qmc_quad(imag_func, np.array([a, c]), np.array([b, d]), **kwargs)
-        return real_integral[0] + 1j*imag_integral[0], real_integral[1] + 1j*imag_integral[1]
+        # print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
+        return real_integral[0] + 1j*imag_integral[0]
 
     def _quad_complex(self, func, a, b, args=(), **kwargs):
         """Quad integration. Suitable for real number space integral routine.
@@ -111,7 +114,7 @@ class integral_method():
             return np.imag(func(x, *args))
         real_integral = quad(real_func, a, b, args=args, epsrel=self.epsrel, **kwargs)
         imag_integral = quad(imag_func, a, b, args=args, epsrel=self.epsrel, **kwargs)
-        print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
+        # print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
         return real_integral[0] + 1j*imag_integral[0]
     
     def __getattr__(self, name):
@@ -133,3 +136,117 @@ class integral_method():
             return self._dblqmc_quad
         if self.method == 'quad':
             return self._quad_complex
+        
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        return self
+    
+    def __getstate__(self):
+        return self.__dict__
+    
+# not vectorized
+# The fucking thing is function cannot be pickled and at least a circular reference is created. I must use normal container class without function in class.
+class Array_calculator():
+    """
+    Calculate the coefficients array and store them.
+
+    Parameters
+    ----------
+    func : callable
+        The function to be integrated.
+
+    Returns
+    -------
+    out : class
+        The array can be get by index or call directly.
+    """
+    def __init__(self, func, notes,pathname_suffix, lock, **kwargs):
+        self.func = func
+        self.notes = notes
+        self.kwargs = kwargs
+        self.pathname = f'history_res/{pathname_suffix}'
+        self.array = {'notes':notes,'kwargs':kwargs}
+        self.array_path = f'./{self.pathname}/{notes}.npy'
+        self.lock = lock
+        if not os.path.exists(f'./{self.pathname}/'):
+            os.mkdir(f'./{self.pathname}/')
+        np.save(self.array_path, self.array)
+        self.__editable__ = False
+        
+    def _cal(self, index):
+        val = self.func(index, **self.kwargs)
+        if isinstance(val, np.ndarray) and (val.size == 1):
+            return val.item()
+        return val
+    
+    def enable_edit(self):
+        self.original_array = self.array
+        self.__editable__ = True
+
+    def disable_edit(self):
+        np.save(self.array_path, self.array)
+        self.__editable__ = False
+
+    def _update_array(self, index, value):
+        while True:
+            try:
+                with self.lock:
+                    self.array = np.load(self.array_path, allow_pickle=True).item()
+                    self.array[index] = value
+                    np.save(self.array_path, self.array)
+                    return
+            except:
+                print(f'Fail in updating {self.notes} {index} with value {value}. Try again.')
+                time.sleep(0.1)
+
+    def __getitem__(self, index):
+        try: # if exist, return directly
+            item = self.array[index]
+            if item == 'placeholder':
+                print(f'Calculating {self.notes} {index} is in progress...\nCheck again in 5 seconds.')
+                time.sleep(5)
+                warnings.warn(f'It will reduce the efficiency of the calculation. Please check the calculation progress.')
+                return self.__getitem__(index)
+            return item
+        except: # if not exist, 
+            try: # try update from file
+                self.array = np.load(self.array_path, allow_pickle=True).item()
+                item = self.array[index]
+                if item == 'placeholder':
+                    print(f'Calculating {self.notes} {index} is in progress...\nCheck again in 5 seconds.')
+                    time.sleep(5)
+                    warnings.warn(f'It will reduce the efficiency of the calculation. Please check the calculation progress.')
+                    return self.__getitem__(index)
+                return item
+            except: # calculate and store, then return
+                self._update_array(index, 'placeholder')
+                item = self._cal(index)
+                self._update_array(index, item)
+                return item
+        
+    def __call__(self, index):
+        """Allow the object to be called directly. Not recommanded to use this method."""
+        return self.__getitem__(index)
+        
+    def __repr__(self):
+        return f"Array_calculator({self.notes}, id: {id(self)})"
+
+    def __setitem__(self, index, value):
+        if self.__editable__: self.array[index] = value
+        else: raise TypeError("'xi_calculator' object does not support item assignment")
+
+class MyLock:
+    def __enter__(self):
+        pass
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+    
+    def __reduce__(self):
+        # Custom reduce method for pickling
+        return (self.__class__, (), None)
+    
+    def __setstate__(self, state):
+        # Optional: method for setting the state after unpickling
+        pass
