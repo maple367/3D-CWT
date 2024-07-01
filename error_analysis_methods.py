@@ -1,7 +1,7 @@
 first_run = True
 # %%
 import model
-import coeff_func
+import calculator
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ if first_run:
 # %%
 # Calculate Fourier coefficients in different methods
 # step 1.1: Define the dblquad method to calculate the Fourier coefficients as the reference
-xi_quad = coeff_func.xi_calculator(eps_func, method='dblquad', epsabs=1e-12, epsrel=1e-8)
+xi_quad = calculator.xi_calculator(eps_func, method='dblquad', epsabs=1e-12, epsrel=1e-8)
 
 # %%
 # step 1.2: Define the other methods to calculate the Fourier coefficients in different resolution
@@ -39,9 +39,9 @@ xi_trapz_ls = []
 xi_simps_ls = []
 xi_romb_ls = []
 for resolution in resolution_ls:
-    xi_trapz = coeff_func.xi_calculator(eps_func, method='dbltrapezoid', resolution=resolution)
-    xi_simps = coeff_func.xi_calculator(eps_func, method='dblsimpson', resolution=resolution)
-    xi_romb = coeff_func.xi_calculator(eps_func, method='dblromb', resolution=resolution)
+    xi_trapz = calculator.xi_calculator(eps_func, method='dbltrapezoid', resolution=resolution)
+    xi_simps = calculator.xi_calculator(eps_func, method='dblsimpson', resolution=resolution)
+    xi_romb = calculator.xi_calculator(eps_func, method='dblromb', resolution=resolution)
     xi_trapz_ls.append(xi_trapz)
     xi_simps_ls.append(xi_simps)
     xi_romb_ls.append(xi_romb)

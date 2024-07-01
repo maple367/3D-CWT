@@ -282,7 +282,7 @@ class Model():
         x, y, z : the position. When called, return epsilon. If not given x, y, average epsilon is return.
     """
     def __init__(self, paras:model_parameters):
-        from coeff_func import integral_method
+        from calculator import integral_method
         integrated_func_2d = integral_method(3, 'dblquad')()
         integrated_func_1d = integral_method(3, 'quad')()
         self.paras = paras
@@ -340,7 +340,7 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self):
-        from coeff_func import xi_calculator
+        from calculator import xi_calculator
         # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
         self.phc_boundary = []
         self.xi_calculator_collect = []
@@ -356,6 +356,7 @@ class Model():
         self.phc_boundary.sort()
         self.gamma_phc = self.integrated_func_1d(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])        
         self.coupling_coeff = np.array([self.integrated_func_1d(self.tmm.e_normlized_intensity, self.tmm.z_boundary[i], self.tmm.z_boundary[i+1]) for i in range(len(self.tmm.z_boundary)-1)])
+        self._xi_weight = np.array([self.coupling_coeff[_]/self.gamma_phc for _ in range(len(self.coupling_coeff))])
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
@@ -428,7 +429,7 @@ class CWT_solver():
             return self.r_s_order_ref
     
     def prepare_calculator(self):
-        from coeff_func import Array_calculator, varsigma_matrix_calculator
+        from calculator import Array_calculator, varsigma_matrix_calculator
         self.xi_calculator_collect = self.model.xi_calculator_collect
         self.varsigma_matrix_calculator = varsigma_matrix_calculator(self.model, notes='varsigma_matrix((m,n))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
         self.zeta_calculator = Array_calculator(self.model._zeta_func, notes='zeta(index=(p,q,r,s))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)

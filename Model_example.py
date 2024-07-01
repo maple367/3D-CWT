@@ -58,8 +58,8 @@ if __name__ == '__main__':
         # plt.close()
 
         cwt_solver = model.CWT_solver(pcsel_model)
-        cwt_solver.cal_coupling_martix(10, parallel=False)
+        cwt_solver.cal_coupling_martix(10, parallel=True)
         cwt_solver._pre_cal_time
         data = {'FF': FF, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
-        dataframe = dataframe.append(data, ignore_index=True)
+        dataframe = pd.concat([dataframe, pd.DataFrame(data, index=[1])], ignore_index=True) # index is not important, but must given.
     dataframe.to_csv('FF.csv', index=False)

@@ -1,7 +1,7 @@
 first_run = True
 # %%
 import model
-import coeff_func
+import calculator
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,7 +34,7 @@ if first_run:
 xi_quad_ls = []
 eps_rel_ls = [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12]
 for epsrel in eps_rel_ls:
-    xi_quad = coeff_func.xi_calculator(eps_func, method='dblquad', epsabs=1e-15, epsrel=epsrel)
+    xi_quad = calculator.xi_calculator(eps_func, method='dblquad', epsabs=1e-15, epsrel=epsrel)
     xi_quad_ls.append(xi_quad)
 
 # %%
