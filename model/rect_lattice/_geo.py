@@ -1,6 +1,5 @@
 import numpy as np
 from typing import Callable
-from .._boundary import _periodically_continued
 import numba
 
 class eps_userdefine():
@@ -32,14 +31,6 @@ class eps_userdefine():
         self.eps_func = eps_func
         self.cell_size_x = cell_size_x
         self.cell_size_y = cell_size_y
-        @_periodically_continued(0, cell_size_x)
-        def _x(x_):
-            return x_
-        @_periodically_continued(0, cell_size_y)
-        def _y(y_):
-            return y_
-        self._x = _x
-        self._y = _y
         x_mesh = np.linspace(0, self.cell_size_x, 2**10+1)
         y_mesh = np.linspace(0, self.cell_size_y, 2**10+1)
         XX, YY = np.meshgrid(x_mesh, y_mesh)
@@ -47,8 +38,8 @@ class eps_userdefine():
         self.avg_eps = np.mean(eps_array)
 
     def eps(self, x, y):
-        x = self._x(x)
-        y = self._y(y)
+        x_mapped = np.mod(x, self.cell_size_x)
+        y_mapped = np.mod(y, self.cell_size_y)
         return self.eps_func(x, y)
     
     def __call__(self, x, y):

@@ -5,8 +5,6 @@ if __name__ == '__main__':
     import model
     import numpy as np
     import matplotlib.pyplot as plt
-    import cProfile, pstats
-    from pstats import SortKey
     import pandas as pd
 
 
@@ -58,6 +56,7 @@ if __name__ == '__main__':
         # plt.close()
 
         cwt_solver = model.CWT_solver(pcsel_model)
+        cwt_solver.core_num = 15
         cwt_solver.cal_coupling_martix(10, parallel=True)
         cwt_solver._pre_cal_time
         data = {'FF': FF, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}

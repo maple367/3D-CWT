@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate import dblquad, quad, trapezoid, simpson, romb, qmc_quad
 import os, warnings, time
-import multiprocessing
+
 
 class integral_method():
     """

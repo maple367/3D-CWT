@@ -6,7 +6,6 @@ import warnings
 from model.rect_lattice import eps_userdefine
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
 import multiprocessing as mp
-# from pathos import multiprocessing as mp
 import dill
 dill.extend(use_dill=True)
 
@@ -156,7 +155,7 @@ class TMM():
             self.find_modes_iter += 1
             if k_sol.fun < -10.0:
                 self.k0_init = k_sol.x
-            warnings.warn(f't11 is larger than 1e-14 after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
+            warnings.warn(f't11 is not converge to machine precision after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
             self.find_modes()
         self.k0 = k_sol.x
         self._construct_matrix(self.k0)
@@ -417,6 +416,7 @@ class CWT_solver():
     def __init__(self, model:Model):
         self.model = model
         self.lock = self.model.lock
+        self.core_num = mp.cpu_count()
         self.prepare_calculator()
 
     def __getattr__(self, name):
@@ -452,17 +452,18 @@ class CWT_solver():
         return  np.sum(result)
 
     def _pre_cal_(self):
+        from calculator import Array_calculator
         import time
         t1 = time.time()
         m_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
         n_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
         MM, NN = np.meshgrid(m_mesh, n_mesh)
         MM, NN = MM.flatten(), NN.flatten()
-        with mp.Pool() as pool:
+        with mp.Pool(self.core_num) as pool:
             # xi
             iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 >= 1]
             for f in self.xi_calculator_collect:
-                if f:
+                if isinstance(f, Array_calculator):
                     res = pool.map(f, iter)
                     f.enable_edit()
                     for i, r in zip(iter, res):
@@ -472,7 +473,7 @@ class CWT_solver():
         n_mesh = np.arange(-self._cut_off, self._cut_off+1)
         MM, NN = np.meshgrid(m_mesh, n_mesh)
         MM, NN = MM.flatten(), NN.flatten()
-        with mp.Pool() as pool:
+        with mp.Pool(self.core_num) as pool:
             # # varsigma
             iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 > 1]
             res = pool.map(self.varsigma_matrix_calculator, iter)
@@ -480,7 +481,7 @@ class CWT_solver():
             for i, r in zip(iter, res):
                 self.varsigma_matrix_calculator[i] = r
             self.varsigma_matrix_calculator.disable_edit()
-        with mp.Pool() as pool:
+        with mp.Pool(self.core_num) as pool:
             # zeta
             iter=[(1,0,1,0),(1,0,-1,0),(-1,0,1,0),(-1,0,-1,0),(0,1,0,1),(0,1,0,-1),(0,-1,0,1),(0,-1,0,-1)]
             res = pool.map(self.zeta_calculator, iter)
