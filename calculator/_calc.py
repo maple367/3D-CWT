@@ -88,7 +88,7 @@ class xi_calculator(Array_calculator):
         return __xi__integrated_func__(val, x, y, m, n, self.beta_0_x, self.beta_0_y)
     
     def _cal(self, index:tuple[int, int]):
-        print(f'xi: {index}')
+        print(f'\rxi: {index}  ', end='', flush=True)
         if self.eps_type == 'circle':
             self._xi = self._cal_circle(index) # maybe not need to assign?
         else:
@@ -158,16 +158,10 @@ class varsigma_matrix_calculator(Array_calculator):
         self._nu_func = self.model._nu_func
         self.mu_calculator = Array_calculator(self.model._mu_func, notes='mu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
         self.nu_calculator = Array_calculator(self.model._nu_func, notes='nu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
-        self.varsigma_matrix_calculator = Array_calculator(self._varsigma_matrix_func, notes='varsigma_matrix((m,n))', pathname_suffix=self.pathname_suffix, lock=self.lock)
         
     def _cal(self, index):
-        print(f'varsigma_matrix: {index}')
+        print(f'\rvarsigma_matrix: {index}  ', end='', flush=True)
         m, n = index
-        return self._varsigma_matrix_func((m, n))
-
-    
-    def _varsigma_matrix_func(self, order):
-        m, n = order
         mat1 = np.array([[n, m],
                          [-m, n]])
         mat2 = np.array([[-m*self.mu_calculator[m,n,1,0], -m*self.mu_calculator[m,n,-1,0], n*self.mu_calculator[m,n,0,1], n*self.mu_calculator[m,n,0,-1]],

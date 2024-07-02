@@ -202,7 +202,7 @@ class Array_calculator():
     def __getitem__(self, index):
         try: # if exist, return directly
             item = self.array[index]
-            if item == 'placeholder':
+            if (np.array(item == 'placeholder')).any(): # support both scalar and array
                 print(f'Calculating {self.notes} {index} is in progress...\nCheck again in 5 seconds.')
                 time.sleep(5)
                 warnings.warn(f'It will reduce the efficiency of the calculation. Please check the calculation progress.')

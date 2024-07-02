@@ -9,6 +9,7 @@ import multiprocessing as mp
 import dill
 dill.extend(use_dill=True)
 
+
 @numba.njit(cache=True)
 def __find_layer__(z, _z_boundary_without_lb, _len_z_boundary_2):
     """
@@ -151,7 +152,7 @@ class TMM():
         else:
             k0_init = self.k0_init
         k_sol = minimize(t_11_func_k_log, x0=k0_init, method='Nelder-Mead')
-        while (not (k_sol.success and k_sol.status == 0)) and self.find_modes_iter < 3:
+        while (k_sol.fun >= -10.0) and self.find_modes_iter < 3:
             self.find_modes_iter += 1
             if k_sol.fun < -10.0:
                 self.k0_init = k_sol.x
@@ -396,7 +397,7 @@ class Model():
         return -self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])
 
     def _zeta_func(self, order):
-        print(f'zeta: {order}')
+        print(f'\rzeta: {order}          ', end='', flush=True)
         p, q, r, s = order
         def integrated_func(z, z_prime):
             return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)*np.conj(self.tmm.e_normlized_amplitude(z))
@@ -424,9 +425,6 @@ class CWT_solver():
             print('cut_off not set. Use default value 10.')
             self._cut_off = 10
             return self._cut_off
-        if name == 'r_s_order_ref':
-            self.r_s_order_ref = [(1,0),(-1,0),(0,1),(0,-1)]
-            return self.r_s_order_ref
     
     def prepare_calculator(self):
         from calculator import Array_calculator, varsigma_matrix_calculator
@@ -441,7 +439,7 @@ class CWT_solver():
         p, q, r, s = order
         def sumed_func(input): # TODO: Check the formula. The formulas may be wrong in integration.
             m, n = input
-            avg_xi = np.sum([self.xi_calculator_collect[_][p-m,q-n]*self.model.coupling_coeff[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])
+            avg_xi = np.sum([self.xi_calculator_collect[_][p-m,q-n]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])
             return avg_xi*self.get_varsigma((m,n,r,s), direction)
         m_mesh = np.arange(-cut_off, cut_off+1)
         n_mesh = np.arange(-cut_off, cut_off+1)
@@ -491,7 +489,7 @@ class CWT_solver():
             self.zeta_calculator.disable_edit()
         t2 = time.time()
         self._pre_cal_time = t2-t1
-        print('Pre-calculation finished. Time cost: ', self._pre_cal_time, 's.')
+        print('\rPre-calculation finished. Time cost: ', self._pre_cal_time, 's.', flush=True)
 
     def cal_coupling_martix(self, cut_off=10, parallel=True):
         self._cut_off = cut_off
@@ -513,7 +511,8 @@ class CWT_solver():
                              [chi((0,-1,1,0),'x'), chi((0,-1,-1,0),'x'), chi((0,-1,0,1),'x'), chi((0,-1,0,-1),'x')]])
         self.C_mats = {'1D':C_mat_1D, 'rad':C_mat_rad, '2D':C_mat_2D}
         self.cal_eign_value()
-        np.save(f'./history_res/{self.model.pathname_suffix}_res.npy', self.__dict__)
+        self._save()
+        print(f'Calculation finished. Results is saved to ./history_res/{self.model.pathname_suffix}_res.npy', flush=True)
     
     def cal_eign_value(self):
         from scipy.linalg import eig
@@ -532,4 +531,11 @@ class CWT_solver():
         self.omega = self.omega0+self.delta/self.n_eff*self.c
         self.Q = self.beta/self.alpha_r
 
-        
+    def _save(self):
+        import os
+        if not os.path.exists('./history_res/'):
+            os.mkdir('./history_res/')
+        self_dict = self.__dict__.copy()
+        if 'lock' in self_dict:
+            self_dict.pop('lock')
+        np.save(f'./history_res/{self.model.pathname_suffix}_res.npy', self_dict)

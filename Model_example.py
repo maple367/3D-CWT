@@ -1,16 +1,17 @@
 # %%
 if __name__ == '__main__':
+    # Don't define any function in this block, otherwise it will be called by the child process and cause error.
     import multiprocessing as mp
     mp.freeze_support()
     import model
     import numpy as np
     import matplotlib.pyplot as plt
     import pandas as pd
-
+    lock = mp.Manager().Lock()
 
     a = 0.298
-    FF_lst = np.linspace(0.05,0.08,17)
-    FF_lst = [0.05]
+    FF_lst = np.linspace(0.08,0.24,17)
+    FF_lst = [0.08]
     dataframe = pd.DataFrame(columns=['FF', 'uuid', 'cal_time'])
     for FF in FF_lst:
         rel_r = np.sqrt(FF/np.pi)
@@ -18,7 +19,6 @@ if __name__ == '__main__':
         t_list = [1.5,0.0885,0.1180,0.0590,1.5]
         eps_list = [11.0224,12.8603,eps_phc,12.7449,11.0224]
         # eps_list = [11.0224,12.8603,FF+(1-FF)*12.7449,12.7449,11.0224]
-        lock = mp.Manager().Lock()
         paras = model.model_parameters((t_list, eps_list), lock=lock)
         pcsel_model = model.Model(paras)
 
@@ -58,7 +58,6 @@ if __name__ == '__main__':
         cwt_solver = model.CWT_solver(pcsel_model)
         cwt_solver.core_num = 15
         cwt_solver.cal_coupling_martix(10, parallel=True)
-        cwt_solver._pre_cal_time
         data = {'FF': FF, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
         dataframe = pd.concat([dataframe, pd.DataFrame(data, index=[1])], ignore_index=True) # index is not important, but must given.
     dataframe.to_csv('FF.csv', index=False)
