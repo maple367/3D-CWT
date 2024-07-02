@@ -11,11 +11,6 @@ class SGM():
         self.err = 1.0
         self.tol = 1e-5
         self._mesh_grid_()
-        plt.ion()
-        self.fig, self.ax = plt.subplots()
-        self.image = self.ax.imshow(np.abs(self.Rx_grid)**2, cmap='hot')
-        self.ax.set_title('$|R_x|^2$')
-        plt.colorbar(self.image)
 
     def _mesh_grid_(self):
         self.dx = self.size/self.resolution
@@ -44,18 +39,12 @@ class SGM():
         while (self.err > self.tol) and (self.iter <= self.max_iter):
             self._update_()
             self.iter += 1
-            self.plot()
 
     def _initializor_(self):
-        self.Rx_grid[0,0] = 0+0j
-        self.Sx_grid[0,0] = 1+0j
+        self.Rx_grid[1,1] = 1+0j
+        self.Sx_grid[1,1] = 0+0j
 
     def _update_(self):
-        # calculate c_grid
-        self.Rx_c_grid = (self.Rx_grid[:-1,:] + self.Rx_grid[1:,:])/2
-        self.Sx_c_grid = (self.Sx_grid[:-1,:] + self.Sx_grid[1:,:])/2
-        self.Ry_c_grid = (self.Ry_grid[:,:-1] + self.Ry_grid[:,1:])/2
-        self.Sy_c_grid = (self.Sy_grid[:,:-1] + self.Sy_grid[:,1:])/2
         # calculate d_grid
         self.dRx_grid = self.Rx_grid[1:,:] - self.Rx_grid[:-1,:]
         self.dSx_grid = self.Sx_grid[1:,:] - self.Sx_grid[:-1,:]
@@ -66,18 +55,18 @@ class SGM():
         dSx_grid_old = self.dSx_grid.copy()
         dRy_grid_old = self.dRy_grid.copy()
         dSy_grid_old = self.dSy_grid.copy()
-        for y in range(self.resolution+1):
-            for x in range(self.resolution+1):
-                self.Rx_grid[x+1,y] = 2/(-1j*self.init_eig_guess)*(self.dRx_grid[x,y]/self.dx - 1j*(self.C_mat_sum[0,0]*self.Rx_c_grid[x,y] + self.C_mat_sum[0,1]*self.Sx_c_grid[x,y]+self.C_mat_sum[0,2]*self.Ry_c_grid[x,y]+self.C_mat_sum[0,3]*self.Sy_c_grid[x,y])) - self.Rx_grid[x,y]
-                self.Sx_grid[x+1,y] = 2/(-1j*self.init_eig_guess)*(-self.dSx_grid[x,y]/self.dx - 1j*(self.C_mat_sum[1,0]*self.Rx_c_grid[x,y] + self.C_mat_sum[1,1]*self.Sx_c_grid[x,y]+self.C_mat_sum[1,2]*self.Ry_c_grid[x,y]+self.C_mat_sum[1,3]*self.Sy_c_grid[x,y])) - self.Sx_grid[x,y]
-                self.Ry_grid[x,y+1] = 2/(-1j*self.init_eig_guess)*(self.dRy_grid[x,y]/self.dy - 1j*(self.C_mat_sum[2,0]*self.Rx_c_grid[x,y] + self.C_mat_sum[2,1]*self.Sx_c_grid[x,y]+self.C_mat_sum[2,2]*self.Ry_c_grid[x,y]+self.C_mat_sum[2,3]*self.Sy_c_grid[x,y])) - self.Ry_grid[x,y]
-                self.Sy_grid[x,y+1] = 2/(-1j*self.init_eig_guess)*(-self.dSy_grid[x,y]/self.dy - 1j*(self.C_mat_sum[3,0]*self.Rx_c_grid[x,y] + self.C_mat_sum[3,1]*self.Sx_c_grid[x,y]+self.C_mat_sum[3,2]*self.Ry_c_grid[x,y]+self.C_mat_sum[3,3]*self.Sy_c_grid[x,y])) - self.Sy_grid[x,y]
         # apply boundary conditions
         self.Rx_grid[0,:] = -self.Rx_grid[1,:]
         self.Sx_grid[-1,:] = -self.Sx_grid[-2,:]
         self.Ry_grid[:,0] = -self.Ry_grid[:,1]
         self.Sy_grid[:,-1] = -self.Sy_grid[:,-2]
-        # update d_grid
+        # update grid
+        for y in range(self.resolution+1):
+            for x in range(self.resolution+1):
+                self.Rx_grid[x+1,y] = 2/(-1j*self.init_eig_guess)*(self.dRx_grid[x,y]/self.dx - 1j/2*(self.C_mat_sum[0,0]*(self.Rx_grid[x,y]+self.Rx_grid[x+1,y]) + self.C_mat_sum[0,1]*(self.Sx_grid[x,y]+self.Sx_grid[x+1,y])+self.C_mat_sum[0,2]*(self.Ry_grid[x,y]+self.Ry_grid[x,y+1])+self.C_mat_sum[0,3]*(self.Sy_grid[x,y]+self.Sy_grid[x,y+1]))) - self.Rx_grid[x,y]
+                self.Sx_grid[x+1,y] = 2/(-1j*self.init_eig_guess)*(-self.dSx_grid[x,y]/self.dx - 1j/2*(self.C_mat_sum[1,0]*(self.Rx_grid[x,y]+self.Rx_grid[x+1,y]) + self.C_mat_sum[1,1]*(self.Sx_grid[x,y]+self.Sx_grid[x+1,y])+self.C_mat_sum[1,2]*(self.Ry_grid[x,y]+self.Ry_grid[x,y+1])+self.C_mat_sum[1,3]*(self.Sy_grid[x,y]+self.Sy_grid[x,y+1]))) - self.Sx_grid[x,y]
+                self.Ry_grid[x,y+1] = 2/(-1j*self.init_eig_guess)*(self.dRy_grid[x,y]/self.dy - 1j/2*(self.C_mat_sum[2,0]*(self.Rx_grid[x,y]+self.Rx_grid[x+1,y]) + self.C_mat_sum[2,1]*(self.Sx_grid[x,y]+self.Sx_grid[x+1,y])+self.C_mat_sum[2,2]*(self.Ry_grid[x,y]+self.Ry_grid[x,y+1])+self.C_mat_sum[2,3]*(self.Sy_grid[x,y]+self.Sy_grid[x,y+1]))) - self.Ry_grid[x,y]
+                self.Sy_grid[x,y+1] = 2/(-1j*self.init_eig_guess)*(-self.dSy_grid[x,y]/self.dy - 1j/2*(self.C_mat_sum[3,0]*(self.Rx_grid[x,y]+self.Rx_grid[x+1,y]) + self.C_mat_sum[3,1]*(self.Sx_grid[x,y]+self.Sx_grid[x+1,y])+self.C_mat_sum[3,2]*(self.Ry_grid[x,y]+self.Ry_grid[x,y+1])+self.C_mat_sum[3,3]*(self.Sy_grid[x,y]+self.Sy_grid[x,y+1]))) - self.Sy_grid[x,y]
         self.dRx_grid = self.Rx_grid[1:,:] - self.Rx_grid[:-1,:]
         self.dSx_grid = self.Sx_grid[1:,:] - self.Sx_grid[:-1,:]
         self.dRy_grid = self.Ry_grid[:,1:] - self.Ry_grid[:,:-1]
@@ -87,6 +76,8 @@ class SGM():
         print(f"\riter {self.iter}: max error {self.err}         ", end="", flush=True)
 
     def plot(self):
-        self.image.set_data(np.abs(self.Rx_grid)**2)
-        self.fig.canvas.draw()
-        plt.pause(0.1)
+        self.fig, self.ax = plt.subplots()
+        self.image = self.ax.imshow((np.abs(self.Rx_grid)**2), cmap='hot')
+        self.ax.set_title('$|R_x|^2$')
+        self.fig.colorbar(self.image)
+        plt.show()
