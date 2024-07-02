@@ -495,7 +495,7 @@ class CWT_solver():
         self._pre_cal_time = t2-t1
         print('\rPre-calculation finished. Time cost: ', self._pre_cal_time, 's.', flush=True)
 
-    def cal_coupling_martix(self, cut_off=10, parallel=True):
+    def run(self, cut_off=10, parallel=True):
         self._cut_off = cut_off
         if parallel: self._pre_cal_()
         kappa = self.kappa_calculator
@@ -540,6 +540,7 @@ class CWT_solver():
         if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
             os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
         save_dict = {'C_mats':self.C_mats,
+                     'C_mat_sum':self.C_mat_sum,
                     'eigen_values':self.eigen_values,
                     'eigen_vectors':self.eigen_vectors,
                     'delta':self.delta,
