@@ -264,9 +264,11 @@ class model_parameters():
 
     def _save(self):
         import os
-        if not os.path.exists('./history_res/'):
-            os.mkdir('./history_res/')
-        np.save(f'./history_res/{self.uuid}_para.npy', self.__dict__)
+        if not os.path.exists(f'./history_res/{self.uuid}/'):
+            os.mkdir(f'./history_res/{self.uuid}/')
+            np.save(f'./history_res/{self.uuid}/input_para.npy', self.__dict__)
+        else:
+            warnings.warn(f'Warning: The folder ./history_res/{self.uuid}/ is already exist. The data will be used to pass the calculation.', FutureWarning)
 
 
 class Model():
@@ -533,9 +535,19 @@ class CWT_solver():
 
     def _save(self):
         import os
-        if not os.path.exists('./history_res/'):
-            os.mkdir('./history_res/')
-        self_dict = self.__dict__.copy()
-        if 'lock' in self_dict:
-            self_dict.pop('lock')
-        np.save(f'./history_res/{self.model.pathname_suffix}_res.npy', self_dict)
+        if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
+            os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
+        save_dict = {'C_mats':self.C_mats,
+                    'eigen_values':self.eigen_values,
+                    'eigen_vectors':self.eigen_vectors,
+                    'delta':self.delta,
+                    'alpha':self.alpha,
+                    'alpha_r':self.alpha_r,
+                    'beta0':self.beta0,
+                    'beta':self.beta,
+                    'k0':self.k0,
+                    'omega0':self.omega0,
+                    'omega':self.omega,
+                    'n_eff':self.n_eff,
+                    'Q':self.Q}
+        np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', save_dict)

@@ -1,6 +1,7 @@
 # %%
 if __name__ == '__main__':
-    # Don't define any function in this block, otherwise it will be called by the child process and cause error.
+    ### README ###
+    ### Don't define any function in this block, otherwise it will be called by the child process and cause error. ###
     import multiprocessing as mp
     mp.freeze_support()
     import model

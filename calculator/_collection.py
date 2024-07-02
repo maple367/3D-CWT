@@ -160,7 +160,7 @@ class Array_calculator():
     out : class
         The array can be get by index or call directly.
     """
-    def __init__(self, func, notes,pathname_suffix, lock, **kwargs):
+    def __init__(self, func, notes, pathname_suffix, lock, **kwargs):
         self.func = func
         self.notes = notes
         self.kwargs = kwargs
@@ -170,7 +170,7 @@ class Array_calculator():
         self.lock = lock
         if not os.path.exists(f'./{self.pathname}/'):
             os.mkdir(f'./{self.pathname}/')
-        np.save(self.array_path, self.array)
+        self._save()
         self.__editable__ = False
         
     def _cal(self, index):
@@ -186,6 +186,12 @@ class Array_calculator():
     def disable_edit(self):
         np.save(self.array_path, self.array)
         self.__editable__ = False
+
+    def _save(self):
+        try: # if exist, load
+            self.array = np.load(self.array_path, allow_pickle=True).item()
+        except:
+            np.save(self.array_path, self.array)
 
     def _update_array(self, index, value):
         while True:
