@@ -264,6 +264,8 @@ class model_parameters():
 
     def _save(self):
         import os
+        if not os.path.exists(f'./history_res/'):
+            os.mkdir(f'./history_res/')
         if not os.path.exists(f'./history_res/{self.uuid}/'):
             os.mkdir(f'./history_res/{self.uuid}/')
             np.save(f'./history_res/{self.uuid}/input_para.npy', self.__dict__)

@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     a = 0.298
     FF_lst = np.linspace(0.08,0.24,17)
-    FF_lst = [0.08]
+    # FF_lst = [0.08]
     dataframe = pd.DataFrame(columns=['FF', 'uuid', 'cal_time'])
     for FF in FF_lst:
         rel_r = np.sqrt(FF/np.pi)
