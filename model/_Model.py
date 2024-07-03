@@ -219,11 +219,12 @@ class model_parameters():
     out : class
         The model parameters.
     """
-    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine]], lock=None, **kwargs):
+    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine],list[tuple[int,float,float,float,float]]], lock=None, **kwargs):
         import uuid
         if lock is None: lock = mp.Manager().Lock()
         self.layer_thicknesses = np.array(layer[0])
         self.epsilons = np.array(layer[1])
+        self.dopingfunc_coeff = layer[2]
         self.kwargs = kwargs
         self._check_para()
         self.beta = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
@@ -290,17 +291,35 @@ class Model():
         integrated_func_2d = integral_method(3, 'dblquad')()
         integrated_func_1d = integral_method(3, 'quad')()
         self.paras = paras
+        self.lock = self.paras.lock
         self.pathname_suffix = self.paras.uuid
         self.tmm = self.paras.tmm
+        self.e_normlized_intensity = self.tmm.e_normlized_intensity
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
-        self.lock = self.paras.lock
+        
         self.integrated_func_2d = integrated_func_2d
         self.integrated_func_1d = integrated_func_1d
         self.prepare_calculator()
 
     def e_profile(self, z):
         return self.tmm(z)
+    
+    def _doping_(self, z):
+        if z < self.tmm.z_boundary[0]:
+            z = self.tmm.z_boundary[0]
+        elif z > self.tmm.z_boundary[-1]:
+            z = self.tmm.z_boundary[-1]
+        num_layer = self.tmm._find_layer(z)
+        if num_layer < self.paras.dopingfunc_coeff[0]:
+            return np.exp(self.paras.dopingfunc_coeff[1] + self.paras.dopingfunc_coeff[2] * z)
+        elif num_layer > self.paras.dopingfunc_coeff[0]:
+            return np.exp(self.paras.dopingfunc_coeff[3] + self.paras.dopingfunc_coeff[4] * z)
+        else:
+            return 0
+    
+    def doping(self, z):
+        return np.vectorize(self._doping_)(z)
     
     def eps_profile(self, x=None, y=None, z=None):
         if z is None:
@@ -361,6 +380,9 @@ class Model():
         self.gamma_phc = self.integrated_func_1d(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])        
         self.coupling_coeff = np.array([self.integrated_func_1d(self.tmm.e_normlized_intensity, self.tmm.z_boundary[i], self.tmm.z_boundary[i+1]) for i in range(len(self.tmm.z_boundary)-1)])
         self._xi_weight = np.array([self.coupling_coeff[_]/self.gamma_phc for _ in range(len(self.coupling_coeff))])
+        self._fc_coupling_p_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[0], self.tmm.z_boundary[self.paras.dopingfunc_coeff[0]])
+        self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[self.paras.dopingfunc_coeff[0]], self.tmm.z_boundary[-1])
+        self.fc_absorption = self._fc_coupling_p_*7e-10+self._fc_coupling_n_*3e-10
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
