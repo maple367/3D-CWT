@@ -29,6 +29,7 @@ if __name__ == '__main__':
     dataframe = pd.DataFrame(columns=['FF', 'uuid', 'cal_time'])
     for FF in FF_lst:
         rel_r = np.sqrt(FF/np.pi)
+        Al_x = []
         eps_phc = model.rect_lattice.eps_circle(rel_r, a, a, 12.7449)
         t_list = [1.5,0.0885,0.1180,0.0590,1.5]
         eps_list = [11.0224,12.8603,eps_phc,12.7449,11.0224]

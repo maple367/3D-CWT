@@ -3,13 +3,13 @@ import os
 import pandas as pd
 
 base_dir = os.path.dirname(__file__)
-__Al0000GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.0000GaAs.csv')
-__Al0097GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.0097GaAs.csv')
-__Al2190GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.2190GaAs.csv')
-__Al3420GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.3420GaAs.csv')
-__Al4110GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.4110GaAs.csv')
-__Al4520GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.4520GaAs.csv')
-__Al7000GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.7000GaAs.csv')
+__Al000GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.000GaAs.csv')
+__Al097GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.097GaAs.csv')
+__Al219GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.219GaAs.csv')
+__Al342GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.342GaAs.csv')
+__Al411GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.411GaAs.csv')
+__Al452GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.452GaAs.csv')
+__Al700GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.700GaAs.csv')
 
 class AlxGaAs():
     """
@@ -21,63 +21,65 @@ class AlxGaAs():
         self._cal_eps_()
 
     def _cal_eps_(self):
-        if 0.0000 <= self.x < 0.0097:
-            nk_b_data = pd.read_csv(__Al0000GaAs_path__)
-            nk_u_data = pd.read_csv(__Al0097GaAs_path__)
-            x_b = (0.0097 - self.x)/(0.0097-0.0000)
+        if 0.000 <= self.x < 0.097:
+            nk_b_data = pd.read_csv(__Al000GaAs_path__)
+            nk_u_data = pd.read_csv(__Al097GaAs_path__)
+            x_b = (0.097 - self.x)/(0.097-0.000)
             n_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['n'])
             k_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['k'])
             n_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['n'])
             k_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['k'])
             self.n, self.k = n_b*x_b + n_u*(1-x_b), k_b*x_b + k_u*(1-x_b)
             self.epsilon = np.square(self.n + 1j*self.k)
-        elif 0.0097 <= self.x < 0.2190:
-            nk_b_data = pd.read_csv(__Al0097GaAs_path__)
-            nk_u_data = pd.read_csv(__Al2190GaAs_path__)
-            x_b = (0.2190 - self.x)/(0.2190-0.0097)
+        elif 0.097 <= self.x < 0.219:
+            nk_b_data = pd.read_csv(__Al097GaAs_path__)
+            nk_u_data = pd.read_csv(__Al219GaAs_path__)
+            x_b = (0.219 - self.x)/(0.219-0.097)
             n_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['n'])
             k_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['k'])
             n_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['n'])
             k_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['k'])
             self.n, self.k = n_b*x_b + n_u*(1-x_b), k_b*x_b + k_u*(1-x_b)
             self.epsilon = np.square(self.n + 1j*self.k)
-        elif 0.2190 <= self.x < 0.3420:
-            nk_b_data = pd.read_csv(__Al2190GaAs_path__)
-            nk_u_data = pd.read_csv(__Al3420GaAs_path__)
-            x_b = (0.3420 - self.x)/(0.3420-0.2190)
+        elif 0.219 <= self.x < 0.342:
+            nk_b_data = pd.read_csv(__Al219GaAs_path__)
+            nk_u_data = pd.read_csv(__Al342GaAs_path__)
+            x_b = (0.342 - self.x)/(0.342-0.219)
             n_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['n'])
             k_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['k'])
             n_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['n'])
             k_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['k'])
             self.n, self.k = n_b*x_b + n_u*(1-x_b), k_b*x_b + k_u*(1-x_b)
             self.epsilon = np.square(self.n + 1j*self.k)
-        elif 0.3420 <= self.x < 0.4110:
-            nk_b_data = pd.read_csv(__Al3420GaAs_path__)
-            nk_u_data = pd.read_csv(__Al4110GaAs_path__)
-            x_b = (0.4110 - self.x)/(0.4110-0.3420)
+        elif 0.342 <= self.x < 0.411:
+            nk_b_data = pd.read_csv(__Al342GaAs_path__)
+            nk_u_data = pd.read_csv(__Al411GaAs_path__)
+            x_b = (0.411 - self.x)/(0.411-0.342)
             n_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['n'])
             k_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['k'])
             n_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['n'])
             k_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['k'])
             self.n, self.k = n_b*x_b + n_u*(1-x_b), k_b*x_b + k_u*(1-x_b)
             self.epsilon = np.square(self.n + 1j*self.k)
-        elif 0.4110 <= self.x < 0.4520:
-            nk_b_data = pd.read_csv(__Al4110GaAs_path__)
-            nk_u_data = pd.read_csv(__Al4520GaAs_path__)
-            x_b = (0.4520 - self.x)/(0.4520-0.4110)
+        elif 0.411 <= self.x < 0.452:
+            nk_b_data = pd.read_csv(__Al411GaAs_path__)
+            nk_u_data = pd.read_csv(__Al452GaAs_path__)
+            x_b = (0.452 - self.x)/(0.452-0.411)
             n_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['n'])
             k_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['k'])
             n_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['n'])
             k_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['k'])
             self.n, self.k = n_b*x_b + n_u*(1-x_b), k_b*x_b + k_u*(1-x_b)
             self.epsilon = np.square(self.n + 1j*self.k)
-        elif 0.4520 <= self.x <= 0.7000:
-            nk_b_data = pd.read_csv(__Al4520GaAs_path__)
-            nk_u_data = pd.read_csv(__Al7000GaAs_path__)
-            x_b = (0.7000 - self.x)/(0.7000-0.4520)
+        elif 0.452 <= self.x <= 0.700:
+            nk_b_data = pd.read_csv(__Al452GaAs_path__)
+            nk_u_data = pd.read_csv(__Al700GaAs_path__)
+            x_b = (0.700 - self.x)/(0.700-0.452)
             n_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['n'])
             k_b = np.interp(self.wavelength, nk_b_data['wl'], nk_b_data['k'])
             n_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['n'])
             k_u = np.interp(self.wavelength, nk_u_data['wl'], nk_u_data['k'])
             self.n, self.k = n_b*x_b + n_u*(1-x_b), k_b*x_b + k_u*(1-x_b)
             self.epsilon = np.square(self.n + 1j*self.k)
+        else:
+            raise ValueError('x should be in [0.0000, 0.7000]')
