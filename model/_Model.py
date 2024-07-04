@@ -555,6 +555,9 @@ class CWT_solver():
         self.omega0 = self.k0*self.c
         self.n_eff = self.beta0/self.k0
         self.omega = self.omega0+self.delta/self.n_eff*self.c
+        self.k = self.k0+self.delta/self.n_eff
+        self.a = np.sqrt(self.model.paras.cellsize_x*self.model.paras.cellsize_y)
+        self.norm_freq = self.omega/(2*np.pi)/(self.c/self.a)
         self.Q = self.beta/self.alpha_r
 
     def _save(self):
@@ -562,7 +565,7 @@ class CWT_solver():
         if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
             os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
         save_dict = {'C_mats':self.C_mats,
-                     'C_mat_sum':self.C_mat_sum,
+                    'C_mat_sum':self.C_mat_sum,
                     'eigen_values':self.eigen_values,
                     'eigen_vectors':self.eigen_vectors,
                     'delta':self.delta,
@@ -571,6 +574,7 @@ class CWT_solver():
                     'beta0':self.beta0,
                     'beta':self.beta,
                     'k0':self.k0,
+                    'k':self.k,
                     'omega0':self.omega0,
                     'omega':self.omega,
                     'n_eff':self.n_eff,
