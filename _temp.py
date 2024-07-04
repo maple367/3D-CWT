@@ -23,7 +23,7 @@ f_array = np.ones((len(f_list), len(f_list[0])))
 for i in range(len(f_list)):
     f_array[i] = f_list[i]
 fig, ax = plt.subplots(figsize=(7,5))
-ax.plot(np.array(FF_list), f_array, 'o')
+ax.plot(np.array(FF_list), f_array,)
 ax.set_xlabel('FF')
 ax.set_ylabel('f (c/a)')
 plt.show()
