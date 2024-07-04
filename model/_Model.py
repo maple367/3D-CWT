@@ -580,3 +580,21 @@ class CWT_solver():
                     'n_eff':self.n_eff,
                     'Q':self.Q}
         np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', save_dict)
+
+
+class SEMI_solver():
+    """
+    
+    """
+    def __init__(self, model:Model):
+        self.model = model
+        self._prepare_model_()
+
+    def __getattr__(self, name):
+        if name == '_cut_off':
+            print('cut_off not set. Use default value 10.')
+            self._cut_off = 10
+            return self._cut_off
+    
+    def _prepare_model_(self):
+        pass
