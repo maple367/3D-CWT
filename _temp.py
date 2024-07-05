@@ -40,3 +40,6 @@ fig, ax = plt.subplots()
 ax.plot(x_list,epsilon_list)
 plt.show()
 # %%
+from scipy.optimize import curve_fit
+def func(x, a, b):
+    return np.exp(a + b * x)
