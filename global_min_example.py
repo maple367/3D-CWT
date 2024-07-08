@@ -46,12 +46,12 @@ if __name__ == '__main__':
         paras = model.model_parameters((t_list, eps_list, doping_para), lock=lock) # input tuple (t_list, eps_list, index where is the active layer)
         pcsel_model = model.Model(paras)
         tmm = pcsel_model.tmm
-        def t_11(k0):
-            tmm._construct_matrix(k0)
+        def t_11(beta):
+            tmm._construct_matrix(beta)
             return tmm.t_11
         
-        k0_lst = np.linspace(2*np.pi/1.55, 2*np.pi/0.8, 5000)
-        t_11_lst = [t_11(k0) for k0 in k0_lst]
-        plt.plot(k0_lst, np.abs(t_11_lst))
+        betas = np.linspace(2*np.pi/0.98*2.5, 2*np.pi/0.98*3.5, 10000)
+        t_11_lst = [t_11(beta) for beta in betas]
+        plt.plot(betas, np.abs(t_11_lst))
         plt.yscale('log')
         plt.show()

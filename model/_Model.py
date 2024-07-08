@@ -33,13 +33,13 @@ class TMM():
 
     Parameters
     ----------
-    k0 : float, complex
-        Wave number in free space.
     layer_thicknesses : iterable[float]
         Thickness of each layer.
     epsilons : iterable[float, complex]
         Dielectric constant of each layer.
-    beta : float, complex
+    k0 : float
+        Wave number in free space.
+    beta_init : float, complex
         Propagation constant of the fundamental mode.
 
     Returns
@@ -48,20 +48,19 @@ class TMM():
         z : the position of the field, the z = 0 is the boundary of the first layer
         return : the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
     """
-    def __init__(self, layer_thicknesses, epsilons, beta0, k0_init=None):
+    def __init__(self, layer_thicknesses, epsilons, k0, beta_init=None):
         self.find_modes_iter = 0
-        self.k0_init = k0_init
-        self.k0 = k0_init
-        self.beta0 = beta0
+        self.k0 = k0
+        self.beta_init = beta_init
         self.layer_thicknesses = np.array(layer_thicknesses, dtype=np.longdouble)
         self.epsilons = np.array(epsilons, dtype=np.longcomplex)
-        self.beta = np.array(beta0, dtype=np.longcomplex)
+        self.beta = np.array(self.beta0, dtype=np.longcomplex)
         self.z_boundary = np.insert(np.cumsum(self.layer_thicknesses), 0, 0) # the z position of the boundary of each layer
         self._z_boundary_without_lb = self.z_boundary[1:]
         self._len_z_boundary = len(self.z_boundary)
 
-    def _construct_matrix(self, k0):
-        self.gamma_s = np.sqrt(np.square(self.beta)-np.square(k0)*self.epsilons)
+    def _construct_matrix(self, beta):
+        self.gamma_s = np.sqrt(np.square(beta)-np.square(self.k0)*self.epsilons)
         prime = self.gamma_s[:-1]*self.layer_thicknesses[:-1]
         coeff_s = self.gamma_s[:-1]/self.gamma_s[1:]
         T_mat_s_00 = (1+coeff_s)*np.exp(prime)/2
@@ -141,32 +140,28 @@ class TMM():
         """
         return: the k0 of the mode
         """
-        def t_11_func_k_log(k0):
-            self._construct_matrix(k0)
+        def t_11_func_beta_log(beta:tuple[float, float]):
+            beta = beta[0] + 1j*beta[1]
+            self._construct_matrix(beta)
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
-        def t_11_func_k_beta(paras):
-            k0, beta_i = paras
-            self.beta = self.beta0 + 1j*beta_i
-            self._construct_matrix(k0)
-            log_t11 = np.log10(np.abs(self.t_11))
-            return log_t11
-        if self.k0_init is None:
-            k0_min = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons).max())), dtype=np.longdouble) # k0 must be smaller than wave in highest epsilon medium
-            k0_max = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons).min())), dtype=np.longdouble) # k0 must be bigger than wave in cladding medium
-            k_sol_coarse = direct(t_11_func_k_log, Bounds(k0_min,k0_max))
-            k0_init = k_sol_coarse.x.item()
+        if self.beta_init is None:
+            beta_r_max = self.k0*np.real(np.sqrt(self.epsilons.max())) # beta is max in the medium with max epsilon
+            beta_r_min = self.k0*np.real(np.sqrt(self.epsilons.min())) # beta is min in the medium with min epsilon
+            beta_sol = direct(t_11_func_beta_log, Bounds((beta_r_min,0),(beta_r_max,1)))
+            beta_init = beta_sol.x
+            self.beta_init = beta_init
         else:
-            k0_init = self.k0_init
-        k_sol = minimize(t_11_func_k_beta, x0=(k0_init, 0.5), method='Nelder-Mead')
-        while (k_sol.fun >= -10.0) and self.find_modes_iter < 3:
+            beta_init = self.beta_init
+        beta_sol = minimize(t_11_func_beta_log, x0=(np.real(beta_init), np.imag(beta_init)), method='Nelder-Mead')
+        while (beta_sol.fun >= -10.0) and self.find_modes_iter < 3:
             self.find_modes_iter += 1
-            if k_sol.fun < -10.0:
-                self.k0_init = k_sol.x[0]
-            warnings.warn(f't11 is not converge to machine precision after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
+            if beta_sol.fun < -10.0:
+                self.beta_init = beta_sol
+            warnings.warn(f't11 is not converge to machine precision after {beta_sol.nit} iter, t11 = {10**beta_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
             self.find_modes()
-        self.k0 = k_sol.x[0]
-        self._construct_matrix(self.k0)
+        self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
+        _ = t_11_func_beta_log(beta_sol.x) # update the T_total, V_s, V_s_flatten
         self._cal_normlized_constant()
         self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
 
@@ -234,10 +229,11 @@ class model_parameters():
         self.doping_para = layer[2]
         self.kwargs = kwargs
         self._check_para()
-        self.beta = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
+        self.k0 = 2*np.pi/0.98 # 0.98um is the wavelength of the light source
+        self.beta_init = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
         self._gen_avg_eps()
         self._define_kwargs()
-        self.tmm = TMM(self.layer_thicknesses, self.avg_epsilons, self.beta, self.kwargs.get('k0_init', None))
+        self.tmm = TMM(self.layer_thicknesses, self.avg_epsilons, self.k0, self.beta_init)
         self.tmm.find_modes()
         # Generate a unique id for the model parameters.
         self.uuid = uuid.uuid4().hex
