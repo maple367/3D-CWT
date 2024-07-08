@@ -89,7 +89,7 @@ class eps_circle(eps_userdefine):
         The class returns the dielectric constant distribution in the cell.
     """
     eps_func = None
-    def __init__(self, rel_r, cell_size_x, cell_size_y, eps_bulk, eps_hole=1.0):
+    def __init__(self, rel_r, cell_size_x, cell_size_y, eps_bulk=11.56, eps_hole=1.0):
         self.rel_r = rel_r
         self.r = self.rel_r*np.sqrt(cell_size_x*cell_size_y)
         self.r__2 = self.r**2
@@ -106,5 +106,6 @@ class eps_circle(eps_userdefine):
     def eps(self, x, y):
         return __eps_circle__(x, y, self.cell_size_x, self.cell_size_y, self.half_cell_size_x, self.half_cell_size_y, self.r__2, self.eps_hole, self.eps_bulk)
     
-    def __call__(self, x, y):
-        return self.eps(x, y)
+    def __call__(self, eps_bulk, eps_hole=1.0):
+        self.eps_bulk = eps_bulk
+        self.eps_hole = eps_hole

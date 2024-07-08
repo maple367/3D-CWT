@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import Bounds, dual_annealing, minimize, direct
+from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
 from scipy.integrate import quad
 import numba
 import warnings
@@ -48,13 +48,14 @@ class TMM():
         z : the position of the field, the z = 0 is the boundary of the first layer
         return : the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
     """
-    def __init__(self, layer_thicknesses, epsilons, beta, k0_init=None):
+    def __init__(self, layer_thicknesses, epsilons, beta0, k0_init=None):
         self.find_modes_iter = 0
         self.k0_init = k0_init
         self.k0 = k0_init
+        self.beta0 = beta0
         self.layer_thicknesses = np.array(layer_thicknesses, dtype=np.longdouble)
         self.epsilons = np.array(epsilons, dtype=np.longcomplex)
-        self.beta = np.array(beta, dtype=np.longcomplex)
+        self.beta = np.array(beta0, dtype=np.longcomplex)
         self.z_boundary = np.insert(np.cumsum(self.layer_thicknesses), 0, 0) # the z position of the boundary of each layer
         self._z_boundary_without_lb = self.z_boundary[1:]
         self._len_z_boundary = len(self.z_boundary)
@@ -144,21 +145,27 @@ class TMM():
             self._construct_matrix(k0)
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
+        def t_11_func_k_beta(paras):
+            k0, beta_i = paras
+            self.beta = self.beta0 + 1j*beta_i
+            self._construct_matrix(k0)
+            log_t11 = np.log10(np.abs(self.t_11))
+            return log_t11
         if self.k0_init is None:
             k0_min = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons).max())), dtype=np.longdouble) # k0 must be smaller than wave in highest epsilon medium
-            k0_max = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons)[0])), dtype=np.longdouble) # k0 must be bigger than wave in cladding medium
+            k0_max = np.array(np.real(self.beta/np.sqrt(np.real(self.epsilons).min())), dtype=np.longdouble) # k0 must be bigger than wave in cladding medium
             k_sol_coarse = direct(t_11_func_k_log, Bounds(k0_min,k0_max))
-            k0_init = k_sol_coarse.x
+            k0_init = k_sol_coarse.x.item()
         else:
             k0_init = self.k0_init
-        k_sol = minimize(t_11_func_k_log, x0=k0_init, method='Nelder-Mead')
+        k_sol = minimize(t_11_func_k_beta, x0=(k0_init, 0.5), method='Nelder-Mead')
         while (k_sol.fun >= -10.0) and self.find_modes_iter < 3:
             self.find_modes_iter += 1
             if k_sol.fun < -10.0:
-                self.k0_init = k_sol.x
+                self.k0_init = k_sol.x[0]
             warnings.warn(f't11 is not converge to machine precision after {k_sol.nit} iter, t11 = {10**k_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
             self.find_modes()
-        self.k0 = k_sol.x
+        self.k0 = k_sol.x[0]
         self._construct_matrix(self.k0)
         self._cal_normlized_constant()
         self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
@@ -219,12 +226,12 @@ class model_parameters():
     out : class
         The model parameters.
     """
-    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine],list[tuple[int,float,float,float,float]]], lock=None, **kwargs):
+    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine],dict[list,list]], lock=None, **kwargs):
         import uuid
         if lock is None: lock = mp.Manager().Lock()
         self.layer_thicknesses = np.array(layer[0])
         self.epsilons = np.array(layer[1])
-        self.dopingfunc_coeff = layer[2]
+        self.doping_para = layer[2]
         self.kwargs = kwargs
         self._check_para()
         self.beta = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
@@ -297,7 +304,7 @@ class Model():
         self.e_normlized_intensity = self.tmm.e_normlized_intensity
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
-        
+        self.__no_doping_min__, self.__no_doping_max__ = np.min(np.where(np.array(self.paras.doping_para['is_no_doping']) == True)), np.max(np.where(np.array(self.paras.doping_para['is_no_doping']) == True))
         self.integrated_func_2d = integrated_func_2d
         self.integrated_func_1d = integrated_func_1d
         self.prepare_calculator()
@@ -311,12 +318,14 @@ class Model():
         elif z > self.tmm.z_boundary[-1]:
             z = self.tmm.z_boundary[-1]
         num_layer = self.tmm._find_layer(z)
-        if num_layer < self.paras.dopingfunc_coeff[0]:
-            return np.exp(self.paras.dopingfunc_coeff[1] + self.paras.dopingfunc_coeff[2] * z)
-        elif num_layer > self.paras.dopingfunc_coeff[0]:
-            return np.exp(self.paras.dopingfunc_coeff[3] + self.paras.dopingfunc_coeff[4] * z)
-        else:
+        if self.paras.doping_para['is_no_doping'][num_layer]:
             return 0
+        elif num_layer < self.__no_doping_min__:
+            return np.exp(self.paras.doping_para['coeff'][0] + self.paras.doping_para['coeff'][1]*z)
+        elif num_layer > self.__no_doping_max__:
+            return np.exp(self.paras.doping_para['coeff'][2] + self.paras.doping_para['coeff'][3]*z)
+        else:
+            raise ValueError('The z corrdinate is unexpected.')
     
     def doping(self, z):
         return np.vectorize(self._doping_)(z)
@@ -340,7 +349,7 @@ class Model():
         eps_array = np.empty_like(z, dtype=object)
         for i in range(len(z)):
             if is_eps_userdefine[i]:
-                eps_array[i] = eps[i](x, y)
+                eps_array[i] = eps[i].eps(x, y)
             else:
                 eps_array[i] = np.ones_like(x)*eps[i]
         return eps_array
@@ -380,8 +389,8 @@ class Model():
         self.gamma_phc = self.integrated_func_1d(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])        
         self.coupling_coeff = np.array([self.integrated_func_1d(self.tmm.e_normlized_intensity, self.tmm.z_boundary[i], self.tmm.z_boundary[i+1]) for i in range(len(self.tmm.z_boundary)-1)])
         self._xi_weight = np.array([self.coupling_coeff[_]/self.gamma_phc for _ in range(len(self.coupling_coeff))])
-        self._fc_coupling_p_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[0], self.tmm.z_boundary[self.paras.dopingfunc_coeff[0]])
-        self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[self.paras.dopingfunc_coeff[0]], self.tmm.z_boundary[-1])
+        self._fc_coupling_p_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[0], self.tmm.z_boundary[self.__no_doping_min__])
+        self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[self.__no_doping_max__+1], self.tmm.z_boundary[-1])
         self.fc_absorption = self._fc_coupling_p_*7e-10+self._fc_coupling_n_*3e-10
 
     def Green_func_fundamental(self, z, z_prime):

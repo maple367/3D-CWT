@@ -29,7 +29,7 @@ class xi_calculator_DFT():
         x_mesh = np.linspace(0, cell_size_x, resolution)
         y_mesh = np.linspace(0, cell_size_y, resolution)
         X, Y = np.meshgrid(x_mesh, y_mesh)
-        eps_array = eps_func(X, Y)
+        eps_array = eps_func.eps(X, Y)
         self.xi_array = np.fft.fft2(eps_array)/(resolution*resolution)
 
     def __getitem__(self, index):

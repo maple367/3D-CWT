@@ -18,33 +18,42 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     import model
+    from model import AlxGaAs
     import numpy as np
     import matplotlib.pyplot as plt
     import pandas as pd
     lock = mp.Manager().Lock()
 
     a = 0.298
-    FF_lst = np.linspace(0.08,0.24,17)
-    # FF_lst = [0.08]
+    # FF_lst = np.linspace(0.08,0.24,17)
+    FF_lst = [0.08]
     dataframe = pd.DataFrame(columns=['FF', 'uuid', 'cal_time'])
     for FF in FF_lst:
         rel_r = np.sqrt(FF/np.pi)
-        Al_x = [0, ]
-        eps_phc = model.rect_lattice.eps_circle(rel_r, a, a, 12.7449)
-        t_list = [1.5,0.0885,0.1180,0.0590,1.5]
-        eps_list = [11.0224,12.8603,eps_phc,12.7449,11.0224]
-        doping_func_coeff = [1, 17.7, -3.23, 8.28, 2.00]
-        paras = model.model_parameters((t_list, eps_list, doping_func_coeff), lock=lock) # input tuple (t_list, eps_list, index where is the active layer)
+        x0, x1, x2, x5, x6 = 0.0, 0.1, 0.0, 0.2, 0.45
+        Al_x = [x0, x1, x2, 0.4, 0.157, x5, x6]
+        t1, t2, t3, t5, t6 = 0.23, 0.08, 0.025, 0.04, 2.110
+        t_list = [0.12, t1, t2, t3, 0.076, t5, t6]
+        is_phc = [True, True, False, False, False, False, False]
+        is_no_doping = [False, False, True, True, True, False, False]
+        eps_list = []
+        for i in range(len(is_phc)):
+            if is_phc[i]:
+                eps_list.append((model.rect_lattice.eps_circle(rel_r, a, a, AlxGaAs(Al_x[i]).epsilon)))
+            else:
+                eps_list.append(AlxGaAs(Al_x[i]).epsilon)
+        doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
+        paras = model.model_parameters((t_list, eps_list, doping_para), lock=lock) # input tuple (t_list, eps_list, index where is the active layer)
         pcsel_model = model.Model(paras)
 
-        z_mesh = np.linspace(-1, 1.5 + 0.0885 + 0.1180 + 0.0590 + 1.5 +1, 5000)
+        z_mesh = np.linspace(-0.5, np.sum(t_list)+0.5, 5000)
         E_profile_s = pcsel_model.e_profile(z=z_mesh)
         dopings = pcsel_model.doping(z=z_mesh)
         eps_s = pcsel_model.eps_profile(z=z_mesh)
         E_profile_s = E_profile_s / np.max(np.abs(E_profile_s)) * (np.max(np.abs(paras.avg_epsilons)) - np.min(np.abs(paras.avg_epsilons))) + np.min(np.abs(paras.avg_epsilons))
         x_mesh = np.linspace(0, a, 500)
         y_mesh = np.linspace(0, a, 500)
-        z_points = np.array([1.5+0.0885+0.1180/2,]) # must be a vector
+        z_points = np.array([0.3/2,]) # must be a vector
         XX, YY = np.meshgrid(x_mesh, y_mesh)
         eps_mesh_phc = pcsel_model.eps_profile(XX, YY, z_points)[0]
 
