@@ -2,10 +2,13 @@
  Three Dimension Coupled Wave Theory
 
 # TODO
-- [ ] Add support for titled photonic crystal
+- [x] Add support for titled photonic crystal
 
 # Release Notes
 ## Version 0.2.0
- Use Matlab as numerical computing environment.
+ - Use Matlab as numerical computing environment.
 ## Version 0.3.0
- Turn back to Python as numerical computing environment.
+ - Turn back to Python as numerical computing environment.
+## Version 0.4.0
+ - Add support for titled photonic crystal.
+ - Add comsol semiconductor simulation.
