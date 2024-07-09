@@ -2,6 +2,15 @@ import numpy as np
 import os
 import pandas as pd
 
+
+class material_class():
+    """
+
+    """
+    def __init__(self) -> None:
+        pass
+
+
 base_dir = os.path.dirname(__file__)
 __Al000GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.000GaAs.csv')
 __Al097GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.097GaAs.csv')
@@ -11,7 +20,7 @@ __Al411GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.411GaAs.csv')
 __Al452GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.452GaAs.csv')
 __Al700GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.700GaAs.csv')
 
-class AlxGaAs():
+class AlxGaAs(material_class):
     """
 
     """
@@ -83,3 +92,20 @@ class AlxGaAs():
             self.epsilon = np.square(self.n + 1j*self.k)
         else:
             raise ValueError('x should be in [0.0000, 0.7000]')
+
+class Air(material_class):
+    """
+
+    """
+    def __init__(self):
+        self.epsilon = 1.0 + 0.0j
+
+
+class user_defined_material(material_class):
+    """
+
+    """
+    def __init__(self, epsilon:complex):
+        self.epsilon = epsilon
+
+

@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Callable
 import numba
+from model import Air, AlxGaAs, material_class
 
 class eps_userdefine():
     """
@@ -73,10 +74,11 @@ class eps_circle(eps_userdefine):
     ----------
     r : float
         The radius of the circular hole.
-    cell_size_x : float
-        The size of the cell in the x direction.
-    cell_size_y : float
-        The size of the cell in the y direction.
+    cell_size_x & cell_size_y is not used in final calculation, it will automatically determine by model.TMM.
+        (cell_size_x : float
+            The size of the cell in the x direction.
+        cell_size_y : float
+            The size of the cell in the y direction.)
     eps_bulk : float
         The dielectric constant of the bulk material.
     eps_hole : float
@@ -89,23 +91,27 @@ class eps_circle(eps_userdefine):
         The class returns the dielectric constant distribution in the cell.
     """
     eps_func = None
-    def __init__(self, rel_r, cell_size_x, cell_size_y, eps_bulk=11.56, eps_hole=1.0):
+    def __init__(self, rel_r, mat_bulk=AlxGaAs(0.0), mat_hole=Air(), cell_size_x=1.0, cell_size_y=1.0):
         self.rel_r = rel_r
-        self.r = self.rel_r*np.sqrt(cell_size_x*cell_size_y)
-        self.r__2 = self.r**2
         self.cell_size_x = cell_size_x
         self.cell_size_y = cell_size_y
-        self.half_cell_size_x = cell_size_x/2
-        self.half_cell_size_y = cell_size_y/2
-        self.eps_bulk = eps_bulk
-        self.eps_hole = eps_hole
+        self.mat_bulk = mat_bulk
+        self.mat_hole = mat_hole
+        self.eps_bulk = mat_bulk.epsilon
+        self.eps_hole = mat_hole.epsilon
         self.eps_type = 'circle'
+        self.build()
+    
+    def build(self):
+        self.r = self.rel_r*np.sqrt(self.cell_size_x*self.cell_size_y)
+        self.r__2 = self.r**2
+        self.half_cell_size_x = self.cell_size_x/2
+        self.half_cell_size_y = self.cell_size_y/2
         self.FF = np.pi*self.rel_r**2
         self.avg_eps = self.eps_bulk*(1-self.FF) + self.eps_hole*self.FF
 
     def eps(self, x, y):
         return __eps_circle__(x, y, self.cell_size_x, self.cell_size_y, self.half_cell_size_x, self.half_cell_size_y, self.r__2, self.eps_hole, self.eps_bulk)
     
-    def __call__(self, eps_bulk, eps_hole=1.0):
-        self.eps_bulk = eps_bulk
-        self.eps_hole = eps_hole
+    def __call__(self, x, y):
+        return self.eps(x, y)

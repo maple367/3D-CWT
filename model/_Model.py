@@ -1,9 +1,11 @@
 import numpy as np
+import os
 from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
 from scipy.integrate import quad
 import numba
 import warnings
 from model.rect_lattice import eps_userdefine
+from model import material_class
 vectorize_isinstance = np.vectorize(isinstance, excluded=['class_or_tuple'])
 import multiprocessing as mp
 import dill
@@ -46,28 +48,35 @@ class TMM():
     -------
     out : class callable
         z : the position of the field, the z = 0 is the boundary of the first layer
-        return : the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
+        return : the E field normlized intensity. $$\\int_{-\\infty}^{\\infty} |E_amp|^2 dz = 1$$
     """
-    def __init__(self, layer_thicknesses, epsilons, k0, beta_init=None):
+    def __init__(self, layer_thicknesses, epsilons, k0, beta_init=None, surface_grating=False):
         self.find_modes_iter = 0
         self.k0 = k0
         self.beta_init = beta_init
         self.layer_thicknesses = np.array(layer_thicknesses, dtype=np.longdouble)
         self.epsilons = np.array(epsilons, dtype=np.longcomplex)
-        self.beta = np.array(self.beta0, dtype=np.longcomplex)
-        self.z_boundary = np.insert(np.cumsum(self.layer_thicknesses), 0, 0) # the z position of the boundary of each layer
-        self._z_boundary_without_lb = self.z_boundary[1:]
-        self._len_z_boundary = len(self.z_boundary)
+        self.z_boundary = np.insert(np.cumsum(self.layer_thicknesses), 0, 0)
+        self._layer_thicknesses_ = self.layer_thicknesses
+        self._epsilons_ = self.epsilons
+        self.surface_grating = surface_grating
+        if self.surface_grating: # add a air layer at the top of the layer, because the field in surface grating is extent to air.
+            self._layer_thicknesses_ = np.insert(self._layer_thicknesses_, 0, 0.0)
+            self._epsilons_ = np.insert(self._epsilons_, 0, 1.0+0.0j)
+        self.beta = np.array(self.beta_init, dtype=np.longcomplex)
+        self._z_boundary_ = np.insert(np.cumsum(self._layer_thicknesses_), 0, 0) # the z position of the boundary of each layer
+        self._z_boundary_without_lb = self._z_boundary_[1:]
+        self._len_z_boundary = len(self._z_boundary_)
 
     def _construct_matrix(self, beta):
-        self.gamma_s = np.sqrt(np.square(beta)-np.square(self.k0)*self.epsilons)
-        prime = self.gamma_s[:-1]*self.layer_thicknesses[:-1]
+        self.gamma_s = np.sqrt(np.square(beta)-np.square(self.k0)*self._epsilons_)
+        prime = self.gamma_s[:-1]*self._layer_thicknesses_[:-1]
         coeff_s = self.gamma_s[:-1]/self.gamma_s[1:]
         T_mat_s_00 = (1+coeff_s)*np.exp(prime)/2
         T_mat_s_01 = (1-coeff_s)*np.exp(-prime)/2
         T_mat_s_10 = (1-coeff_s)*np.exp(prime)/2
         T_mat_s_11 = (1+coeff_s)*np.exp(-prime)/2
-        self.T_mat_s = np.zeros((len(self.layer_thicknesses)-1,2,2), dtype=np.longcomplex) # Must define the dtype, otherwise the default dtype is float64, which will cause error in assign complex number to float64.
+        self.T_mat_s = np.zeros((len(self._layer_thicknesses_)-1,2,2), dtype=np.longcomplex) # Must define the dtype, otherwise the default dtype is float64, which will cause error in assign complex number to float64.
         self.T_mat_s[:,0,0] = T_mat_s_00
         self.T_mat_s[:,0,1] = T_mat_s_01
         self.T_mat_s[:,1,0] = T_mat_s_10
@@ -100,9 +109,26 @@ class TMM():
         Returns
         -------
         out : int
-            The index of the layer.
+            The index of the layer, with the additional air layer if the surface_grating is True.
         """
         return __find_layer__(z, self._z_boundary_without_lb, self._len_z_boundary-2)
+    
+    def find_layer(self, z):
+        """
+        Parameters
+        ----------
+        z : float
+            The position of the field, the z = 0 is the boundary of the first layer
+
+        Returns
+        -------
+        out : int
+            The index of the layer.
+        """
+        if self.surface_grating:
+            return self._find_layer(z)-1
+        else:
+            return self._find_layer(z)
     
     def e_amplitude(self, z):
         """
@@ -111,17 +137,17 @@ class TMM():
         """
         i = self._find_layer(z)
         V = self.V_s_flatten[i]
-        z_b = self.z_boundary[i]
+        z_b = self._z_boundary_[i]
         V_0 = np.take(V,0,axis=-1)
         V_1 = np.take(V,1,axis=-1)
         e_amp = V_0*np.exp(self.gamma_s[i]*(z-z_b))+V_1*np.exp(-self.gamma_s[i]*(z-z_b))
-        eps = self.epsilons[i]
+        eps = self._epsilons_[i]
         return e_amp, eps
     
     def e_normlized_intensity(self, z):
         """
         z: the position of the field, the z = 0 is the boundary of the first layer
-        return: the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
+        return: the E field normlized intensity. $$\\int_{-\\infty}^{\\infty} |E_amp|^2 dz = 1$$
         """
         e_amp, _ = self.e_amplitude(z)
         e_intensity = np.square(np.abs(e_amp))*self._normlized_constant
@@ -130,7 +156,7 @@ class TMM():
     def e_normlized_amplitude(self, z):
         """
         z: the position of the field, the z = 0 is the boundary of the first layer
-        return: the E field normlized amplitude. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
+        return: the E field normlized amplitude. $$\\int_{-\\infty}^{\\infty} |E_amp|^2 dz = 1$$
         """
         e_amp, _ = self.e_amplitude(z)
         e_norm_amp = e_amp*np.sqrt(self._normlized_constant)
@@ -146,15 +172,15 @@ class TMM():
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
         if self.beta_init is None:
-            beta_r_max = self.k0*np.real(np.sqrt(self.epsilons.max())) # beta is max in the medium with max epsilon
-            beta_r_min = self.k0*np.real(np.sqrt(self.epsilons.min())) # beta is min in the medium with min epsilon
-            beta_sol = direct(t_11_func_beta_log, Bounds((beta_r_min,0),(beta_r_max,1)))
+            beta_r_max = self.k0*np.real(np.sqrt(self._epsilons_.max())) # beta is max in the medium with max epsilon
+            beta_r_min = self.k0*np.real(np.sqrt(self._epsilons_.min())) # beta is min in the medium with min epsilon, except air
+            if beta_r_min <= self.k0: beta_r_min = sorted([_ for _ in np.real(np.sqrt(self._epsilons_)) if _ > 1])[0]*self.k0 # beta is min in the medium with min epsilon, except air
+            beta_sol = direct(t_11_func_beta_log, Bounds((beta_r_min,-1),(beta_r_max,1)))
             beta_init = beta_sol.x
-            self.beta_init = beta_init
         else:
             beta_init = self.beta_init
-        beta_sol = minimize(t_11_func_beta_log, x0=(np.real(beta_init), np.imag(beta_init)), method='Nelder-Mead')
-        while (beta_sol.fun >= -10.0) and self.find_modes_iter < 3:
+        beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
+        while (beta_sol.fun >= -10.0) and self.find_modes_iter < 2:
             self.find_modes_iter += 1
             if beta_sol.fun < -10.0:
                 self.beta_init = beta_sol
@@ -162,6 +188,7 @@ class TMM():
             self.find_modes()
         self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
         _ = t_11_func_beta_log(beta_sol.x) # update the T_total, V_s, V_s_flatten
+        if _ > -10.0: raise RuntimeError(f't11 is not converge! abs(t11) = {10**_}.')
         self._cal_normlized_constant()
         self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
 
@@ -170,11 +197,11 @@ class TMM():
             return np.abs(np.real(self.e_amplitude(z)[0]))
         def e_amp_square_func(z):
             return np.square(np.abs(self.e_amplitude(z)[0]))
-        e_amp_min_r = minimize(e_amp_real_func, x0=self.z_boundary[-1], method='Nelder-Mead')
-        e_amp_min_l = minimize(e_amp_real_func, x0=self.z_boundary[0], method='Nelder-Mead')
-        e_amp_min_boundary_distance = min(np.abs(e_amp_min_r.x-self.z_boundary[-1]), np.abs(e_amp_min_l.x-self.z_boundary[0]))
+        e_amp_min_r = minimize(e_amp_real_func, x0=self._z_boundary_[-1], method='Nelder-Mead')
+        e_amp_min_l = minimize(e_amp_real_func, x0=self._z_boundary_[0], method='Nelder-Mead')
+        e_amp_min_boundary_distance = min(np.abs(e_amp_min_r.x-self._z_boundary_[-1]), np.abs(e_amp_min_l.x-self._z_boundary_[0]))
         self._normlized_bd = e_amp_min_boundary_distance
-        e_amp_integral = quad(e_amp_square_func, self.z_boundary[0]-self._normlized_bd, self.z_boundary[-1]+self._normlized_bd)
+        e_amp_integral = quad(e_amp_square_func, self._z_boundary_[0]-self._normlized_bd, self._z_boundary_[-1]+self._normlized_bd)
         self._normlized_constant = 1/e_amp_integral[0]
 
     def __getattr__(self, name):
@@ -192,7 +219,7 @@ class TMM():
     def __call__(self, z):
         """
         z: the position of the field, the z = 0 is the boundary of the first layer
-        return: the E field normlized intensity. $$\int_{-\infty}^{\infty} |E_amp|^2 dz = 1$$
+        return: the E field normlized intensity. $$\\int_{-\\infty}^{\\infty} |E_amp|^2 dz = 1$$
         """
         return self.e_normlized_intensity(z)
     
@@ -213,7 +240,7 @@ class model_parameters():
         The layer information of the model.
         The first element is the thickness of each layer.
         The second element is the dielectric constant of each layer. If the dielectric constant is eps_userdefine, the cell size of the eps_userdefine must be the same.
-    **kwargs : dict
+    **kwargs : keyword arguments
         The other parameters of the model.
 
     Returns
@@ -221,37 +248,45 @@ class model_parameters():
     out : class
         The model parameters.
     """
-    def __init__(self, layer:tuple[list[float],list[complex|eps_userdefine],dict[list,list]], lock=None, **kwargs):
+    def __init__(self, input_para:tuple[list[float],list[material_class|eps_userdefine],dict[list,list]], **kwargs):
         import uuid
-        if lock is None: lock = mp.Manager().Lock()
-        self.layer_thicknesses = np.array(layer[0])
-        self.epsilons = np.array(layer[1])
-        self.doping_para = layer[2]
-        self.kwargs = kwargs
+        self.layer_thicknesses = np.array(input_para[0])
+        self.materials = input_para[1]
+        self.doping_para = input_para[2]
         self._check_para()
-        self.k0 = 2*np.pi/0.98 # 0.98um is the wavelength of the light source
-        self.beta_init = 2*np.pi/np.sqrt(self.cellsize_x*self.cellsize_y)
+        self.k0 = kwargs.get('k0', 2*np.pi/0.98) # 0.98um is the default wavelength of the light source
+        self.beta_init = kwargs.get('beta_init', None)
+        self.surface_grating = kwargs.get('surface_grating', False)
         self._gen_avg_eps()
-        self._define_kwargs()
-        self.tmm = TMM(self.layer_thicknesses, self.avg_epsilons, self.k0, self.beta_init)
+        self.tmm = TMM(self.layer_thicknesses, self.avg_epsilons, self.k0, self.beta_init, self.surface_grating)
         self.tmm.find_modes()
+        self._update_cellsize_()
         # Generate a unique id for the model parameters.
         self.uuid = uuid.uuid4().hex
         self._save()
-        self.lock = lock
+        self.lock = mp.Manager().Lock()
 
     def _check_para(self):
-        cellsize_x = []
-        cellsize_y = []
-        for _ in self.epsilons:
+        num_layer_phc = 0
+        # cellsize_x = []
+        # cellsize_y = []
+        self.epsilons = []
+        for _ in self.materials:
             if isinstance(_, eps_userdefine):
-                cellsize_x.append(_.cell_size_x)
-                cellsize_y.append(_.cell_size_y)
-        if len(set(cellsize_x)) == 0: raise ValueError("At least one eps_userdefine is needed in epsilons.")
-        assert len(set(cellsize_x)) == 1, 'The cellsize_x of eps_userdefine must be the same.'
-        assert len(set(cellsize_y)) == 1, 'The cellsize_y of eps_userdefine must be the same.'
-        self.cellsize_x = cellsize_x[0]
-        self.cellsize_y = cellsize_y[0]
+                num_layer_phc += 1
+                # cellsize_y.append(_.cell_size_y)
+                self.epsilons.append(_)
+            elif isinstance(_, material_class):
+                self.epsilons.append(_.epsilon)
+            else:
+                raise ValueError('The type of material must be eps_userdefine or material_class.')
+        if num_layer_phc == 0: raise ValueError("At least one eps_userdefine is needed in epsilons.")
+        # cellsize is automatically determined by the model.TMM now. Ref to _update_cellsize_.
+        # assert len(set(cellsize_x)) == 1, 'The cellsize_x of eps_userdefine must be the same.'
+        # assert len(set(cellsize_y)) == 1, 'The cellsize_y of eps_userdefine must be the same.'
+        # self.cellsize_x = cellsize_x[0]
+        # self.cellsize_y = cellsize_y[0]
+        self.epsilons = np.array(self.epsilons)
 
     def _gen_avg_eps(self):
         avg_eps = []
@@ -262,9 +297,16 @@ class model_parameters():
                 avg_eps.append(_)
         self.avg_epsilons = np.array(avg_eps)
 
-    def _define_kwargs(self):
-        for key, value in self.kwargs.items():
-            setattr(self, key, value)
+    def _update_cellsize_(self):
+        a = 2*np.pi/np.real(self.tmm.beta)
+        print(f'a: {a} um')
+        self.cellsize_x = a
+        self.cellsize_y = a
+        for i in range(len(self.materials)):
+            if isinstance(self.materials[i], eps_userdefine):
+                self.materials[i].cell_size_x = a
+                self.materials[i].cell_size_y = a
+                self.materials[i].build()
 
     def _save(self):
         import os
@@ -275,7 +317,7 @@ class model_parameters():
             np.save(f'./history_res/{self.uuid}/input_para.npy', self.__dict__)
         else:
             warnings.warn(f'Warning: The folder ./history_res/{self.uuid}/ is already exist. The data will be used to pass the calculation.', FutureWarning)
-
+        print(f'The model parameters is saved in ./history_res/{self.uuid}/input_para.npy.')
 
 class Model():
     """
@@ -297,23 +339,23 @@ class Model():
         self.lock = self.paras.lock
         self.pathname_suffix = self.paras.uuid
         self.tmm = self.paras.tmm
+        self.z_boundary = self.tmm.z_boundary
+        self.find_layer = self.tmm.find_layer
         self.e_normlized_intensity = self.tmm.e_normlized_intensity
+        self.e_normlized_amplitude = self.tmm.e_normlized_amplitude
         self.k0 = self.tmm.k0
         self.beta0 = self.tmm.beta
         self.__no_doping_min__, self.__no_doping_max__ = np.min(np.where(np.array(self.paras.doping_para['is_no_doping']) == True)), np.max(np.where(np.array(self.paras.doping_para['is_no_doping']) == True))
         self.integrated_func_2d = integrated_func_2d
         self.integrated_func_1d = integrated_func_1d
         self.prepare_calculator()
-
-    def e_profile(self, z):
-        return self.tmm(z)
     
     def _doping_(self, z):
-        if z < self.tmm.z_boundary[0]:
-            z = self.tmm.z_boundary[0]
-        elif z > self.tmm.z_boundary[-1]:
-            z = self.tmm.z_boundary[-1]
-        num_layer = self.tmm._find_layer(z)
+        if z < self.z_boundary[0]:
+            z = self.z_boundary[0]
+        elif z > self.z_boundary[-1]:
+            z = self.z_boundary[-1]
+        num_layer = self.find_layer(z)
         if self.paras.doping_para['is_no_doping'][num_layer]:
             return 0
         elif num_layer < self.__no_doping_min__:
@@ -339,7 +381,7 @@ class Model():
         return self.__eps_profile(x, y, z)
 
     def __eps_profile(self, x, y, z):
-        num_layer = self.tmm._find_layer(z)
+        num_layer = self.find_layer(z)
         eps = self.paras.epsilons[num_layer]
         is_eps_userdefine = vectorize_isinstance(eps, eps_userdefine)
         eps_array = np.empty_like(z, dtype=object)
@@ -351,12 +393,12 @@ class Model():
         return eps_array
     
     def __eps_profile_z(self, z):
-        num_layer = self.tmm._find_layer(z)
+        num_layer = self.find_layer(z)
         return self.paras.avg_epsilons[num_layer]
     
     def is_in_phc(self, z):
         def _is_in_phc(z):
-            num_layer = self.tmm._find_layer(z)
+            num_layer = self.find_layer(z)
             if isinstance(self.paras.epsilons[num_layer], eps_userdefine):
                 return True
             else:
@@ -370,24 +412,33 @@ class Model():
     def prepare_calculator(self):
         from calculator import xi_calculator
         # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
-        self.phc_boundary = []
+        self.phc_boundary_l = []
+        self.phc_boundary_r = []
         self.xi_calculator_collect = []
         for i in range(len(self.paras.epsilons)):
             if isinstance(self.paras.epsilons[i], eps_userdefine):
-                self.phc_boundary.append(self.tmm.z_boundary[i])
-                self.phc_boundary.append(self.tmm.z_boundary[i+1])
-                self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], 'xi(index=(m,n))', self.pathname_suffix, lock=self.lock))
+                self.phc_boundary_l.append(self.z_boundary[i])
+                self.phc_boundary_r.append(self.z_boundary[i+1])
+                self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], f'xi((m,n)){[i]}', self.pathname_suffix, lock=self.lock))
             else:
                 self.xi_calculator_collect.append(None)
+        self._generate_integral_region_()
         self.xi_calculator_collect = np.array(self.xi_calculator_collect)
-        self.phc_boundary = np.array(self.phc_boundary)
-        self.phc_boundary.sort()
-        self.gamma_phc = self.integrated_func_1d(self.tmm.e_normlized_intensity, self.phc_boundary[0], self.phc_boundary[-1])        
-        self.coupling_coeff = np.array([self.integrated_func_1d(self.tmm.e_normlized_intensity, self.tmm.z_boundary[i], self.tmm.z_boundary[i+1]) for i in range(len(self.tmm.z_boundary)-1)])
+        self.gamma_phc = np.sum([ [self.integrated_func_1d(self.e_normlized_intensity, bd[0], bd[1]) for bd in self._1d_phc_integral_region_]])    
+        self.coupling_coeff = np.array([self.integrated_func_1d(self.e_normlized_intensity, self.z_boundary[i], self.z_boundary[i+1]) for i in range(len(self.z_boundary)-1)])
         self._xi_weight = np.array([self.coupling_coeff[_]/self.gamma_phc for _ in range(len(self.coupling_coeff))])
-        self._fc_coupling_p_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[0], self.tmm.z_boundary[self.__no_doping_min__])
-        self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.tmm.e_normlized_intensity(z)*self.doping(z), self.tmm.z_boundary[self.__no_doping_max__+1], self.tmm.z_boundary[-1])
+        self._fc_coupling_p_ = self.integrated_func_1d(lambda z: self.e_normlized_intensity(z)*self.doping(z), self.z_boundary[0], self.z_boundary[self.__no_doping_min__])
+        self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.e_normlized_intensity(z)*self.doping(z), self.z_boundary[self.__no_doping_max__+1], self.z_boundary[-1])
         self.fc_absorption = self._fc_coupling_p_*7e-10+self._fc_coupling_n_*3e-10
+
+    def _generate_integral_region_(self):
+        self._1d_phc_integral_region_ = []
+        for i in range(len(self.phc_boundary_l)):
+            self._1d_phc_integral_region_.append([self.phc_boundary_l[i], self.phc_boundary_r[i]])
+        self._2d_phc_integral_region_ = []
+        for i in range(len(self.phc_boundary_l)):
+            for j in range(len(self.phc_boundary_l)):
+                self._2d_phc_integral_region_.append([self.phc_boundary_l[i], self.phc_boundary_r[i], self.phc_boundary_l[j], self.phc_boundary_r[j]])
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
@@ -406,7 +457,7 @@ class Model():
         return np.sqrt( (np.square(m)+np.square(n))*np.square(self.beta0) - np.square(self.beta_z_func_fundamental(z)) )
     
     def xi_z_func(self, z, order):
-        i = self.tmm._find_layer(z)
+        i = self.find_layer(z)
         xi_calculator_i = self.xi_calculator_collect[i]
         def _process_element(input_element):
             if input_element:
@@ -418,27 +469,31 @@ class Model():
     def _mu_func(self, order):
         m, n, r, s = order
         def integrated_func(z, z_prime):
-            return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.tmm.e_normlized_amplitude(z_prime)*np.conj(self.tmm.e_normlized_amplitude(z))
-        return 1/np.square(self.k0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
+            return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.e_normlized_amplitude(z_prime)*np.conj(self.e_normlized_amplitude(z))
+        res = [self.integrated_func_2d(integrated_func, bd[0], bd[1], bd[2], bd[3]) for bd in self._2d_phc_integral_region_]
+        return 1/np.square(self.k0)*np.sum(res)
     
     def _nu_func(self, order):
         m, n, r, s = order
         def integrated_func(z):
-            return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.tmm.e_normlized_intensity(z)
-        return -self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])
+            return 1/self.__eps_profile_z(z)*self.xi_z_func(z,(m-r,n-s))*self.e_normlized_intensity(z)
+        res = [self.integrated_func_1d(integrated_func, bd[0], bd[1]) for bd in self._1d_phc_integral_region_]
+        return -np.sum(res)
 
     def _zeta_func(self, order):
         print(f'\rzeta: {order}          ', end='', flush=True)
         p, q, r, s = order
         def integrated_func(z, z_prime):
-            return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.tmm.e_normlized_amplitude(z_prime)*np.conj(self.tmm.e_normlized_amplitude(z))
-        return -np.square(np.square(self.k0))/(2*self.beta0)*self.integrated_func_2d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1], self.phc_boundary[0], self.phc_boundary[-1])
+            return self.xi_z_func(z,(p,q))*self.xi_z_func(z,(-r,-s))*self.Green_func_fundamental(z,z_prime)*self.e_normlized_amplitude(z_prime)*np.conj(self.e_normlized_amplitude(z))
+        res = [self.integrated_func_2d(integrated_func, bd[0], bd[1], bd[2], bd[3]) for bd in self._2d_phc_integral_region_]
+        return -np.square(np.square(self.k0))/(2*self.beta0)*np.sum(res)
     
     def _kappa_func(self, order):
         m, n = order
         def integrated_func(z):
-            return self.xi_z_func(z,(m,n))*self.tmm.e_normlized_intensity(z)
-        return -np.square(self.k0)/(2*self.beta0)*self.integrated_func_1d(integrated_func, self.phc_boundary[0], self.phc_boundary[-1])
+            return self.xi_z_func(z,(m,n))*self.e_normlized_intensity(z)
+        res = [self.integrated_func_1d(integrated_func, bd[0], bd[1]) for bd in self._1d_phc_integral_region_]
+        return -np.square(self.k0)/(2*self.beta0)*np.sum(res)
 
 
 class CWT_solver():
@@ -462,7 +517,7 @@ class CWT_solver():
         self.xi_calculator_collect = self.model.xi_calculator_collect
         self.varsigma_matrix_calculator = varsigma_matrix_calculator(self.model, notes='varsigma_matrix((m,n))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
         self.zeta_calculator = Array_calculator(self.model._zeta_func, notes='zeta(index=(p,q,r,s))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
-        self.kappa_calculator = Array_calculator(self.model._kappa_func, notes='kappa(index=(m,n))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
+        self.kappa_calculator = Array_calculator(self.model._kappa_func, notes='kappa((m,n))', pathname_suffix=self.model.pathname_suffix, lock=self.lock)
         self.get_varsigma = self.varsigma_matrix_calculator.get_varsigma
 
     def _chi_func(self, order, direction:str):
@@ -589,17 +644,74 @@ class CWT_solver():
 
 class SEMI_solver():
     """
-    
-    """
-    def __init__(self, model:Model):
-        self.model = model
-        self._prepare_model_()
+    Parameters
+    ----------
+    comsol_model : mph.client.model
+        The comsol model.
 
-    def __getattr__(self, name):
-        if name == '_cut_off':
-            print('cut_off not set. Use default value 10.')
-            self._cut_off = 10
-            return self._cut_off
+    Returns
+    -------
+    class callable
+        method
+            run: run the calculation.
+                run(class[model])
+    """
+    def __init__(self):
+        import mph
+        comsol_model_file_path = os.path.join(os.path.dirname(__file__), '../utils/comsol_model/DQW-1D_20240709.mph')
+        self.client = mph.start(cores=8)
+        self.comsol_model = self.client.load(comsol_model_file_path)
     
     def _prepare_model_(self):
-        pass
+        self.doping_para = self.model.paras.doping_para
+        self.z_boundary = self.model.z_boundary
+        self.__no_doping_min__ = self.model.__no_doping_min__
+        self.__no_doping_max__ = self.model.__no_doping_max__
+        self.t_p = self.z_boundary[self.__no_doping_min__]-self.z_boundary[0]
+        self.t_n = self.z_boundary[-1]-self.z_boundary[self.__no_doping_max__+1]
+        self.t_i_p = self.z_boundary[self.__no_doping_min__+2]-self.z_boundary[self.__no_doping_min__]
+        self.t_i_n = self.z_boundary[self.__no_doping_max__+1]-self.z_boundary[self.__no_doping_max__]
+        self.x_fraction_expr = ''
+        for _ in range(len(self.model.paras.materials)):
+            if isinstance(self.model.paras.materials[_], eps_userdefine):
+                x_fraction = self.model.paras.materials[_].mat_bulk.x
+            elif isinstance(self.model.paras.materials[_], material_class):
+                x_fraction = self.model.paras.materials[_].x
+            else:
+                raise ValueError('The type of material must be eps_userdefine or material_class.')
+            bd = self.z_boundary[_+1]
+            expr_add = f'if(x<={bd},{x_fraction},'
+            self.x_fraction_expr += expr_add
+        self.x_fraction_expr += '0.0' + ')'*(_+1)
+        self.coeff_a = self.doping_para['coeff'][0]
+        self.coeff_b = self.doping_para['coeff'][1]
+        self.coeff_c = self.doping_para['coeff'][2]
+        self.coeff_d = self.doping_para['coeff'][3]
+
+    def _apply_paras_(self):
+        self.comsol_model.parameter('t_p',f'{self.t_p}[um]')
+        self.comsol_model.parameter('t_i_p',f'{self.t_i_p}[um]')
+        self.comsol_model.parameter('t_i_n',f'{self.t_i_n}[um]')
+        self.comsol_model.parameter('t_n',f'{self.t_n}[um]')
+        x_fraction = self.comsol_model/'functions'/'x_fraction'
+        x_fraction.property('expr', self.x_fraction_expr)
+        self.comsol_model.parameter('coeff_a',f'{self.coeff_a}')
+        self.comsol_model.parameter('coeff_b',f'{self.coeff_b}')
+        self.comsol_model.parameter('coeff_c',f'{self.coeff_c}')
+        self.comsol_model.parameter('coeff_d',f'{self.coeff_d}')
+
+    def run(self, model:Model):
+        from scipy.constants import e
+        self.model = model
+        self._prepare_model_()
+        self._apply_paras_()
+        self.comsol_model.solve()
+        self.V0_1 = self.comsol_model.evaluate('semi.V0_1') # V
+        self.J0_1 = self.comsol_model.evaluate('semi.J0_1') # A/m^2
+        self.R_spon = self.comsol_model.evaluate('intop1(semi.ot1.R_spon)') # 1/m^2
+        self.P_spon = self.comsol_model.evaluate('intop1(semi.ot1.P_spon)') # W/m^2
+        self.PCE = self.P_spon/(self.V0_1*self.J0_1)
+        self.SE = self.R_spon/(self.J0_1/e)
+
+    def get_result(self):
+        return self.PCE, self.SE
