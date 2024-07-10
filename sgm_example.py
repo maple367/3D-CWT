@@ -10,4 +10,3 @@ sgm_solver = utils.SGM(C_mat_sum, -0.06045577+0.03j, 200, 3)
 
 # %%
 pass
-
