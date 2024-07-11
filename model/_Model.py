@@ -430,6 +430,7 @@ class Model():
         self._fc_coupling_p_ = self.integrated_func_1d(lambda z: self.e_normlized_intensity(z)*self.doping(z), self.z_boundary[0], self.z_boundary[self.__no_doping_min__])
         self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.e_normlized_intensity(z)*self.doping(z), self.z_boundary[self.__no_doping_max__+1], self.z_boundary[-1])
         self.fc_absorption = self._fc_coupling_p_*7e-10+self._fc_coupling_n_*3e-10
+        self.kappa_v = -(self.k0**4)/(2*self.beta0)*np.sum([self.integrated_func_2d(lambda z,z_prime: self.Green_func_fundamental(z,z_prime)*self.e_normlized_amplitude(z_prime)*np.conj(self.e_normlized_amplitude(z)), bd[0], bd[1], bd[2], bd[3]) for bd in self._2d_phc_integral_region_])
 
     def _generate_integral_region_(self):
         self._1d_phc_integral_region_ = []
@@ -610,13 +611,18 @@ class CWT_solver():
         self.alpha = np.imag(self.eigen_values)
         self.alpha_r = 2*self.alpha
         self.beta0 = self.model.beta0
-        self.beta = self.beta0+self.delta
+        self.beta = self.beta0+self.delta+self.alpha*1j
         self.k0 = self.model.k0
         self.omega0 = self.k0*self.c
         self.n_eff = self.beta0/self.k0
         self.omega = self.omega0+self.delta/self.n_eff*self.c
         self.k = self.k0+self.delta/self.n_eff
-        self.a = np.sqrt(self.model.paras.cellsize_x*self.model.paras.cellsize_y)
+        self.a = self.model.paras.cellsize_x
+        self.kappa_v = self.model.kappa_v
+        self.xi_rads = np.array([np.sum([self.xi_calculator_collect[_][-1,0]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
+                                 np.sum([self.xi_calculator_collect[_][1,0]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
+                                 np.sum([self.xi_calculator_collect[_][0,-1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
+                                 np.sum([self.xi_calculator_collect[_][0,1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])])
         self.norm_freq = self.omega/(2*np.pi)/(self.c/self.a)
         self.Q = self.beta/self.alpha_r
 
@@ -624,7 +630,7 @@ class CWT_solver():
         import os
         if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
             os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
-        save_dict = {'C_mats':self.C_mats,
+        self.save_dict = {'C_mats':self.C_mats,
                     'C_mat_sum':self.C_mat_sum,
                     'eigen_values':self.eigen_values,
                     'eigen_vectors':self.eigen_vectors,
@@ -635,11 +641,14 @@ class CWT_solver():
                     'beta':self.beta,
                     'k0':self.k0,
                     'k':self.k,
+                    'a':self.a,
                     'omega0':self.omega0,
                     'omega':self.omega,
+                    'kapppa_v':self.kappa_v,
+                    'xi_rads':self.xi_rads,
                     'n_eff':self.n_eff,
                     'Q':self.Q}
-        np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', save_dict)
+        np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', self.save_dict)
 
 
 class SEMI_solver():

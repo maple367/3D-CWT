@@ -19,6 +19,7 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     import model
+    import utils
     import model.rect_lattice
     from model import AlxGaAs
     import numpy as np
@@ -90,9 +91,9 @@ if __name__ == '__main__':
         except:
             # bad input parameter, the model is not converge
             pass
-    #     cwt_solver = model.CWT_solver(pcsel_model)
-    #     cwt_solver.core_num = 15
-    #     cwt_solver.run(10, parallel=True)
-    #     data = {'FF': FF, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
-    #     dataframe = pd.concat([dataframe, pd.DataFrame(data, index=[1])], ignore_index=True) # index is not important, but must given.
-    # dataframe.to_csv('FF.csv', index=False)
+        cwt_solver = model.CWT_solver(pcsel_model)
+        cwt_solver.core_num = 15
+        cwt_solver.run(10, parallel=True)
+        data = {'FF': FF, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
+        dataframe = pd.concat([dataframe, pd.DataFrame(data, index=[1])], ignore_index=True) # index is not important, but must given.
+    dataframe.to_csv('FF.csv', index=False)

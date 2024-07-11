@@ -1,12 +1,15 @@
 # %%
 import utils
 import numpy as np
+import scipy.sparse
 
 # %%
 data = utils.Data(r'history_res\e0d13b0f52684955b9d0fe4a6f76ce3a')
 res = data.load_res()
-C_mat_sum = res['C_mat_sum']
-sgm_solver = utils.SGM(C_mat_sum, -0.06045577+0.03j, 200, 3)
-
+sgm_solver = utils.SGM(res, 0+0j, 200, 25)
 # %%
-pass
+sol = sgm_solver.run(k=50, show_plot=True)
+print(sol[0])
+# %%
+sgm_solver.construct_sgm_mesh(1)
+# %%
