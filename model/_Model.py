@@ -2,6 +2,7 @@ import numpy as np
 import os
 from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
 from scipy.integrate import quad
+from scipy.linalg import eig
 import numba
 import warnings
 from model.rect_lattice import eps_userdefine
@@ -579,6 +580,7 @@ class CWT_solver():
         print('\rPre-calculation finished. Time cost: ', self._pre_cal_time, 's.', flush=True)
 
     def run(self, cut_off=10, parallel=True):
+        print(f'Start calculation of CWT with cut off {cut_off}...', flush=True)
         self._cut_off = cut_off
         if parallel: self._pre_cal_()
         kappa = self.kappa_calculator
@@ -602,7 +604,6 @@ class CWT_solver():
         print(f'Calculation finished. Results is saved to ./history_res/{self.model.pathname_suffix}_res.npy', flush=True)
     
     def cal_eign_value(self):
-        from scipy.linalg import eig
         from scipy.constants import c
         self.c = c*1e6 # um/s
         self.C_mat_sum = np.sum([_ for _ in self.C_mats.values()], axis=0)
@@ -644,7 +645,7 @@ class CWT_solver():
                     'a':self.a,
                     'omega0':self.omega0,
                     'omega':self.omega,
-                    'kapppa_v':self.kappa_v,
+                    'kappa_v':self.kappa_v,
                     'xi_rads':self.xi_rads,
                     'n_eff':self.n_eff,
                     'Q':self.Q}
@@ -710,6 +711,7 @@ class SEMI_solver():
         self.comsol_model.parameter('coeff_d',f'{self.coeff_d}')
 
     def run(self, model:Model):
+        print('Start to run the calculation in COMSOL...', flush=True)
         from scipy.constants import e
         self.model = model
         self._prepare_model_()
@@ -721,6 +723,7 @@ class SEMI_solver():
         self.P_spon = self.comsol_model.evaluate('intop1(semi.ot1.P_spon)') # W/m^2
         self.PCE = self.P_spon/(self.V0_1*self.J0_1)
         self.SE = self.R_spon/(self.J0_1/e)
+        print('The calculation is finished.', flush=True)
 
     def get_result(self):
         return self.PCE, self.SE

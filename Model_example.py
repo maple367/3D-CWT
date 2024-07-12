@@ -27,7 +27,7 @@ if __name__ == '__main__':
     import pandas as pd
     a = 0.298
     # FF_lst = np.linspace(0.08,0.24,17)
-    FF_lst = [0.08]
+    FF_lst = [0.181]
     dataframe = pd.DataFrame(columns=['FF', 'uuid', 'cal_time'])
     for FF in FF_lst:
         rel_r = np.sqrt(FF/np.pi)
@@ -94,6 +94,14 @@ if __name__ == '__main__':
         cwt_solver = model.CWT_solver(pcsel_model)
         cwt_solver.core_num = 15
         cwt_solver.run(10, parallel=True)
-        data = {'FF': FF, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
+        res = cwt_solver.save_dict
+        eigen_infinite = res['eigen_values'][np.imag(res['eigen_values']) > 0]
+        eigen_infinite = eigen_infinite[np.argmin(np.imag(eigen_infinite))] # eigen value with the smallest imaginary part
+        sgm_solver = utils.SGM(res, eigen_infinite, 200, 25)
+        sgm_res = sgm_solver.run(k=6, show_plot=False)
+        eigen_finite = sgm_res[0][np.imag(sgm_res[0]) > 0]
+        eigen_finite = eigen_finite[np.argmin(np.imag(eigen_finite))]
+        PCE = np.imag(eigen_infinite)/np.imag(eigen_finite)*PCE_raw
+        data = {'FF': FF, 'PCE': PCE, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
         dataframe = pd.concat([dataframe, pd.DataFrame(data, index=[1])], ignore_index=True) # index is not important, but must given.
     dataframe.to_csv('FF.csv', index=False)

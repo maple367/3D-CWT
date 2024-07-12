@@ -168,6 +168,30 @@ class SGM():
         self.Sx = self.Sx[:-1,:]
         self.Ry = self.Ry[:,:-1]
         self.Sy = self.Sy[:,:-1]
-        self.P_dis = np.square(np.abs((self.Rx[:,:-1]+self.Rx[:,1:])/2))+np.square(np.abs((self.Sx[:,:-1]+self.Sx[:,1:])/2))+np.square(np.abs((self.Ry[:-1,:]+self.Ry[1:,:])/2))+np.square(np.abs((self.Sy[:-1,:]+self.Sy[1:,:])/2))
+        self.Rx_c = (self.Rx[:,:-1]+self.Rx[:,1:])/2
+        self.Sx_c = (self.Sx[:,:-1]+self.Sx[:,1:])/2
+        self.Ry_c = (self.Ry[:-1,:]+self.Ry[1:,:])/2
+        self.Sy_c = (self.Sy[:-1,:]+self.Sy[1:,:])/2
+        self.P_dis = np.square(np.abs(self.Rx_c))+np.square(np.abs(self.Sx_c))+np.square(np.abs(self.Ry_c))+np.square(np.abs(self.Sy_c))
         self.P_stim = np.sum(self.P_dis)*np.square(self.size/self.resolution)*2*self._w_used_.imag
-        self.P_edge = self.size*np.sum(np.square(np.abs(self.Rx[:,-1]))+np.square(np.abs(self.Sx[:,1]))+np.square(np.abs(self.Ry[-1,:]))+np.square(np.abs(self.Sy[1,:])))
+        self.P_edge = self.size/self.resolution*np.sum(np.square(np.abs(self.Rx[:,-1]))+np.square(np.abs(self.Sx[:,1]))+np.square(np.abs(self.Ry[-1,:]))+np.square(np.abs(self.Sy[1,:])))
+        self.xi_rads = self.res['xi_rads']
+        self.kappa_v = self.res['kappa_v']
+        self.P_rad = 2*np.imag(self.kappa_v)*np.square(self.size/self.resolution)*np.sum(np.square(np.abs(self.xi_rads[0]*self.Rx_c+self.xi_rads[1]*self.Sx_c))+np.square(np.abs(self.xi_rads[2]*self.Ry_c+self.xi_rads[3]*self.Sy_c)))
+        if show_plot:
+            self._plot_sgm_()
+
+    def _plot_sgm_(self):
+        """
+        plot the SGM mesh
+        """
+        plt.subplot(1,2,2)
+        plt.imshow(np.abs(self.P_dis)/np.max(np.abs(self.P_dis)), cmap='hot')
+        plt.colorbar()
+        plt.title('P_dis norm')
+        plt.show()
+        plt.close()
+        print('P_stim:', self.P_stim)
+        print('P_edge:', self.P_edge)
+        print('P_rad:', self.P_rad)
+        print('P_total:', self.P_edge+self.P_rad)
