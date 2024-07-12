@@ -84,7 +84,7 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
         
-        semi_solver = model.SEMI_solver() # initalization, load comsol model file, will cost about 15s.
+        semi_solver = model.SEMI_solver() # initalization, load comsol model file, will cost about 15s. only need to run once.
         try:
             semi_solver.run(pcsel_model) # use pcsel model to pass parameter
             PCE_raw, SE_raw = semi_solver.get_result()
