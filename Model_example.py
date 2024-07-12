@@ -101,7 +101,7 @@ if __name__ == '__main__':
         sgm_res = sgm_solver.run(k=6, show_plot=False)
         eigen_finite = sgm_res[0][np.imag(sgm_res[0]) > 0]
         eigen_finite = eigen_finite[np.argmin(np.imag(eigen_finite))]
-        PCE = np.imag(eigen_infinite)/np.imag(eigen_finite)*PCE_raw
+        PCE = np.imag(eigen_infinite)/(np.imag(eigen_finite)+pcsel_model.fc_absorption/2)*PCE_raw
         data = {'FF': FF, 'PCE': PCE, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
         dataframe = pd.concat([dataframe, pd.DataFrame(data, index=[1])], ignore_index=True) # index is not important, but must given.
     dataframe.to_csv('FF.csv', index=False)
