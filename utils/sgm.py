@@ -52,65 +52,54 @@ class SGM():
             elif ((origin+1)%(self.resolution+2)==0) and ((origin+1)//(self.resolution+2)<self.resolution+1): # out of upper boundary
                 # for j, k
                 self.A[j:j+4, k:k+4] = np.eye(4)
-                self.M[j:j+4, k:k+4] = np.eye(4)/2
+                self.M[j:j+4, k:k+4] = np.eye(4)
                 # for j+1, k
-                self.M[j:j+2, k+len(mesh_grid)*4:k+len(mesh_grid)*4+4] = np.eye(4)[0:2,:]/2
                 # for j, k+1
                 # no k+1 at the upper boundary
             elif ((origin+1)%(self.resolution+2)!=0) and ((origin+1)//(self.resolution+2)>=self.resolution+1): # out of right boundary
                 # for j, k
                 self.A[j:j+4, k:k+4] = np.eye(4)
-                self.M[j:j+4, k:k+4] = np.eye(4)/2
+                self.M[j:j+4, k:k+4] = np.eye(4)
                 # for j+1, k
                 # no j+1 at the right boundary
                 # for j, k+1
-                self.M[j+2:j+4, k+4:k+8] = np.eye(4)[2:4,:]/2
             else: # out of upper right boundary
                 # for j, k
                 self.A[j:j+4, k:k+4] = np.eye(4)
-                self.M[j:j+4, k:k+4] = np.eye(4)/2
+                self.M[j:j+4, k:k+4] = np.eye(4)
                 # for j+1, k
                 # no j+1 at the right boundary
                 # for j, k+1
                 # no k+1 at the upper boundary
-        # apply boundary condition
-        for origin in range(len(XX)): # extent grid has no contribution to the matrix
-            j = 4*origin
-            # Rx(0,y) = 0
-            if ((origin)//(self.resolution+2)<1):
-                self.A[j, :] = 0.0
-                self.A[:, j] = 0.0
-            # Sx(L,y) = 0
-            if ((origin)//(self.resolution+2)>=self.resolution+1):
-                self.A[j+1, :] = 0.0
-                self.A[:, j+1] = 0.0
-            # Ry(x,0) = 0
-            if ((origin)%(self.resolution+2)==0):
-                self.A[j+2, :] = 0.0
-                self.A[:, j+2] = 0.0
-            # Sy(x,L) = 0
-            if ((origin+1)%(self.resolution+2)==0):
-                self.A[j+3, :] = 0.0
-                self.A[:, j+3] = 0.0
-        # print('Matrix size:', self.A.shape)
-        self._A_raw_ = self.A.copy()
-        self._M_raw_ = self.M.copy()
-        # remove fixed boundary not contribute to the eigenvalue problem
-        self.remove_index_ls = []
-        for origin in range(self.A.shape[0]):
-            if (self.A[origin, :]==0.0).all() and (self.A[:, origin]==0.0).all():
-                self.remove_index_ls.append(origin)
-        self.A = np.delete(self.A, self.remove_index_ls, axis=0)
-        self.A = np.delete(self.A, self.remove_index_ls, axis=1)
-        self.M = np.delete(self.M, self.remove_index_ls, axis=0)
-        self.M = np.delete(self.M, self.remove_index_ls, axis=1)
-        # print('Apply boundary matrix size:', self.A.shape)
-        # convert to csr format sparse matrix
+        # A @ x = w * M @ x now
         # because the M matrix is not complex hermitian and positive semi-definite, the eigs function will not work
         # turn A @ x = w * M @ x to M^-1 @ A @ x = w * x
         self.A = csr_array(self.A)
         self.M = csc_array(self.M)
-        self.C = inv(self.M)@self.A
+        self.C = (inv(self.M)@self.A).toarray()
+        # apply boundary condition to the matrix C
+        for origin in range(len(XX)): # extent grid has no contribution to the matrix
+            j = 4*origin
+            # Rx(0,y) = 0
+            if ((origin)//(self.resolution+2)<1):
+                self.C[j, :] = 0.0
+                self.C[:, j] = 0.0
+            # Sx(L,y) = 0
+            if ((origin)//(self.resolution+2)>=self.resolution+1):
+                self.C[j+1, :] = 0.0
+                self.C[:, j+1] = 0.0
+            # Ry(x,0) = 0
+            if ((origin)%(self.resolution+2)==0):
+                self.C[j+2, :] = 0.0
+                self.C[:, j+2] = 0.0
+            # Sy(x,L) = 0
+            if ((origin+1)%(self.resolution+2)==0):
+                self.C[j+3, :] = 0.0
+                self.C[:, j+3] = 0.0
+        # print('Matrix size:', self.A.shape)
+        # convert to csr format sparse matrix
+        self.C = csr_array(self.C)
+
 
     def run(self, w0=None, **kwargs):
         """
@@ -145,9 +134,6 @@ class SGM():
         """
         self._w_used_ = self.w[0][indices]
         self._vec_raw_ = self.w[1][:,indices].copy()
-        # reinstate the eigen vector with the removed rows and columns
-        for index in sorted(self.remove_index_ls):
-            self._vec_raw_ = np.insert(self._vec_raw_, index, 0.0)
         self.Rx = np.zeros((self.resolution+2, self.resolution+2), dtype=complex)
         self.Sx = np.zeros((self.resolution+2, self.resolution+2), dtype=complex)
         self.Ry = np.zeros((self.resolution+2, self.resolution+2), dtype=complex)
