@@ -23,7 +23,7 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI
     if plot: plot_model(pcsel_model)
     try:
         semi_solver.run(pcsel_model) # use pcsel model to pass parameter
-        PCE_raw, SE_raw = semi_solver.get_result()
+        PCE_raw, SE_raw = semi_solver.get_result(6)
     except:
         # bad input parameter, the model is not converge
         pass
@@ -33,10 +33,12 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI
     res = cwt_solver.save_dict
     eigen_infinite = res['eigen_values'][np.imag(res['eigen_values']) > 0]
     eigen_infinite = eigen_infinite[np.argmin(np.imag(eigen_infinite))] # eigen value with the smallest imaginary part
+    if not isinstance(eigen_infinite,complex): eigen_infinite = eigen_infinite[0]
     sgm_solver = utils.SGM(res, eigen_infinite, 200, 25)
     sgm_res = sgm_solver.run(k=6, show_plot=False)
     eigen_finite = sgm_res[0][np.imag(sgm_res[0]) > 0]
     eigen_finite = eigen_finite[np.argmin(np.imag(eigen_finite))]
+    if not isinstance(eigen_finite,complex): eigen_finite = eigen_finite[0]
     PCE = np.imag(eigen_infinite)/(np.imag(eigen_finite)+pcsel_model.fc_absorption/2)*PCE_raw
     data = {'FF': FF, 'PCE': PCE, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
     return PCE
@@ -86,5 +88,6 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     import pandas as pd
-    semi_solver = '1' # model.SEMI_solver() # initalization, load comsol model file, will cost about 15s. only need to run once.
+    semi_solver = model.SEMI_solver() # initalization, load comsol model file, will cost about 15s. only need to run once.
+    run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, semi_solver)
     run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, semi_solver)

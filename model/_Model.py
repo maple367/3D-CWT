@@ -722,5 +722,5 @@ class SEMI_solver():
         self.SE = self.R_spon/(self.J0_1/e)
         print('The calculation is finished.', flush=True)
 
-    def get_result(self):
-        return self.PCE, self.SE
+    def get_result(self,index):
+        return self.PCE[index], self.SE[index]
