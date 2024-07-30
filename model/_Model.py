@@ -607,7 +607,7 @@ class CWT_solver():
         from scipy.constants import c
         self.c = c*1e6 # um/s
         self.C_mat_sum = np.sum([_ for _ in self.C_mats.values()], axis=0)
-        self.eigen_values, self.eigen_vectors = eig(self.C_mat_sum)
+        self.eigen_values, self.eigen_vectors = np.linalg.eig(self.C_mat_sum)
         self.delta = np.real(self.eigen_values)
         self.alpha = np.imag(self.eigen_values)
         self.alpha_r = 2*self.alpha
