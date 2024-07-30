@@ -62,7 +62,7 @@ def plot_model(input_model:model.Model):
     ax0.tick_params(axis='y', colors=color1, labelsize=10)
     ax1.plot(z_mesh, eps_s, linestyle='--', color=color2)
     ax1.plot(z_mesh, E_profile_s, linestyle='--')
-    ax1.fill_between(z_mesh, np.min(E_profile_s), E_profile_s, where=pcsel_model.is_in_phc(z_mesh), alpha=0.4, hatch='//', color='orange')
+    ax1.fill_between(z_mesh, np.min(E_profile_s), E_profile_s, where=input_model.is_in_phc(z_mesh), alpha=0.4, hatch='//', color='orange')
     ax1.tick_params(axis='y', colors=color2, labelsize=10)
     ax0.set_xlabel(r'z ($\mu m$)', fontsize=fontsize1, fontname=fontname)
     ax0.set_ylabel(r'Doping ($\mu m^{-3}$)', fontsize=fontsize1, fontname=fontname, color=color1)
@@ -86,5 +86,5 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     import pandas as pd
-    semi_solver = model.SEMI_solver() # initalization, load comsol model file, will cost about 15s. only need to run once.
+    semi_solver = '1' # model.SEMI_solver() # initalization, load comsol model file, will cost about 15s. only need to run once.
     run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, semi_solver)

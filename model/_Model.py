@@ -2,7 +2,6 @@ import numpy as np
 import os
 from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
 from scipy.integrate import quad
-from numpy.linalg import eig
 import numba
 import warnings
 from model.rect_lattice import eps_userdefine
@@ -541,11 +540,11 @@ class CWT_solver():
         from calculator import Array_calculator
         import time
         t1 = time.time()
-        m_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
-        n_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
-        MM, NN = np.meshgrid(m_mesh, n_mesh)
-        MM, NN = MM.flatten(), NN.flatten()
         with mp.Pool(self.core_num) as pool:
+            m_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
+            n_mesh = np.arange(-self._cut_off-1, self._cut_off+2)
+            MM, NN = np.meshgrid(m_mesh, n_mesh)
+            MM, NN = MM.flatten(), NN.flatten()
             # xi
             iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 >= 1]
             for f in self.xi_calculator_collect:
@@ -555,11 +554,10 @@ class CWT_solver():
                     for i, r in zip(iter, res):
                         f[i] = r
                     f.disable_edit()
-        m_mesh = np.arange(-self._cut_off, self._cut_off+1)
-        n_mesh = np.arange(-self._cut_off, self._cut_off+1)
-        MM, NN = np.meshgrid(m_mesh, n_mesh)
-        MM, NN = MM.flatten(), NN.flatten()
-        with mp.Pool(self.core_num) as pool:
+            m_mesh = np.arange(-self._cut_off, self._cut_off+1)
+            n_mesh = np.arange(-self._cut_off, self._cut_off+1)
+            MM, NN = np.meshgrid(m_mesh, n_mesh)
+            MM, NN = MM.flatten(), NN.flatten()
             # # varsigma
             iter = [(m,n) for m,n in zip(MM,NN)  if m**2+n**2 > 1]
             res = pool.map(self.varsigma_matrix_calculator, iter)
@@ -567,7 +565,6 @@ class CWT_solver():
             for i, r in zip(iter, res):
                 self.varsigma_matrix_calculator[i] = r
             self.varsigma_matrix_calculator.disable_edit()
-        with mp.Pool(self.core_num) as pool:
             # zeta
             iter=[(1,0,1,0),(1,0,-1,0),(-1,0,1,0),(-1,0,-1,0),(0,1,0,1),(0,1,0,-1),(0,-1,0,1),(0,-1,0,-1)]
             res = pool.map(self.zeta_calculator, iter)
