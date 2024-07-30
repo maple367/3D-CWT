@@ -2,7 +2,7 @@ import numpy as np
 import os
 from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
 from scipy.integrate import quad
-from scipy.linalg import eig
+from numpy.linalg import eig
 import numba
 import warnings
 from model.rect_lattice import eps_userdefine
