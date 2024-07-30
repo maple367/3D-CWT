@@ -26,7 +26,7 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI
         PCE_raw, SE_raw = semi_solver.get_result(6)
     except:
         # bad input parameter, the model is not converge
-        pass
+        return 0.0
     cwt_solver = model.CWT_solver(pcsel_model)
     cwt_solver.core_num = 24
     cwt_solver.run(3, parallel=True)
