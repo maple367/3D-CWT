@@ -14,4 +14,4 @@
  - Add support for titled photonic crystal.
  - Add comsol semiconductor simulation.
 ## Version 0.5.0
- - Encapsulated into a function
+ - Encapsulated into a function.
