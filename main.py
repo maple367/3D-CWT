@@ -28,7 +28,7 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI
         # bad input parameter, the model is not converge
         return 0.0
     cwt_solver = model.CWT_solver(pcsel_model)
-    cwt_solver.core_num = 24
+    cwt_solver.core_num = 15
     cwt_solver.run(3, parallel=True)
     res = cwt_solver.save_dict
     eigen_infinite = res['eigen_values'][np.imag(res['eigen_values']) > 0]
