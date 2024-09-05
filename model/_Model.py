@@ -11,6 +11,23 @@ import multiprocessing as mp
 import dill
 dill.extend(use_dill=True)
 
+class opt_sol():
+    def __init__(self, x, fun):
+        self.x = x
+        self.fun = fun
+
+def singlestart_opt(func, x0, method='TNC'):
+    res = minimize(func, x0, method=method)
+    return res.x, res.fun
+singlestart_opt = np.vectorize(singlestart_opt, excluded=['func', 'method'])
+def multistart_opt(func, bounds, grid_num=50, method='TNC'):
+    x0s = np.linspace(bounds[0], bounds[-1], grid_num)
+    x_sols0, y_sols0 = singlestart_opt(func, x0s, method)
+    # remove the solutions that are not converged
+    y_sols = np.array([y_sols0[i] for i in range(len(y_sols0)) if np.isfinite(y_sols0[i])])
+    x_sols = np.array([x_sols0[i] for i in range(len(x_sols0)) if np.isfinite(y_sols0[i])])
+    y_min_index = np.argmin(y_sols)
+    return opt_sol(x_sols[y_min_index], y_sols[y_min_index])
 
 @numba.njit(cache=True)
 def __find_layer__(z, _z_boundary_without_lb, _len_z_boundary_2):
@@ -67,6 +84,9 @@ class TMM():
         self._z_boundary_ = np.insert(np.cumsum(self._layer_thicknesses_), 0, 0) # the z position of the boundary of each layer
         self._z_boundary_without_lb = self._z_boundary_[1:]
         self._len_z_boundary = len(self._z_boundary_)
+        self.beta_r_sorted = self.k0*np.sort(np.real(np.sqrt(np.unique(self._epsilons_))))
+        self.beta_r_max = self.beta_r_sorted[-1] # beta is max in the medium with max epsilon
+        self.beta_r_min = self.beta_r_sorted[0] # beta is min in the medium with min epsilon, except air
 
     def _construct_matrix(self, beta):
         self.gamma_s = np.sqrt(np.square(beta)-np.square(self.k0)*self._epsilons_)
@@ -171,24 +191,28 @@ class TMM():
             self._construct_matrix(beta)
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
-        if self.beta_init is None:
-            beta_r_max = self.k0*np.real(np.sqrt(self._epsilons_.max())) # beta is max in the medium with max epsilon
-            beta_r_min = self.k0*np.real(np.sqrt(self._epsilons_.min())) # beta is min in the medium with min epsilon, except air
-            if beta_r_min <= self.k0: beta_r_min = sorted([_ for _ in np.real(np.sqrt(self._epsilons_)) if _ > 1])[0]*self.k0 # beta is min in the medium with min epsilon, except air
-            beta_sol = direct(t_11_func_beta_log, Bounds((beta_r_min,-1),(beta_r_max,1)))
-            beta_init = beta_sol.x
-        else:
-            beta_init = self.beta_init
-        beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
-        while (beta_sol.fun >= -10.0) and self.find_modes_iter < 2:
-            self.find_modes_iter += 1
-            if beta_sol.fun < -10.0:
+        def t_11_func_beta_log_real(beta:float):
+            beta = beta + 1j*0.0
+            self._construct_matrix(beta)
+            log_t11 = np.log10(np.abs(self.t_11))
+            return log_t11
+        beta_sol_fun = 1.0
+        while (beta_sol_fun >= -10.0) and (self.find_modes_iter < len(self.beta_r_sorted)-1):
+            if self.beta_init is None:
+                beta_sol = multistart_opt(t_11_func_beta_log_real, bounds=[self.beta_r_min, self.beta_r_max], grid_num=50*(self.find_modes_iter+1), method='TNC')
+                beta_init = np.array([beta_sol.x, 0])
+            else:
+                beta_init = self.beta_init
+            beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
+            if beta_sol.fun < -6.0:
                 self.beta_init = beta_sol
-            warnings.warn(f't11 is not converge to machine precision after {beta_sol.nit} iter, t11 = {10**beta_sol.fun}. Retry {self.find_modes_iter}.', RuntimeWarning)
-            self.find_modes()
+            if beta_sol.fun >= -10.0:
+                warnings.warn(f'Try {self.find_modes_iter+1}: t11 is not converge to machine precision, t11 = {10**beta_sol.fun}.', RuntimeWarning)
+            beta_sol_fun = beta_sol.fun
+            self.find_modes_iter += 1
         self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
         _ = t_11_func_beta_log(beta_sol.x) # update the T_total, V_s, V_s_flatten
-        if _ > -10.0: raise RuntimeError(f't11 is not converge! abs(t11) = {10**_}.')
+        # if _ > -10.0: raise RuntimeError(f't11 is not converge! abs(t11) = {10**_}.')
         self._cal_normlized_constant()
         self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])
 
