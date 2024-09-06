@@ -117,12 +117,12 @@ class eps_circle(eps_userdefine):
         return self.eps(x, y)
 
 @numba.njit(cache=True)
-def __eps_rtriangle__(x, y, cell_size_x, cell_size_y, s_2, eps_hole, eps_bulk):
+def __eps_ritriangle__(x, y, cell_size_x, cell_size_y, half_cell_size_x_s_2, half_cell_size_y_s_2, cell_size_y_cell_size_x, eps_hole, eps_bulk):
     x_mapped = np.mod(x, cell_size_x)
     y_mapped = np.mod(y, cell_size_y)
-    return np.where((x_mapped<-y_mapped) and (x>-s_2) and (y>-s_2), eps_hole, eps_bulk)
+    return np.where((y_mapped<-cell_size_y_cell_size_x*x_mapped+cell_size_y) and (x>half_cell_size_x_s_2) and (y>half_cell_size_y_s_2), eps_hole, eps_bulk)
 
-class eps_rtriangle(eps_userdefine):
+class eps_ritriangle(eps_userdefine):
     """
     The rectangular lattice with right triangle holes.
     The center of the right triangle's long side is at the center of the cell.
@@ -149,27 +149,30 @@ class eps_rtriangle(eps_userdefine):
         The class returns the dielectric constant distribution in the cell.
     """
     eps_func = None
-    def __init__(self, rel_r, mat_bulk=AlxGaAs(0.0), mat_hole=Air(), cell_size_x=1.0, cell_size_y=1.0):
-        self.rel_r = rel_r
+    def __init__(self, rel_s, mat_bulk=AlxGaAs(0.0), mat_hole=Air(), cell_size_x=1.0, cell_size_y=1.0):
+        self.rel_s = rel_s
         self.cell_size_x = cell_size_x
         self.cell_size_y = cell_size_y
         self.mat_bulk = mat_bulk
         self.mat_hole = mat_hole
         self.eps_bulk = mat_bulk.epsilon
         self.eps_hole = mat_hole.epsilon
-        self.eps_type = 'circle'
+        self.eps_type = 'ritriangle'
         self.build()
     
     def build(self):
-        self.r = self.rel_r*np.sqrt(self.cell_size_x*self.cell_size_y)
-        self.r__2 = self.r**2
+        self.s = self.rel_s*np.sqrt(self.cell_size_x*self.cell_size_y)
+        self.s_2 = self.s/2
         self.half_cell_size_x = self.cell_size_x/2
         self.half_cell_size_y = self.cell_size_y/2
-        self.FF = np.pi*self.rel_r**2
+        self.half_cell_size_x_s_2 = self.half_cell_size_x-self.s_2
+        self.half_cell_size_y_s_2 = self.half_cell_size_y-self.s_2
+        self.cell_size_y_cell_size_x = self.cell_size_y/self.cell_size_x
+        self.FF = self.rel_s**2/2
         self.avg_eps = self.eps_bulk*(1-self.FF) + self.eps_hole*self.FF
 
     def eps(self, x, y):
-        return __eps_circle__(x, y, self.cell_size_x, self.cell_size_y, self.half_cell_size_x, self.half_cell_size_y, self.r__2, self.eps_hole, self.eps_bulk)
+        return __eps_ritriangle__(x, y, self.cell_size_x, self.cell_size_y, self.half_cell_size_x_s_2, self.half_cell_size_y_s_2, self.cell_size_y_cell_size_x, self.eps_hole, self.eps_bulk)
     
     def __call__(self, x, y):
         return self.eps(x, y)
