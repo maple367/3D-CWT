@@ -470,16 +470,15 @@ class Model():
         return -1j/(2*self.beta_z_func_fundamental(z))*np.exp(-1j*self.beta_z_func_fundamental(z)*np.abs(z-z_prime))
     
     def beta_z_func_fundamental(self, z):
-        return self.k0*self.__eps_profile_z(z)
+        return self.k0*np.sqrt(self.__eps_profile_z(z))
     
     def Green_func_higher_order(self, z, z_prime, order):
         # Approximatly Green function of higher order
         return -1j/(2*self.beta_z_func_higher_order(z, order))*np.exp(-1j*self.beta_z_func_higher_order(z, order)*np.abs(z-z_prime))
     
     def beta_z_func_higher_order(self, z, order):
-        # TODO: Check the formula. The formulas may be in the wrong order.
         m, n = order
-        return np.sqrt( (np.square(m)+np.square(n))*np.square(self.beta0) - np.square(self.beta_z_func_fundamental(z)) )
+        return np.sqrt( (np.square(m)+np.square(n))*np.square(self.beta0) - np.square(self.k0)*self.__eps_profile_z(z) )
     
     def xi_z_func(self, z, order):
         i = self.find_layer(z)

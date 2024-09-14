@@ -1,1 +1,1 @@
-from ._geo import (eps_circle, eps_userdefine)
+from ._geo import (eps_ritriangle, eps_circle, eps_userdefine)

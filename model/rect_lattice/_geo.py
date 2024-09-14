@@ -120,18 +120,18 @@ class eps_circle(eps_userdefine):
 def __eps_ritriangle__(x, y, cell_size_x, cell_size_y, half_cell_size_x_s_2, half_cell_size_y_s_2, cell_size_y_cell_size_x, eps_hole, eps_bulk):
     x_mapped = np.mod(x, cell_size_x)
     y_mapped = np.mod(y, cell_size_y)
-    return np.where((y_mapped<-cell_size_y_cell_size_x*x_mapped+cell_size_y) and (x>half_cell_size_x_s_2) and (y>half_cell_size_y_s_2), eps_hole, eps_bulk)
+    return np.where((y_mapped<-cell_size_y_cell_size_x*x_mapped+cell_size_y) * (x_mapped>half_cell_size_x_s_2) * (y_mapped>half_cell_size_y_s_2), eps_hole, eps_bulk)
 
 class eps_ritriangle(eps_userdefine):
     """
-    The rectangular lattice with right triangle holes.
+    The rectangular lattice with right-angled isosceles triangle holes.
     The center of the right triangle's long side is at the center of the cell.
     The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
     The discontinuity of the dielectric constant has been optimized.
     Parameters
     ----------
-    rel_r : float
-        The relative radius of the circular hole.
+    rel_s : float
+        The relative side length of the right-angled isosceles triangular hole.
     mat_bulk : material_class
         The material of the bulk. Default is AlxGaAs(0.0).
     mat_hole : material_class
@@ -157,7 +157,7 @@ class eps_ritriangle(eps_userdefine):
         self.mat_hole = mat_hole
         self.eps_bulk = mat_bulk.epsilon
         self.eps_hole = mat_hole.epsilon
-        self.eps_type = 'ritriangle'
+        self.eps_type = 'RIT'
         self.build()
     
     def build(self):

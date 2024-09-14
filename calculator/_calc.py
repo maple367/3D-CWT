@@ -91,6 +91,8 @@ class xi_calculator(Array_calculator):
         print(f'\rxi: {index}  ', end='', flush=True)
         if self.eps_type == 'circle':
             self._xi = self._cal_circle(index) # maybe not need to assign?
+        elif self.eps_type == 'RIT':
+            self._xi = self._cal_ritriangle(index)
         else:
             self._xi = self._cal_general(index)
         return self._xi
@@ -119,6 +121,32 @@ class xi_calculator(Array_calculator):
             self._xi = np.sum([zone for zone in zonels])
         elif self.method in ['dbltrapezoid', 'dblsimpson', 'dblromb', 'dblqmc_quad']:
             print(f'{self.method} not supported for circle eps_func now. Use userdefine instead.')
+            self.eps_type = 'userdefine'
+            return self._cal(index)
+        self._xi = self._xi/(self.cell_size_x*self.cell_size_y)
+        return self._xi
+
+    def _cal_ritriangle(self, index:tuple[int, int]):
+        """Calculate the Fourier coefficients of the dielectric constant distribution for right-angled isosceles triangle eps_func. right-angled isosceles triangle has discontinuity, so the integration should be separated into 3 zones."""
+        m, n = index
+        if self.method == 'dblquad':
+            integral_func = integral_method(3, method=self.method)()
+            def boundary_yb(x):
+                x = np.mod(x, self.eps_func.cell_size_x)
+                if x < self.cell_size_x/2-self.eps_func.s/2 or x > self.cell_size_x/2+self.eps_func.s/2:
+                    return -self.cell_size_y/self.cell_size_x*x+self.cell_size_y
+                else:
+                    return self.cell_size_y/2-self.eps_func.s/2
+            def boundary_yu(x):
+                x = np.mod(x, self.eps_func.cell_size_x)
+                return -self.cell_size_y/self.cell_size_x*x+self.cell_size_y
+            zone1 = integral_func(self._integrated_func, 0, self.cell_size_x, 0, boundary_yb, args=(m, n), **self.kwargs)
+            zone2 = integral_func(self._integrated_func, 0, self.cell_size_x, boundary_yb, boundary_yu, args=(m, n), **self.kwargs)
+            zone3 = integral_func(self._integrated_func, 0, self.cell_size_x, boundary_yu, self.cell_size_y, args=(m, n), **self.kwargs)
+            zonels = [zone1, zone2, zone3]
+            self._xi = np.sum([zone for zone in zonels])
+        elif self.method in ['dbltrapezoid', 'dblsimpson', 'dblromb', 'dblqmc_quad']:
+            print(f'{self.method} not supported for ritriangle eps_func now. Use userdefine instead.')
             self.eps_type = 'userdefine'
             return self._cal(index)
         self._xi = self._xi/(self.cell_size_x*self.cell_size_y)
