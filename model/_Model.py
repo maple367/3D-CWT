@@ -561,7 +561,7 @@ class CWT_solver():
     def _chi_func(self, order, direction:str):
         cut_off = self._cut_off
         p, q, r, s = order
-        def sumed_func(input): # TODO: Check the formula. The formulas may be wrong in integration.
+        def sumed_func(input):
             m, n = input
             avg_xi = np.sum([self.xi_calculator_collect[_][p-m,q-n]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])
             return avg_xi*self.get_varsigma((m,n,r,s), direction)
@@ -636,7 +636,7 @@ class CWT_solver():
         self.cal_eign_value()
         self._save()
         print(f'Calculation finished. Results is saved to ./history_res/{self.model.pathname_suffix}_res.npy', flush=True)
-    
+
     def cal_eign_value(self):
         from scipy.constants import c
         self.c = c*1e6 # um/s
@@ -706,7 +706,7 @@ class SEMI_solver():
         comsol_model_file_path = os.path.join(os.path.dirname(__file__), '../utils/comsol_model/DQW-1D_20240709.mph')
         self.client = mph.start(cores=8)
         self.comsol_model = self.client.load(comsol_model_file_path)
-    
+
     def _prepare_model_(self):
         self.doping_para = self.model.paras.doping_para
         self.z_boundary = self.model.z_boundary
