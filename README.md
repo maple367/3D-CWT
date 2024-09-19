@@ -1,9 +1,18 @@
 # 3D-CWT
  Three Dimension Coupled Wave Theory
 
+# Requirements
+- Python 3.12 (my environment)
+    - numpy
+    - scipy
+    - matplotlib
+    - mph
+    - dill
+- Comsol Multiphysics
+
 # TODO
 - [x] Add support for titled photonic crystal
-- [ ] Add 
+- [ ] Add support for finite size photonic crystal
 
 # Release Notes
 ## Version 0.2.0
