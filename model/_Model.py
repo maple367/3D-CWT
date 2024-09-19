@@ -457,7 +457,7 @@ class Model():
             if isinstance(self.paras.epsilons[i], eps_userdefine):
                 self.phc_boundary_l.append(self.z_boundary[i])
                 self.phc_boundary_r.append(self.z_boundary[i+1])
-                self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], f'xi((m,n)){[i]}', self.pathname_suffix, lock=self.lock))
+                self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], f'xi((m,n))[{i}]', self.pathname_suffix, lock=self.lock))
             else:
                 self.xi_calculator_collect.append(None)
         self._generate_integral_region_()
@@ -488,7 +488,7 @@ class Model():
     
     def Green_func_higher_order(self, z, z_prime, order):
         # Approximatly Green function of higher order
-        return -1j/(2*self.beta_z_func_higher_order(z, order))*np.exp(-1j*self.beta_z_func_higher_order(z, order)*np.abs(z-z_prime))
+        return 1/(2*self.beta_z_func_higher_order(z, order))*np.exp(-self.beta_z_func_higher_order(z, order)*np.abs(z-z_prime))
     
     def beta_z_func_higher_order(self, z, order):
         m, n = order
@@ -507,9 +507,9 @@ class Model():
     def _mu_func(self, order):
         m, n, r, s = order
         def integrated_func(z, z_prime):
-            return self.xi_z_func(z_prime,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.e_normlized_amplitude(z_prime)*np.conj(self.e_normlized_amplitude(z))
+            return self.xi_z_func(z,(m-r,n-s))*self.Green_func_higher_order(z,z_prime,(m,n))*self.e_normlized_amplitude(z_prime)*np.conj(self.e_normlized_amplitude(z))
         res = [self.integrated_func_2d(integrated_func, bd[0], bd[1], bd[2], bd[3]) for bd in self._2d_phc_integral_region_]
-        return 1/np.square(self.k0)*np.sum(res)
+        return np.square(self.k0)*np.sum(res)
     
     def _nu_func(self, order):
         m, n, r, s = order
@@ -535,6 +535,7 @@ class Model():
 
 
 class CWT_solver():
+    # TODO: Add comments
     """
     
     """
@@ -654,12 +655,17 @@ class CWT_solver():
         self.k = self.k0+self.delta/self.n_eff
         self.a = self.model.paras.cellsize_x
         self.kappa_v = self.model.kappa_v
-        self.xi_rads = np.array([np.sum([self.xi_calculator_collect[_][-1,0]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
-                                 np.sum([self.xi_calculator_collect[_][1,0]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
-                                 np.sum([self.xi_calculator_collect[_][0,-1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
-                                 np.sum([self.xi_calculator_collect[_][0,1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])])
+        self.xi_rads = self.cal_xi_rads_high_order((0,0))
         self.norm_freq = self.omega/(2*np.pi)/(self.c/self.a)
         self.Q = self.beta/self.alpha_r
+
+    def cal_xi_rads_high_order(self, order):
+        m, n = order
+        xi_rads = np.array([np.sum([self.xi_calculator_collect[_][m-1,n]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
+                            np.sum([self.xi_calculator_collect[_][m+1,n]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
+                            np.sum([self.xi_calculator_collect[_][m,n-1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None]),
+                            np.sum([self.xi_calculator_collect[_][m,n+1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])])
+        return xi_rads
 
     def _save(self):
         import os
