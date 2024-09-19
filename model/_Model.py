@@ -273,6 +273,12 @@ class model_parameters():
         The model parameters.
     """
     def __init__(self, input_para:tuple[list[float],list[material_class|eps_userdefine],dict[list,list]], **kwargs):
+        if kwargs.get('load_path', None) is not None:
+            self._load(kwargs.get('load_path'))
+        else:
+            self._init(input_para, **kwargs)
+    
+    def _init(self, input_para, **kwargs):
         import uuid
         self.layer_thicknesses = np.array(input_para[0])
         self.materials = input_para[1]
@@ -341,7 +347,15 @@ class model_parameters():
             np.save(f'./history_res/{self.uuid}/input_para.npy', self.__dict__)
         else:
             warnings.warn(f'Warning: The folder ./history_res/{self.uuid}/ is already exist. The data will be used to pass the calculation.', FutureWarning)
+            self._load(f'./history_res/{self.uuid}/input_para.npy')
         print(f'The model parameters is saved in ./history_res/{self.uuid}/input_para.npy.')
+
+    def _load(self, path):
+        import os
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'{path} is not found.')
+        self.__dict__.update(np.load(path, allow_pickle=True).item())
+        self.lock = mp.Manager().Lock()
 
 class Model():
     """
@@ -667,6 +681,7 @@ class CWT_solver():
                     'omega':self.omega,
                     'kappa_v':self.kappa_v,
                     'xi_rads':self.xi_rads,
+                    'norm_freq':self.norm_freq,
                     'n_eff':self.n_eff,
                     'Q':self.Q}
         np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', self.save_dict)

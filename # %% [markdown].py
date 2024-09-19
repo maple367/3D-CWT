@@ -52,7 +52,7 @@ def plot_model(input_model:model.Model):
     ax0.set_ylabel(r'Doping ($\mu m^{-3}$)', fontsize=fontsize1, fontname=fontname, color=color1)
     ax0.set_yscale('symlog', linthresh=np.min(dopings[dopings!=0.0]))
     ax1.set_ylabel(r'$\epsilon_r$ and Normalized $|E|^2$', fontsize=fontsize1, fontname=fontname, color=color2)
-    plt.title('', fontsize=fontsize2, fontname=fontname)
+    ax0.set_title('', fontsize=fontsize2, fontname=fontname)
 
     ax2 = ax0.inset_axes([0.65, 0.10, 0.24, 0.24])
     im = ax2.imshow(np.real(eps_mesh_phc), cmap='Greys', origin='lower')
@@ -61,8 +61,7 @@ def plot_model(input_model:model.Model):
     cb = fig.colorbar(im, cax=ax2.inset_axes([0, 1.05, 1, 0.2]), orientation='horizontal', label='Epsilon')
     cb.ax.xaxis.set_ticks_position('top')
     cb.ax.xaxis.set_label_position('top')
-    plt.show()
-    plt.close()
+    return fig, ax0
 
 
 if __name__ == '__main__':
@@ -88,9 +87,10 @@ if __name__ == '__main__':
         else:
             mat_list.append(user_defined_material(eps_list[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
-    paras = model.model_parameters((t_list, mat_list, doping_para), k0=2*np.pi/0.94) # input tuple (t_list, eps_list, index where is the active layer)
+    paras = model.model_parameters((t_list, mat_list, doping_para), k0=2*np.pi/0.94, load_path=r'D:\Documents\GitHub\3D-CWT\history_res\9c04ed4eebcf4aa7aa4c47178d0ddd86\input_para.npy') # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = model.Model(paras)
-    plot_model(pcsel_model)
+    fig, ax = plot_model(pcsel_model)
+    fig.savefig('model.png', dpi=300)
     cwt_solver = model.CWT_solver(pcsel_model)
 
     # %%
@@ -128,8 +128,34 @@ if __name__ == '__main__':
     im = ax2.imshow(np.real(eps_mesh_phc), cmap='Greys', origin='lower')
     ax2.set_xticks([])
     ax2.set_yticks([])
-    plt.show()
+    fig.savefig('kappa.png', dpi=300)
 
+    # %% [markdown]
+    # The value of $\kappa$ is about 5.98 times of the value in the paper.
 
+    # %% [markdown]
+    # # Result 2: Wave truncation order
 
+    # %%
+    norm_freq_ls = []
+    alpha_r_ls = []
+    cut_off_ls = np.arange(1, 13)
+    cwt_solver.run(cut_off=12, parallel=True)
+    for cut_off in cut_off_ls:
+        cwt_solver.run(cut_off=cut_off, parallel=True)
+        alpha_r_ls.append(cwt_solver.alpha_r)
+        norm_freq_ls.append(cwt_solver.norm_freq)
+
+    # %%
+    fig, ax = plt.subplots()
+    ax.plot(cut_off_ls, [_[:2]*1e4 for _ in alpha_r_ls])
+    ax.set_xlabel('Wave truncation order, D')
+    ax.set_ylabel('Radiation constant, $cm^{-1}$')
+    fig.savefig('alpha_r.png', dpi=300)
+
+    fig, ax = plt.subplots()
+    ax.plot(cut_off_ls, [_[:2] for _ in norm_freq_ls])
+    ax.set_xlabel('Wave truncation order, D')
+    ax.set_ylabel('Normalized frequency, (c/a)')
+    fig.savefig('norm_freq.png', dpi=300)
 # %%
