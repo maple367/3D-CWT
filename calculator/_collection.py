@@ -29,7 +29,8 @@ class integral_method():
         self.method = method
 
     def _dblquad_complex(self, func, a, b, gfun, hfun, args=(), **kwargs):
-        """Double quad integration. Suitable for real number space integral routine.
+        """
+        Double quad integration. Suitable for real number space integral routine.
         The function should return a complex number and abserr.
         
         Parameters
@@ -48,7 +49,9 @@ class integral_method():
         Returns
         -------
         out : tuple
-            The result and absolute error of the double integration."""
+            The result and absolute error of the double integration.
+            $result = \int_{a}^{b} \int_{gfun(x)}^{hfun(x)} func(x, y, *args) dy dx$
+            """
         real_integral = dblquad(lambda y,x: func(x,y,*args).real, a, b, gfun, hfun, epsrel=self.epsrel, **kwargs)
         imag_integral = dblquad(lambda y,x: func(x,y,*args).imag, a, b, gfun, hfun, epsrel=self.epsrel, **kwargs)
         # print(f'abserr: {real_integral[1] + 1j*imag_integral[1]}')
