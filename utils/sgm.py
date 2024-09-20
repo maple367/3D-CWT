@@ -45,7 +45,7 @@ class SGM():
                 self.A[j:j+2, k+len(mesh_grid)*4:k+len(mesh_grid)*4+4] = self.C_mat_sum[0:2,:]/2-self.grad_i[0:2,:]
                 self.M[j:j+2, k+len(mesh_grid)*4:k+len(mesh_grid)*4+4] = np.eye(4)[0:2,:]/2
                 # for j, k+1
-                self.A[j+2:j+4, k+4:k+8] = self.C_mat_sum[2:4,:]/2-self.grad_i[2:4,:]            
+                self.A[j+2:j+4, k+4:k+8] = self.C_mat_sum[2:4,:]/2-self.grad_i[2:4,:]
                 self.M[j+2:j+4, k+4:k+8] = np.eye(4)[2:4,:]/2
                 # self.pass_num += 1
                 # self.pass_ls.append(origin)

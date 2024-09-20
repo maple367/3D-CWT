@@ -657,7 +657,7 @@ class CWT_solver():
         self.kappa_v = self.model.kappa_v
         self.xi_rads = self.cal_xi_rads_high_order((0,0))
         self.norm_freq = self.omega/(2*np.pi)/(self.c/self.a)
-        self.Q = self.beta/self.alpha_r
+        self.Q = np.real(self.beta)/self.alpha_r
 
     def cal_xi_rads_high_order(self, order):
         m, n = order
