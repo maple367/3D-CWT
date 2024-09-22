@@ -1,5 +1,5 @@
 import numpy as np
-from .sgm import SGM
+from .sgm import SGM, SGM_2D
 import os
 
 class Data():

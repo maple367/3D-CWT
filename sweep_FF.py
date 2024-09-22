@@ -92,7 +92,7 @@ def prepare_simu(FF):
 if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
-    FF_ls = np.linspace(0.01, 0.49, 50)
+    FF_ls = np.linspace(0.01, 0.49, 49)
     df = pd.DataFrame(columns=['FF', 'Q', 'uuid', 'cal_time', 'mark'])
     for FF in FF_ls:
         cwt_solver = prepare_simu(FF)

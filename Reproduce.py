@@ -67,27 +67,7 @@ def plot_model(input_model:model.Model):
 if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
-    FF = 0.16
-    shape = 'RIT' # 'RIT'
-    rel_r = np.sqrt(FF/np.pi)
-    rel_s = np.sqrt(2*FF)
-    eps_list = [11.0224, 12.8603, 12.7449, 12.7449, 11.0224]
-    t_list = [1.5, 0.0885, 0.1180, 0.0590, 1.5]
-    is_phc = [False, False, True, False, False]
-    is_no_doping = [False, True, True, True, False]
-    mat_list = []
-    for i in range(len(is_phc)):
-        if is_phc[i]:
-            if shape == 'CC':
-                mat_list.append(model.rect_lattice.eps_circle(rel_r, user_defined_material(eps_list[i])))
-            elif shape == 'RIT':
-                mat_list.append(model.rect_lattice.eps_ritriangle(rel_s, user_defined_material(eps_list[i])))
-            else:
-                raise ValueError('Shape not supported')
-        else:
-            mat_list.append(user_defined_material(eps_list[i]))
-    doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
-    paras = model.model_parameters((t_list, mat_list, doping_para), k0=2*np.pi/0.94, load_path=r'D:\Documents\GitHub\3D-CWT\history_res\babcca1bbbaa4a8f94d7b0421d70f9fa\input_para.npy') # input tuple (t_list, eps_list, index where is the active layer)
+    paras = model.model_parameters(load_path=r'D:\Documents\GitHub\3D-CWT\history_res\4a34e82a9941473abb734c7be1a92d3d\input_para.npy') # load
     pcsel_model = model.Model(paras)
     fig, ax = plot_model(pcsel_model)
     fig.show()
@@ -139,9 +119,9 @@ if __name__ == '__main__':
     # %%
     norm_freq_ls = []
     alpha_r_ls = []
-    cut_off_ls = np.arange(1, 13)
+    cut_off_ls = np.arange(1, 11)
     for cut_off in cut_off_ls:
-        cwt_solver.run(cut_off=cut_off, parallel=True)
+        cwt_solver.run(cut_off=cut_off, parallel=False) # parallel=False, because the calculation is already done
         alpha_r_ls.append(cwt_solver.alpha_r)
         norm_freq_ls.append(cwt_solver.norm_freq)
 
@@ -204,7 +184,7 @@ if __name__ == '__main__':
     
     z_mesh, e_profile = cal_wave(cwt_solver, (1,3), 'y', 1)
     # %%
-    E_profile_s = np.abs(e_profile) #*cwt_solver.model.is_in_phc(z_mesh)
+    E_profile_s = np.abs(e_profile)*pcsel_model.eps_profile(z=z_mesh)
     dopings = pcsel_model.doping(z=z_mesh)
     eps_s = pcsel_model.eps_profile(z=z_mesh)
     E_profile_s = E_profile_s / np.max(np.abs(E_profile_s)) * (np.max(np.abs(pcsel_model.paras.avg_epsilons)) - np.min(np.abs(pcsel_model.paras.avg_epsilons))) + np.min(np.abs(pcsel_model.paras.avg_epsilons))

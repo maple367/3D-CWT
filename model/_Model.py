@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import mph
 from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
 from scipy.integrate import quad
 import numba
@@ -272,9 +273,9 @@ class model_parameters():
     out : class
         The model parameters.
     """
-    def __init__(self, input_para:tuple[list[float],list[material_class|eps_userdefine],dict[list,list]], **kwargs):
-        if kwargs.get('load_path', None) is not None:
-            self._load(kwargs.get('load_path'))
+    def __init__(self, input_para:tuple[list[float],list[material_class|eps_userdefine],dict[list,list]]=None, load_path=None, **kwargs):
+        if load_path is not None:
+            self._load(load_path)
         else:
             self._init(input_para, **kwargs)
     
@@ -707,10 +708,9 @@ class SEMI_solver():
             run: run the calculation.
                 run(class[model])
     """
-    def __init__(self):
-        import mph
+    def __init__(self, client:mph.Client):
         comsol_model_file_path = os.path.join(os.path.dirname(__file__), '../utils/comsol_model/DQW-1D_20240709.mph')
-        self.client = mph.start(cores=8)
+        self.client = client
         self.comsol_model = self.client.load(comsol_model_file_path)
 
     def _prepare_model_(self):
@@ -768,3 +768,39 @@ class SEMI_solver():
 
     def get_result(self,index):
         return self.PCE[index], self.SE[index]
+    
+
+class SGM_solver():
+    def __init__(self, client:mph.Client):
+        import os
+        comsol_model_file_path = os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_solver_20240922.mph')
+        self.client = client
+        self.comsol_model = self.client.load(comsol_model_file_path)
+
+    def run(self, res:dict, init_eig_guess:complex, size:int, resolution:int):
+        self.res = res
+        self.C_mat_sum = self.res['C_mat_sum']
+        self.a = self.res['a']
+        self.init_eig_guess = init_eig_guess
+        self.size = size
+        self.resolution = resolution
+        self.kappa_v_i = np.imag(res['kappa_v'])
+        self.xi_rads = self.res['xi_rads']
+        self._prepare_model_()
+        self._apply_paras_()
+        self.comsol_model.solve()
+        self.eigen_values = self.comsol_model.evaluate('lambda')
+        self.P_stim = self.comsol_model.evaluate('2*imag(lambda)*intall(abs(Rx)^2+abs(Sx)^2+abs(Ry)^2+abs(Sy)^2)')
+        self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)') # checked
+        self.P_rad = self.comsol_model.evaluate(f'2*{self.kappa_v_i}*intall(abs({self.xi_rads[0]}*Rx+{self.xi_rads[1]}*Sx)^2+abs({self.xi_rads[2]}*Ry+{self.xi_rads[3]}*Sy)^2)')
+    
+    def _prepare_model_(self):
+        self.coeff_a = [f'{np.real(_)}+{np.imag(_)}j' for _ in self.C_mat_sum.flatten()]
+
+    def _apply_paras_(self):
+        coeff = self.comsol_model/'physics'/'系数形式偏微分方程'/'系数形式偏微分方程 1'
+        coeff.property('a', self.coeff_a)
+        self.comsol_model.parameter('L', f'{self.size}*a')
+        self.comsol_model.parameter('a', f'{self.a}')
+        self.comsol_model.parameter('resolution', f'{self.resolution}')
+        self.comsol_model.parameter('init_eig_guess', f'{np.real(self.init_eig_guess)}+{np.imag(self.init_eig_guess)}j')
