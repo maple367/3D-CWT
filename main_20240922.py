@@ -5,7 +5,9 @@ from model import AlxGaAs
 import numpy as np
 import matplotlib.pyplot as plt
 
-def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI_solver,plot=False):
+def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers,plot=False):
+    semi_solver = solvers[0]
+    sgm_solver = solvers[1]
     rel_r = np.sqrt(FF/np.pi)
     Al_x = [x0, x1, x2, 0.4, 0.157, x5, x6]
     t_list = [0.12, t1, t2, t3, 0.076, t5, t6]
@@ -17,7 +19,7 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI
             mat_list.append((model.rect_lattice.eps_circle(rel_r, AlxGaAs(Al_x[i]))))
         else:
             mat_list.append(AlxGaAs(Al_x[i]))
-    doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
+    doping_para = {'is_no_doping':is_no_doping,'coeff':[c1, c2, c3, c4]}
     paras = model.model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = model.Model(paras)
     if plot: plot_model(pcsel_model)
@@ -28,18 +30,12 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,semi_solver:model.SEMI
         # bad input parameter, the model is not converge
         return 0.0
     cwt_solver = model.CWT_solver(pcsel_model)
-    cwt_solver.core_num = 15
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
-    eigen_infinite = res['eigen_values'][np.imag(res['eigen_values']) > 0]
-    eigen_infinite = eigen_infinite[np.argmin(np.imag(eigen_infinite))] # eigen value with the smallest imaginary part
-    if not isinstance(eigen_infinite,complex): eigen_infinite = eigen_infinite[0]
-    sgm_solver = utils.SGM(res, eigen_infinite, 200, 25)
-    sgm_res = sgm_solver.run(k=6, show_plot=False)
-    eigen_finite = sgm_res[0][np.imag(sgm_res[0]) > 0]
-    eigen_finite = eigen_finite[np.argmin(np.imag(eigen_finite))]
-    if not isinstance(eigen_finite,complex): eigen_finite = eigen_finite[0]
-    PCE = np.imag(eigen_infinite)/(np.imag(eigen_finite)+pcsel_model.fc_absorption/2)*PCE_raw
+    model_size = int(200/cwt_solver.a) # 200 um
+    sgm_solver.run(res, res['eigen_values'][0], model_size, 17)
+    i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
+    PCE = (1-sgm_solver.P_edge/sgm_solver.P_stim)/(1+pcsel_model.fc_absorption/(np.imag(sgm_solver.eigen_values[i_eigs])*2))*PCE_raw
     data = {'FF': FF, 'PCE': PCE, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
     return PCE
 
@@ -94,35 +90,6 @@ if __name__ == '__main__':
     ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
     import multiprocessing as mp
     mp.freeze_support()
-    import pandas as pd
-    semi_solver, sgm_solver = start_solver(cores=8)
-    data = utils.Data(r'history_res\4a34e82a9941473abb734c7be1a92d3d')
-    res = data.load_res()
-    sgm_solver.run(res, -0.23671718+0.00705658j, 700, 17)
-    print(sgm_solver.P_stim, sgm_solver.P_edge, sgm_solver.P_rad)
-
-    # %%
-    data = utils.Data(r'history_res\4a34e82a9941473abb734c7be1a92d3d')
-    res = data.load_res()
-    sizes = np.linspace(500, 1000, 5)
-    resolution = 20
-    P = []
-    for _ in sizes:
-        sgm_solver.run(res, res['eigen_values'][1], _, resolution)
-        P.append([sgm_solver.P_stim[-1]/resolution**2,sgm_solver.P_edge[-1]/resolution,sgm_solver.P_rad[-1]/resolution**2])
-    import matplotlib.pyplot as plt
-    plt.plot(sizes,P, label=['stim','edge','rad'])
-    plt.legend()
-    plt.show()
-
-    # %%
-    P0 = []
-    for _ in P:
-        P0.append([_[1]/_[0],_[2]/_[0]])
-
-    import matplotlib.pyplot as plt
-    plt.plot(sizes,P0, label=['edge','rad'])
-    plt.legend()
-    plt.yscale('log')
-    plt.show()
-# %%
+    solvers = start_solver(cores=8)
+    run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers)
+    run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers)

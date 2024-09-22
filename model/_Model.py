@@ -543,7 +543,7 @@ class CWT_solver():
     def __init__(self, model:Model):
         self.model = model
         self.lock = self.model.lock
-        self.core_num = mp.cpu_count()
+        self.core_num = min(mp.cpu_count(), 60)
         self.prepare_calculator()
 
     def __getattr__(self, name):
@@ -772,7 +772,6 @@ class SEMI_solver():
 
 class SGM_solver():
     def __init__(self, client:mph.Client):
-        import os
         comsol_model_file_path = os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_solver_20240922.mph')
         self.client = client
         self.comsol_model = self.client.load(comsol_model_file_path)
@@ -804,3 +803,21 @@ class SGM_solver():
         self.comsol_model.parameter('a', f'{self.a}')
         self.comsol_model.parameter('resolution', f'{self.resolution}')
         self.comsol_model.parameter('init_eig_guess', f'{np.real(self.init_eig_guess)}+{np.imag(self.init_eig_guess)}j')
+
+    def _preview_fig_(self, i_eigs):
+        import matplotlib.pyplot as plt
+        pic = self.comsol_model/'plots'/'I'
+        pic.property('solnum', i_eigs+1)
+        self.comsol_model.export('图像 1','./cwt_res.png')
+        fig, ax = plt.subplots()
+        ax.imshow(plt.imread(os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_res.png')))
+        ax.axis('off')
+        return fig
+    
+    def _get_data_(self, i_eigs):
+        import pandas as pd
+        pic = self.comsol_model/'plots'/'I'
+        pic.property('solnum', i_eigs+1)
+        self.comsol_model.export('绘图 1','./cwt_res.csv')
+        data = pd.read_csv(os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_res.csv'), skiprows=7)
+        return data
