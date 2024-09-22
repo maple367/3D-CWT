@@ -91,5 +91,4 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     solvers = start_solver(cores=8)
-    run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers)
-    run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers)
+    print(run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers))
