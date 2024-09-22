@@ -752,7 +752,7 @@ class SEMI_solver():
         self.comsol_model.parameter('coeff_d',f'{self.coeff_d}')
 
     def run(self, model:Model):
-        print('Start to run the calculation in COMSOL...', flush=True)
+        print('Start to run SEMI calculation in COMSOL...', flush=True)
         from scipy.constants import e
         self.model = model
         self._prepare_model_()
@@ -777,6 +777,7 @@ class SGM_solver():
         self.comsol_model = self.client.load(comsol_model_file_path)
 
     def run(self, res:dict, init_eig_guess:complex, size:int, resolution:int):
+        print('Start to run SGM calculation in COMSOL... ', flush=True)
         self.res = res
         self.C_mat_sum = self.res['C_mat_sum']
         self.a = self.res['a']
