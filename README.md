@@ -24,3 +24,5 @@
  - Add comsol semiconductor simulation.
 ## Version 0.4.1
  - Encapsulated into a function.
+## Version 1.0.0
+ - Add support for finite size photonic crystal. Powered by [Comsol Multiphysics](https://www.comsol.com/).
