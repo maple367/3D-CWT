@@ -35,7 +35,7 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers,plot=False):
     model_size = int(200/cwt_solver.a) # 200 um
     sgm_solver.run(res, res['eigen_values'][0], model_size, 17)
     i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
-    PCE = (1-sgm_solver.P_edge[i_eigs]/sgm_solver.P_stim[i_eigs])/(1+pcsel_model.fc_absorption/(np.imag(sgm_solver.eigen_values[i_eigs])*2))*PCE_raw
+    PCE = (1-sgm_solver.P_edge/sgm_solver.P_stim)/(1+pcsel_model.fc_absorption/(np.imag(sgm_solver.eigen_values[i_eigs])*2))*PCE_raw
     data = {'FF': FF, 'PCE': PCE, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
     return PCE
 
@@ -91,5 +91,109 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     solvers = start_solver(cores=8)
-    res = run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers)
-    # res = (0.04226680510192401+0j)
+    sgm_solver = solvers[1]
+    # %%
+    res = utils.Data(r'./history_res/0af473e0014b4a9d996c1e85bd263a35').load_res()
+    sgm_solver.run(res, res['eigen_values'][0], 700, 20)
+    # %%
+    sizes = np.linspace(100, 1000, 10)
+    eig_As = []
+    eig_As10 = []
+    eig_As11 = []
+    eig_Bs = []
+    v_eff_As = []
+    v_eff_As10 = []
+    v_eff_As11 = []
+    v_eff_Bs = []
+    for size in sizes:
+        model_size = int(size/sgm_solver.a)
+        sgm_solver.run(res, res['eigen_values'][0], model_size, 20)
+        i_eig = np.argmin(np.imag(sgm_solver.eigen_values))
+        eig_A = sgm_solver.eigen_values[i_eig]
+        v_eff_A = (1-sgm_solver.P_edge[i_eig]/sgm_solver.P_stim[i_eig])
+        eig_A10 = sgm_solver.eigen_values[i_eig-1]
+        v_eff_A10 = (1-sgm_solver.P_edge[i_eig-1]/sgm_solver.P_stim[i_eig-1])
+        eig_A11 = sgm_solver.eigen_values[i_eig-3]
+        v_eff_A11 = (1-sgm_solver.P_edge[i_eig-3]/sgm_solver.P_stim[i_eig-3])
+        sgm_solver.run(res, res['eigen_values'][2], model_size, 20)
+        i_eig = np.argmin(np.imag(sgm_solver.eigen_values))
+        eig_B = sgm_solver.eigen_values[i_eig]
+        v_eff_B = (1-sgm_solver.P_edge[i_eig]/sgm_solver.P_stim[i_eig])
+        eig_As.append(eig_A)
+        eig_As10.append(eig_A10)
+        eig_As11.append(eig_A11)
+        eig_Bs.append(eig_B)
+        v_eff_As.append(v_eff_A)
+        v_eff_As10.append(v_eff_A10)
+        v_eff_As11.append(v_eff_A11)
+        v_eff_Bs.append(v_eff_B)
+    eig_As = np.array(eig_As)
+    eig_As10 = np.array(eig_As10)
+    eig_As11 = np.array(eig_As11)
+    eig_Bs = np.array(eig_Bs)
+    v_eff_As = np.array(v_eff_As)
+    v_eff_As10 = np.array(v_eff_As10)
+    v_eff_As11 = np.array(v_eff_As11)
+    v_eff_Bs = np.array(v_eff_Bs)
+    # %%
+    Q_A = np.real(res['beta0']+eig_As)/(2*np.imag(eig_As))
+    Q_A10 = np.real(res['beta0']+eig_As10)/(2*np.imag(eig_As10))
+    Q_A11 = np.real(res['beta0']+eig_As11)/(2*np.imag(eig_As11))
+    Q_B = np.real(res['beta0']+eig_Bs)/(2*np.imag(eig_Bs))
+    fig, ax = plt.subplots()
+    ax.plot(sizes, np.array([Q_A,Q_A10,Q_A11]).T, label=['Q_A$_{00}$', 'Q_A$_{10}$', 'Q_A$_{11}$'])
+    twinx = ax.twinx()
+    twinx.plot(sizes, np.array([v_eff_As,v_eff_As10,v_eff_As11]).T, label=['$A_{00}$ $P_{se}/P_{all}$', '$A_{10}$ $P_{se}/P_{all}$', '$A_{11}$ $P_{se}/P_{all}$'], linestyle=':')
+    ax.set_xlabel('Size ($\mu m$)')
+    ax.set_ylabel('Q')
+    ax.set_yscale('log')
+    ax.legend()
+    twinx.set_ylabel('$P_{se}/P_{all}$')
+    twinx.legend(loc='lower right')
+    plt.show()
+    # %%
+    lambda_A = 2*np.pi/np.real(res['beta0']+eig_As)*np.real(res['n_eff'])
+    lambda_A0 = 2*np.pi/np.real(res['k'][0])
+    lambda_B = 2*np.pi/np.real(res['beta0']+eig_Bs)*np.real(res['n_eff'])
+    lambda_B0 = 2*np.pi/np.real(res['k'][2])
+    fig, ax = plt.subplots()
+    ax.plot(sizes, Q_A, label='$Q_A$', color='tab:blue')
+    twinx = ax.twinx()
+    twinx.plot(sizes, np.array([lambda_A]).T, label='$\lambda_A$', color='tab:orange')
+    twinx.hlines([lambda_A0], sizes[0], sizes[-1], linestyle='--', label='$\lambda_A\ infinite$', color='tab:orange')
+    ax.set_xlabel('Size ($\mu m$)')
+    ax.set_ylabel('Q')
+    twinx.set_ylabel('Wavelength ($\mu m$)')
+    ax.set_yscale('log')
+    ax.legend()
+    twinx.legend(loc='right')
+    plt.show()
+# %%
+    data = sgm_solver._get_data_(np.argmin(np.imag(sgm_solver.eigen_values))-2)
+    x = data['% X'].values
+    y = data['Y'].values
+    Rx = []
+    Sx = []
+    Ry = []
+    Sy = []
+    for _ in range(len(data)):
+        Rx.append(np.complex128(data.iloc[_,2].replace('i','j')))
+        Sx.append(np.complex128(data.iloc[_,3].replace('i','j')))
+        Ry.append(np.complex128(data.iloc[_,4].replace('i','j')))
+        Sy.append(np.complex128(data.iloc[_,5].replace('i','j')))
+    Rx = np.array(Rx)
+    Sx = np.array(Sx)
+    Ry = np.array(Ry)
+    Sy = np.array(Sy)
+    Ey = np.array(res['xi_rads'][0]*Rx+res['xi_rads'][1]*Sx)
+    Ex = np.array(res['xi_rads'][2]*Ry+res['xi_rads'][3]*Sy)
+    I = np.abs(Rx)**2+np.abs(Sx)**2+np.abs(Ry)**2+np.abs(Sy)**2
+    I_rad = np.abs(Ey)**2+np.abs(Ex)**2
+    z = np.array(np.abs(Ey)**2)
+    fig, ax = plt.subplots()
+    cb = ax.tripcolor(x, y, np.real(z), shading='gouraud', cmap='hot')
+    ax.set_aspect('equal')
+    plt.colorbar(cb)
+    plt.show()
+
+# %%

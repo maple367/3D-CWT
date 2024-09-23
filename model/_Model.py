@@ -637,7 +637,7 @@ class CWT_solver():
         self.C_mats = {'1D':C_mat_1D, 'rad':C_mat_rad, '2D':C_mat_2D}
         self.cal_eign_value()
         self._save()
-        print(f'Calculation finished. Results is saved to ./history_res/{self.model.pathname_suffix}_res.npy', flush=True)
+        print(f'Calculation finished. Results is saved to ./history_res/{self.model.pathname_suffix}/CWT_res.npy', flush=True)
 
     def cal_eign_value(self):
         from scipy.constants import c
@@ -817,8 +817,8 @@ class SGM_solver():
     
     def _get_data_(self, i_eigs):
         import pandas as pd
-        pic = self.comsol_model/'plots'/'I'
-        pic.property('solnum', i_eigs+1)
-        self.comsol_model.export('绘图 1','./cwt_res.csv')
-        data = pd.read_csv(os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_res.csv'), skiprows=7)
+        data = self.comsol_model/'exports'/'数据 1'
+        data.property('solnum', i_eigs+1)
+        self.comsol_model.export('数据 1','./cwt_res.csv')
+        data = pd.read_csv(os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_res.csv'), skiprows=8)
         return data
