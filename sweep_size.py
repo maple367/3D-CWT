@@ -169,7 +169,7 @@ if __name__ == '__main__':
     twinx.legend(loc='right')
     plt.show()
 # %%
-    data = sgm_solver._get_data_(np.argmin(np.imag(sgm_solver.eigen_values))-2)
+    data = sgm_solver._get_data_(np.argmin(np.imag(sgm_solver.eigen_values)))
     x = data['% X'].values
     y = data['Y'].values
     Rx = []
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     Ex = np.array(res['xi_rads'][2]*Ry+res['xi_rads'][3]*Sy)
     I = np.abs(Rx)**2+np.abs(Sx)**2+np.abs(Ry)**2+np.abs(Sy)**2
     I_rad = np.abs(Ey)**2+np.abs(Ex)**2
-    z = np.array(np.abs(Ey)**2)
+    z = np.array(I_rad)
     fig, ax = plt.subplots()
     cb = ax.tripcolor(x, y, np.real(z), shading='gouraud', cmap='hot')
     ax.set_aspect('equal')
