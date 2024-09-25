@@ -13,6 +13,7 @@
 # TODO
 - [x] Add support for titled photonic crystal
 - [ ] Add support for finite size photonic crystal
+- [ ] Add find_beta0 and find_k0 to class TMM
 
 # Release Notes
 ## Version 0.2.0

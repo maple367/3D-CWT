@@ -67,24 +67,25 @@ def plot_model(input_model:model.Model):
 if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
-    paras = model.model_parameters(load_path=r'D:\Documents\GitHub\3D-CWT\history_res\4a34e82a9941473abb734c7be1a92d3d\input_para.npy') # load
+    uuid = '7d2dc35e925d4c8cb553ed2df4228fd0'
+    paras = model.model_parameters(load_path=rf'D:\Documents\GitHub\3D-CWT\history_res\{uuid}\input_para.npy') # load
     pcsel_model = model.Model(paras)
     fig, ax = plot_model(pcsel_model)
     fig.show()
     cwt_solver = model.CWT_solver(pcsel_model)
 
     # %%
-    xi_calculator = cwt_solver.xi_calculator_collect[2]
+    kappa_calculator = cwt_solver.kappa_calculator
     m_mesh = np.arange(-3, 4)
     n_mesh = np.arange(-3, 4)
     MM, NN = np.meshgrid(m_mesh, n_mesh)
     ZZ = np.zeros_like(MM, dtype=np.complex128)
     for i in range(len(m_mesh)):
         for j in range(len(n_mesh)):
-            ZZ[i,j] = xi_calculator((m_mesh[i], n_mesh[j]))
+            ZZ[i,j] = kappa_calculator((m_mesh[i], n_mesh[j]))
             if m_mesh[i] == 0 and n_mesh[j] == 0:
                 ZZ[i,j] = 0.0
-    ZZ = ZZ*cwt_solver.model.gamma_phc*cwt_solver.model.k0/(2*np.sqrt(xi_calculator[0,0]))*1e4# /5.98 # cm^-1
+    ZZ = ZZ*1e4# /5.98 # cm^-1
     fig, ax = plt.subplots(figsize=(5,6))
     cmap = plt.get_cmap('jet', 49)
     im = ax.pcolormesh(MM, NN, np.abs(ZZ), shading='auto', cmap=cmap, edgecolors='black', linewidth=0.01)
@@ -111,7 +112,8 @@ if __name__ == '__main__':
     fig.show()
 
     # %% [markdown]
-    # The value of $\kappa$ is about 5.98 times of the value in the paper.
+    # The value of $\kappa$ is about 5.98 times of the value in the paper. It is may becuase the coupling coefficient is different from the paper. The coupling coefficient is calculated by the following formula:
+    # $$\kappa = -\frac{k_0^2}{2\beta_0} \xi \Gamma_{phc}$$
 
     # %% [markdown]
     # # Result 2: Wave truncation order
@@ -127,16 +129,21 @@ if __name__ == '__main__':
 
     # %%
     fig, ax = plt.subplots()
-    ax.plot(cut_off_ls, [_[:2]*1e4 for _ in alpha_r_ls])
+    ax.plot(cut_off_ls, [_[:2]*1e4 for _ in alpha_r_ls], marker='o')
     ax.set_xlabel('Wave truncation order, D')
     ax.set_ylabel('Radiation constant, $cm^{-1}$')
+    ax.set_xlim([cut_off_ls[0], cut_off_ls[-1]])
     fig.show()
 
     fig, ax = plt.subplots()
-    ax.plot(cut_off_ls, [_[:2] for _ in norm_freq_ls])
+    ax.plot(cut_off_ls, [_[:2] for _ in norm_freq_ls], marker='o')
     ax.set_xlabel('Wave truncation order, D')
     ax.set_ylabel('Normalized frequency, (c/a)')
+    ax.set_xlim([cut_off_ls[0], cut_off_ls[-1]])
     fig.show()
+
+    # %% [markdown]
+    # # Result 3: High order wave
     # %%
     def cal_high_order_wave(cwt_solver:model.CWT_solver, order, direction:str, num_eig=1):
         m, n = order
@@ -182,8 +189,7 @@ if __name__ == '__main__':
         E_profile_s = wave_calculator(z=z_mesh)
         return z_mesh, E_profile_s
     
-    z_mesh, e_profile = cal_wave(cwt_solver, (1,3), 'y', 1)
-    # %%
+    z_mesh, e_profile = cal_wave(cwt_solver, (0,0), 'y', 1)
     E_profile_s = np.abs(e_profile)*pcsel_model.eps_profile(z=z_mesh)
     dopings = pcsel_model.doping(z=z_mesh)
     eps_s = pcsel_model.eps_profile(z=z_mesh)
@@ -220,4 +226,37 @@ if __name__ == '__main__':
     cb.ax.xaxis.set_label_position('top')
 
     fig.show()
+# %% [markdown]
+# # Result 4: result v.s. FF
+# %%
+import pandas as pd
+import utils
+data_ls = pd.read_csv('./FF_Q.csv')
+FF_ls = np.unique(data_ls['FF'])[7:-25]
+alpha_r_ls = []
+norm_freq_ls = []
+a_ls = []
+for FF in FF_ls:
+    data = data_ls[data_ls['FF'] == FF]
+    uuid = data['uuid'].values[0]
+    res = utils.Data(f'./history_res/{uuid}').load_res()
+    alpha_r = np.sort(res['alpha_r'])
+    norm_freq = np.sort(res['norm_freq'])
+    alpha_r_ls.append(alpha_r)
+    norm_freq_ls.append(norm_freq)
+    a_ls.append(res['a'])
+fig, ax = plt.subplots()
+ax.plot(FF_ls, [_[:2]*1e4 for _ in alpha_r_ls], marker='o')
+ax.set_xlabel('FF')
+ax.set_ylabel('Radiation constant, $cm^{-1}$')
+fig.show()
+
+fig, ax = plt.subplots()
+ax.plot(FF_ls, [_[:2] for _ in norm_freq_ls], marker='o')
+ax.set_xlabel('FF')
+ax.set_ylabel('Normalized frequency, (c/a)')
+fig.show()
+
+    
+
 # %%

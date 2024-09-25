@@ -358,6 +358,7 @@ class model_parameters():
         self.__dict__.update(np.load(path, allow_pickle=True).item())
         self.lock = mp.Manager().Lock()
 
+
 class Model():
     """
     Parameters
