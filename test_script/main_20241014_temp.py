@@ -1,40 +1,35 @@
 import model
 import utils
 import model.rect_lattice
-from model import AlxGaAs
+from model import AlxGaAs, user_defined_material
 import numpy as np
 import matplotlib.pyplot as plt
 
-def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers,plot=False):
-    semi_solver = solvers[0]
+def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers,plot=True):
     sgm_solver = solvers[1]
     rel_r = np.sqrt(FF/np.pi)
-    Al_x = [x0, x1, x2, 0.4, 0.157, x5, x6]
-    t_list = [0.12, t1, t2, t3, 0.076, t5, t6]
-    is_phc = [True, True, False, False, False, False, False]
-    is_no_doping = [False, False, True, True, True, True, False]
+    eps_ls = np.array([3.4962, 3.3456, 3.3058, 3.2659,3.4121,3.2039])**2
+    t_list = [0.15, 0.15, 0.05, 0.03,0.1535,2.5]
+    is_phc = [True, True, False, False, False, False]
+    is_no_doping = [False, False, False, False, True, False]
     mat_list = []
     for i in range(len(is_phc)):
         if is_phc[i]:
-            mat_list.append((model.rect_lattice.eps_circle(rel_r, AlxGaAs(Al_x[i]))))
+            mat_list.append((model.rect_lattice.eps_circle(rel_r, user_defined_material(eps_ls[i]))))
         else:
-            mat_list.append(AlxGaAs(Al_x[i]))
+            mat_list.append(user_defined_material(eps_ls[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[c1, c2, c3, c4]}
-    paras = model.model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
+    paras = model.model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/1.31) # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = model.Model(paras)
     if plot: plot_model(pcsel_model)
-    try:
-        semi_solver.run(pcsel_model) # use pcsel model to pass parameter
-        PCE_raw, SE_raw = semi_solver.get_result(6)
-    except:
-        # bad input parameter, the model is not converge
-        return 0.0
     cwt_solver = model.CWT_solver(pcsel_model)
+    return cwt_solver
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
     model_size = int(200/cwt_solver.a) # 200 um
     sgm_solver.run(res, res['eigen_values'][0], model_size, 17)
     i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
+    PCE_raw = 1.0
     PCE = (1-sgm_solver.P_edge[i_eigs]/sgm_solver.P_stim[i_eigs])/(1+pcsel_model.fc_absorption/(np.imag(sgm_solver.eigen_values[i_eigs])*2))*PCE_raw
     data = {'FF': FF, 'PCE': PCE, 'uuid': paras.uuid, 'cal_time': cwt_solver._pre_cal_time}
     return PCE
@@ -81,7 +76,8 @@ def plot_model(input_model:model.Model):
 def start_solver(cores=8):
     import mph
     client = mph.start(cores=cores)
-    semi_solver = model.SEMI_solver(client)
+    semi_solver = 'None'
+    # semi_solver = model.SEMI_solver(client)
     sgm_solver = model.SGM_solver(client)
     return semi_solver, sgm_solver
 

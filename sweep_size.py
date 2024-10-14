@@ -85,6 +85,9 @@ def start_solver(cores=8):
     sgm_solver = model.SGM_solver(client)
     return semi_solver, sgm_solver
 
+def step_func(x, x_step, y_func:callable):
+    return y_func(x)*0.5*(1-np.sign(x-x_step))
+
 if __name__ == '__main__':
     ### README ###
     ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
@@ -92,11 +95,12 @@ if __name__ == '__main__':
     mp.freeze_support()
     solvers = start_solver(cores=8)
     sgm_solver = solvers[1]
+    resolutions = 20
     # %%
-    res = utils.Data(r'./history_res/0af473e0014b4a9d996c1e85bd263a35').load_res()
-    sgm_solver.run(res, res['eigen_values'][0], 700, 20)
+    res = utils.Data(r'./history_res/03dcdc5574694ff2a8428acfeb2edcd4').load_res()
+    sgm_solver.run(res, res['eigen_values'][0], 1000, resolutions) # Test Run
     # %%
-    sizes = np.linspace(100, 1000, 10)
+    sizes = np.linspace(200, 1300, 21)
     eig_As = []
     eig_As10 = []
     eig_As11 = []
@@ -106,8 +110,9 @@ if __name__ == '__main__':
     v_eff_As11 = []
     v_eff_Bs = []
     for size in sizes:
+        print(f'{size}')
         model_size = int(size/sgm_solver.a)
-        sgm_solver.run(res, res['eigen_values'][0], model_size, 20)
+        sgm_solver.run(res, res['eigen_values'][0], model_size, resolutions)
         i_eig = np.argmin(np.imag(sgm_solver.eigen_values))
         eig_A = sgm_solver.eigen_values[i_eig]
         v_eff_A = (1-sgm_solver.P_edge[i_eig]/sgm_solver.P_stim[i_eig])
@@ -115,7 +120,7 @@ if __name__ == '__main__':
         v_eff_A10 = (1-sgm_solver.P_edge[i_eig-1]/sgm_solver.P_stim[i_eig-1])
         eig_A11 = sgm_solver.eigen_values[i_eig-3]
         v_eff_A11 = (1-sgm_solver.P_edge[i_eig-3]/sgm_solver.P_stim[i_eig-3])
-        sgm_solver.run(res, res['eigen_values'][2], model_size, 20)
+        sgm_solver.run(res, res['eigen_values'][1], model_size, resolutions)
         i_eig = np.argmin(np.imag(sgm_solver.eigen_values))
         eig_B = sgm_solver.eigen_values[i_eig]
         v_eff_B = (1-sgm_solver.P_edge[i_eig]/sgm_solver.P_stim[i_eig])
@@ -168,7 +173,7 @@ if __name__ == '__main__':
     ax.legend()
     twinx.legend(loc='right')
     plt.show()
-# %%
+    # %%
     data = sgm_solver._get_data_(np.argmin(np.imag(sgm_solver.eigen_values)))
     x = data['% X'].values
     y = data['Y'].values
