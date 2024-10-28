@@ -88,6 +88,7 @@ class TMM():
         self.beta_r_sorted = self.k0*np.sort(np.real(np.sqrt(np.unique(self._epsilons_))))
         self.beta_r_max = self.beta_r_sorted[-1] # beta is max in the medium with max epsilon
         self.beta_r_min = self.beta_r_sorted[0] # beta is min in the medium with min epsilon, except air
+        self.conveged = False
 
     def _construct_matrix(self, beta):
         self.gamma_s = np.sqrt(np.square(beta)-np.square(self.k0)*self._epsilons_)
@@ -198,6 +199,7 @@ class TMM():
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
         beta_sol_fun = 1.0
+        if self.conveged: beta_sol = self.beta_sol
         while (beta_sol_fun >= -10.0) and (self.find_modes_iter < len(self.beta_r_sorted)-1):
             if self.beta_init is None:
                 beta_sol = multistart_opt(t_11_func_beta_log_real, bounds=[self.beta_r_min, self.beta_r_max], grid_num=50*(self.find_modes_iter+1), method='TNC')
@@ -206,12 +208,14 @@ class TMM():
                 beta_init = self.beta_init
             beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
             if beta_sol.fun < -6.0:
-                self.beta_init = beta_sol
+                self.beta_init = beta_sol.x
             if beta_sol.fun >= -10.0:
                 warnings.warn(f'Try {self.find_modes_iter+1}: t11 is not converge to machine precision, t11 = {10**beta_sol.fun}.', RuntimeWarning)
+            else: self.conveged = True
             beta_sol_fun = beta_sol.fun
             self.find_modes_iter += 1
         self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
+        self.beta_sol = beta_sol
         _ = t_11_func_beta_log(beta_sol.x) # update the T_total, V_s, V_s_flatten
         # if _ > -10.0: raise RuntimeError(f't11 is not converge! abs(t11) = {10**_}.')
         self._cal_normlized_constant()
