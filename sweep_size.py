@@ -97,7 +97,7 @@ if __name__ == '__main__':
     sgm_solver = solvers[1]
     resolutions = 20
     # %%
-    res = utils.Data(r'./history_res/03dcdc5574694ff2a8428acfeb2edcd4').load_res()
+    res = utils.Data(r'./history_res/20241031164107_86ed715585a2472d99bd2d30457a90ed').load_res()
     sgm_solver.run(res, res['eigen_values'][0], 1000, resolutions) # Test Run
     # %%
     sizes = np.linspace(200, 1300, 21)
@@ -155,6 +155,20 @@ if __name__ == '__main__':
     ax.legend()
     twinx.set_ylabel('$P_{se}/P_{all}$')
     twinx.legend(loc='lower right')
+    plt.show()
+
+    # %%
+    lambda_A = 2*np.pi/np.real(res['beta0']+eig_As)*np.real(res['n_eff'])
+    lambda_A0 = 2*np.pi/np.real(res['k'][0])
+    lambda_B = 2*np.pi/np.real(res['beta0']+eig_Bs)*np.real(res['n_eff'])
+    lambda_B0 = 2*np.pi/np.real(res['k'][2])
+    alpha_A = 2*np.pi/Q_A/res['a']*1e4 # cm^-1
+    alpha_B = 2*np.pi/Q_B/res['a']*1e4
+    fig, ax = plt.subplots()
+    ax.plot(sizes, np.array([alpha_A, alpha_B]).T, label=[r'$\alpha_{A}$',r'$\alpha_{B}$'])
+    ax.set_xlabel('Size ($\mu m$)')
+    ax.set_ylabel('Loss ($cm^{-1}$)')
+    ax.legend()
     plt.show()
     # %%
     lambda_A = 2*np.pi/np.real(res['beta0']+eig_As)*np.real(res['n_eff'])

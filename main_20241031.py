@@ -196,30 +196,7 @@ if __name__ == '__main__':
     ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
     import multiprocessing as mp
     mp.freeze_support()
-    run_num = 0
-    def fitness_func(paras):
-        eps0, eps1, t0, dt = paras
-        t1 = dt - t0
-        if t1 < 0.0:
-            return 0
-        res = run_simu(0.19, eps0, eps1, 3.307**2, 3.265**2, 3.4121**2, 3.205**2, t0, t1, 0.05, 0.03, 0.154, 2.5, 17.7, -3.23, 8.28, 2.00, plot=False)
-        global run_num
-        run_num += 1
-        print(run_num, res.tmm.t_11, res.tmm.conveged)
-        if res.tmm.conveged:
-            print(res.gamma_phc, res.coupling_coeff[-2])
-            return np.real(res.gamma_phc)*np.real(res.coupling_coeff[-2])
-        else:
-            return 0
-    pso_opt = PSO(fitness_func, 4, 10, 15, [3.205**2,]*2+[0.000]*2, [3.499**2,]*2+[0.5,]+[0.3,], -0.1, 0.1)
-    pso_opt.pso()
-    eps0, eps1, t0, dt = pso_opt.final_best
+    eps0, eps1, t0, dt = [12.243001,11.86747719,0.3,0.3]
     res_final_best = run_simu(0.19, eps0, eps1, 3.307**2, 3.265**2, 3.4121**2, 3.205**2, t0, dt-t0, 0.05, 0.03, 0.154, 2.5, 17.7, -3.23, 8.28, 2.00, plot=True)
-    print(res_final_best.gamma_phc, res_final_best.coupling_coeff[-2])
-
-    # import pandas as pd
-    # data_set = {'n_RI':[], 'Thickness (nm)':[]}
-    # data_set['n_RI'] = np.sqrt(res_final_best.tmm.epsilons.real)
-    # data_set['Thickness (nm)'] = res_final_best.tmm.layer_thicknesses
-    # df = pd.DataFrame(data_set)
-    # df
+    cwt_solver = model.CWT_solver(res_final_best)
+    cwt_solver.run()

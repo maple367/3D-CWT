@@ -209,9 +209,7 @@ class TMM():
             beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
             if beta_sol.fun < -6.0:
                 self.beta_init = beta_sol.x
-            if beta_sol.fun >= -10.0:
-                warnings.warn(f'Try {self.find_modes_iter+1}: t11 is not converge to machine precision, t11 = {10**beta_sol.fun}.', RuntimeWarning)
-            else: self.conveged = True
+                self.conveged = True
             beta_sol_fun = beta_sol.fun
             self.find_modes_iter += 1
         self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
@@ -285,6 +283,7 @@ class model_parameters():
     
     def _init(self, input_para, **kwargs):
         import uuid
+        import time
         self.layer_thicknesses = np.array(input_para[0])
         self.materials = input_para[1]
         self.doping_para = input_para[2]
@@ -297,7 +296,7 @@ class model_parameters():
         self.tmm.find_modes()
         self._update_cellsize_()
         # Generate a unique id for the model parameters.
-        self.uuid = uuid.uuid4().hex
+        self.uuid = time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))+'_'+uuid.uuid4().hex
         self._save()
         self.lock = mp.Manager().Lock()
 
