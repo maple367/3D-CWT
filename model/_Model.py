@@ -795,7 +795,7 @@ class SGM_solver():
         self.comsol_model.solve()
         self.eigen_values = self.comsol_model.evaluate('lambda')
         self.P_stim = self.comsol_model.evaluate('2*imag(lambda)*intall(abs(Rx)^2+abs(Sx)^2+abs(Ry)^2+abs(Sy)^2)')
-        self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)') # checked
+        self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)') #TODO: checked
         self.P_rad = self.comsol_model.evaluate(f'2*{self.kappa_v_i}*intall(abs({self.xi_rads[0]}*Rx+{self.xi_rads[1]}*Sx)^2+abs({self.xi_rads[2]}*Ry+{self.xi_rads[3]}*Sy)^2)')
     
     def _prepare_model_(self):
