@@ -193,10 +193,18 @@ class PSO():
 
 if __name__ == '__main__':
     ### README ###
-    ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
+    ### Don't run any code out of this block (but can define), otherwise it will be called by the child process and cause error. ###
     import multiprocessing as mp
     mp.freeze_support()
     eps0, eps1, t0, dt = [12.243001,11.86747719,0.3,0.3]
-    res_final_best = run_simu(0.19, eps0, eps1, 3.307**2, 3.265**2, 3.4121**2, 3.205**2, t0, dt-t0, 0.05, 0.03, 0.154, 2.5, 17.7, -3.23, 8.28, 2.00, plot=True)
+    res_final_best = run_simu(0.19, eps0, eps1, 3.307**2, 3.265**2, 3.4121**2, 3.205**2, t0, dt-t0, 0.05, 0.03, 0.074, 2.5, 17.7, -3.23, 8.28, 2.00, plot=True)
     cwt_solver = model.CWT_solver(res_final_best)
-    cwt_solver.run()
+    # cwt_solver.run()
+
+# %%
+from model._Model import multistart_opt
+import numpy as np
+def func(x):
+    return np.sin(x)
+res = multistart_opt(func, [1, 10], thershold=None)
+# %%

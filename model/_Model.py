@@ -13,22 +13,35 @@ import dill
 dill.extend(use_dill=True)
 
 class opt_sol():
-    def __init__(self, x, fun):
-        self.x = x
-        self.fun = fun
+    def __init__(self, x_sols, y_sols, thershold=None):
+        self.x_sols = x_sols
+        self.y_sols = y_sols
+        self.thershold = thershold
+        if self.thershold is None:
+            self.single_sol()
+        else:
+            self.multi_sol(self.thershold)
+
+    def single_sol(self):
+        min_index = np.argmin(self.y_sols)
+        self.x = self.x_sols[min_index]
+        self.fun = self.y_sols[min_index]
+
+    def multi_sol(self, thershold):
+        self.x = self.x_sols[self.y_sols < thershold]
+        self.fun = self.y_sols[self.y_sols < thershold]
 
 def singlestart_opt(func, x0, method='TNC'):
     res = minimize(func, x0, method=method)
     return res.x, res.fun
 singlestart_opt = np.vectorize(singlestart_opt, excluded=['func', 'method'])
-def multistart_opt(func, bounds, grid_num=50, method='TNC'):
+def multistart_opt(func, bounds, grid_num=50, method='TNC', thershold=None):
     x0s = np.linspace(bounds[0], bounds[-1], grid_num)
     x_sols0, y_sols0 = singlestart_opt(func, x0s, method)
     # remove the solutions that are not converged
     y_sols = np.array([y_sols0[i] for i in range(len(y_sols0)) if np.isfinite(y_sols0[i])])
     x_sols = np.array([x_sols0[i] for i in range(len(x_sols0)) if np.isfinite(y_sols0[i])])
-    y_min_index = np.argmin(y_sols)
-    return opt_sol(x_sols[y_min_index], y_sols[y_min_index])
+    return opt_sol(x_sols, y_sols, thershold)
 
 @numba.njit(cache=True)
 def __find_layer__(z, _z_boundary_without_lb, _len_z_boundary_2):
