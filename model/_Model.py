@@ -550,6 +550,44 @@ class Model():
             return self.xi_z_func(z,(m,n))*self.e_normlized_intensity(z)
         res = [self.integrated_func_1d(integrated_func, bd[0], bd[1]) for bd in self._1d_phc_integral_region_]
         return -np.square(self.k0)/(2*self.beta0)*np.sum(res)
+    
+    def plot(self):
+        import matplotlib.pyplot as plt
+        z_mesh = np.linspace(self.z_boundary[0], self.z_boundary[-1], 5000)
+        E_profile_s = self.e_normlized_intensity(z=z_mesh)
+        dopings = self.doping(z=z_mesh)
+        eps_s = self.eps_profile(z=z_mesh)
+        E_profile_s = E_profile_s / np.max(np.abs(E_profile_s)) * (np.max(np.abs(self.paras.avg_epsilons)) - np.min(np.abs(self.paras.avg_epsilons))) + np.min(np.abs(self.paras.avg_epsilons))
+        a_const = self.paras.cellsize_x
+        x_mesh = np.linspace(0, a_const, 500)
+        y_mesh = np.linspace(0, a_const, 500)
+        z_points = np.array([(self.phc_boundary_l[-1]+self.phc_boundary_r[-1])/2,]) # must be a vector
+        XX, YY = np.meshgrid(x_mesh, y_mesh)
+        eps_mesh_phc = self.eps_profile(XX, YY, z_points)[0]
+        color1, color2, fontsize1, fontsize2, fontname = 'mediumblue', 'firebrick', 13, 18, 'serif'
+        fig, ax0 = plt.subplots(figsize=(7,5))
+        fig.subplots_adjust(left=0.12, right=0.86)
+        ax1 = plt.twinx()
+        ax0.plot(z_mesh, dopings, color=color1)
+        ax0.tick_params(axis='y', colors=color1, labelsize=10)
+        ax1.plot(z_mesh, eps_s, linestyle='--', color=color2)
+        ax1.plot(z_mesh, E_profile_s, linestyle='--')
+        ax1.fill_between(z_mesh, np.min(E_profile_s), E_profile_s, where=self.is_in_phc(z_mesh), alpha=0.4, hatch='//', color='orange')
+        ax1.tick_params(axis='y', colors=color2, labelsize=10)
+        ax0.set_xlabel(r'z ($\mu m$)', fontsize=fontsize1, fontname=fontname)
+        ax0.set_ylabel(r'Doping ($\mu m^{-3}$)', fontsize=fontsize1, fontname=fontname, color=color1)
+        ax0.set_yscale('symlog', linthresh=np.min(dopings[dopings!=0.0]))
+        ax1.set_ylabel(r'$\epsilon_r$ and Normalized $|E|^2$', fontsize=fontsize1, fontname=fontname, color=color2)
+        plt.title('', fontsize=fontsize2, fontname=fontname)
+        ax2 = ax0.inset_axes([0.65, 0.10, 0.24, 0.24])
+        im = ax2.imshow(np.real(eps_mesh_phc), cmap='Greys')
+        ax2.set_xticks([])
+        ax2.set_yticks([])
+        cb = fig.colorbar(im, cax=ax2.inset_axes([0, 1.05, 1, 0.2]), orientation='horizontal', label='Epsilon')
+        cb.ax.xaxis.set_ticks_position('top')
+        cb.ax.xaxis.set_label_position('top')
+        plt.show()
+        plt.close()
 
 
 class CWT_solver():
