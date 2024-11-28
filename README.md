@@ -3,8 +3,8 @@
 
 # Requirements
 - Python 3.12 (my environment)
-    - numpy
-    - scipy
+    - numpy=1.26.4
+    - scipy=1.14.0
     - matplotlib
     - mph
     - dill
