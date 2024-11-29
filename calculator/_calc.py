@@ -89,7 +89,7 @@ class xi_calculator(Array_calculator):
     
     def _cal(self, index:tuple[int, int]):
         print(f'\rxi: {index}  ', end='', flush=True)
-        if self.eps_type == 'circle':
+        if self.eps_type == 'CC':
             self._xi = self._cal_circle(index) # maybe not need to assign?
         elif self.eps_type == 'RIT':
             self._xi = self._cal_ritriangle(index)
