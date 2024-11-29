@@ -90,7 +90,7 @@ class eps_circle(eps_userdefine):
         call the class with x and y.
         The class returns the dielectric constant distribution in the cell.
     """
-    eps_func = None
+    eps_func = 'internal'
     def __init__(self, rel_r, mat_bulk=AlxGaAs(0.0), mat_hole=Air(), cell_size_x=1.0, cell_size_y=1.0):
         self.rel_r = rel_r
         self.cell_size_x = cell_size_x
@@ -99,7 +99,7 @@ class eps_circle(eps_userdefine):
         self.mat_hole = mat_hole
         self.eps_bulk = mat_bulk.epsilon
         self.eps_hole = mat_hole.epsilon
-        self.eps_type = 'circle'
+        self.eps_type = 'CC'
         self.build()
     
     def build(self):
@@ -148,7 +148,7 @@ class eps_ritriangle(eps_userdefine):
         call the class with x and y.
         The class returns the dielectric constant distribution in the cell.
     """
-    eps_func = None
+    eps_func = 'internal'
     def __init__(self, rel_s, mat_bulk=AlxGaAs(0.0), mat_hole=Air(), cell_size_x=1.0, cell_size_y=1.0):
         self.rel_s = rel_s
         self.cell_size_x = cell_size_x

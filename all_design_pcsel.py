@@ -38,7 +38,7 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers, shape='CC'):
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
     model_size = int(200/cwt_solver.a) # 200 um
-    i_eigs_inf = np.argmin(np.imag(res['eigen_values']))
+    i_eigs_inf = np.argmin(np.real(res['eigen_values']))
     eig_real_inf = np.real(res['eigen_values'][i_eigs_inf])
     eig_imag_inf = np.imag(res['eigen_values'][i_eigs_inf])
     try:
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     import pandas as pd
     mp.freeze_support()
     solvers = start_solver(cores=8)
-    for FF in np.linspace(0.05,0.45,21):
+    for FF in np.linspace(0.05,0.25,11):
         res = run_simu(FF, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers, shape='CC')
         for i, key in enumerate(data_set.keys()):
             data_set[key].append(res[i])
