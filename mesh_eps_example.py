@@ -20,6 +20,7 @@ def run_simu(eps_array, sgm_solver):
     pcsel_model = model.Model(paras)
     # pcsel_model.plot()
     cwt_solver = model.CWT_solver(pcsel_model)
+    # cwt_solver.core_num = 80 # Because the limitation of Windows, the core_num should be smaller than 61
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
     model_size = int(200/cwt_solver.a) # 200 um
