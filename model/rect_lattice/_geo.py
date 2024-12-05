@@ -219,8 +219,8 @@ class eps_mesh(eps_userdefine):
     
     def build(self):
         self.eps_distribtion_array_flatten = self.eps_distribtion_array.flatten()
-        self.cell_size_y_eps_distribtion_array_shape0 = 1/self.eps_distribtion_array.shape[0]
-        self.cell_size_x_eps_distribtion_array_shape1 = 1/self.eps_distribtion_array.shape[1]
+        self.cell_size_y_eps_distribtion_array_shape0 = self.cell_size_y/self.eps_distribtion_array.shape[0]
+        self.cell_size_x_eps_distribtion_array_shape1 = self.cell_size_x/self.eps_distribtion_array.shape[1]
         self.shape0 = self.eps_distribtion_array.shape[0]
         
     def eps(self, x:np.ndarray, y:np.ndarray):
