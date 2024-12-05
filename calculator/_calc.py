@@ -53,10 +53,14 @@ class Array_calculator_central_symmetry(Array_calculator):
                 with self.lock:
                     self.array = np.load(self.array_path, allow_pickle=True).item()
                     self.array[index] = value
-                    self.array[tuple([-num for num in index])] = np.conj(value)
+                    
+                    if value == 'placeholder':
+                        self.array[tuple([-num for num in index])] = 'placeholder'
+                    else:
+                        self.array[tuple([-num for num in index])] = np.conj(value)
                     np.save(self.array_path, self.array)
                     return
-            except:
+            except Exception as e:
                 print(f'Fail in updating {self.notes} {index} with value {value}. Try again.')
                 time.sleep(0.1)
 
@@ -66,7 +70,7 @@ def __xi__integrated_func__(val, x, y, m, n, beta_0_x, beta_0_y):
     return val*np.exp(1j*(beta_0_x*m*x+beta_0_y*n*y))
 
 # not vectorized
-class xi_calculator(Array_calculator):
+class xi_calculator(Array_calculator_central_symmetry):
     """
     Calculate the Fourier coefficients of the dielectric constant distribution.
 
@@ -200,8 +204,8 @@ class varsigma_matrix_calculator(Array_calculator):
     def _prepare_calculator(self):
         self._mu_func = self.model._mu_func
         self._nu_func = self.model._nu_func
-        self.mu_calculator = Array_calculator(self.model._mu_func, notes='mu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
-        self.nu_calculator = Array_calculator(self.model._nu_func, notes='nu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
+        self.mu_calculator = Array_calculator_central_symmetry(self.model._mu_func, notes='mu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
+        self.nu_calculator = Array_calculator_central_symmetry(self.model._nu_func, notes='nu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
         
     def _cal(self, index):
         print(f'\rvarsigma_matrix: {index}  ', end='', flush=True)
