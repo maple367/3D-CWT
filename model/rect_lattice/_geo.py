@@ -70,6 +70,7 @@ class eps_circle(eps_userdefine):
     The center of the circular hole is at the center of the cell.
     The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
     The discontinuity of the dielectric constant has been optimized.
+
     Parameters
     ----------
     rel_r : float
@@ -128,6 +129,7 @@ class eps_ritriangle(eps_userdefine):
     The center of the right triangle's long side is at the center of the cell.
     The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
     The discontinuity of the dielectric constant has been optimized.
+
     Parameters
     ----------
     rel_s : float
@@ -173,6 +175,61 @@ class eps_ritriangle(eps_userdefine):
 
     def eps(self, x, y):
         return __eps_ritriangle__(x, y, self.cell_size_x, self.cell_size_y, self.half_cell_size_x_s_2, self.half_cell_size_y_s_2, self.cell_size_y_cell_size_x, self.eps_hole, self.eps_bulk)
+    
+    def __call__(self, x, y):
+        return self.eps(x, y)
+
+@numba.njit(cache=True)
+def __eps_mesh0__(x, y, cell_size_x, cell_size_y, eps_distribtion_array_flatten, cell_size_y_eps_distribtion_array_shape0, cell_size_x_eps_distribtion_array_shape1, shape0) -> np.ndarray:
+    return eps_distribtion_array_flatten[(np.floor_divide(np.mod(y, cell_size_y), cell_size_y_eps_distribtion_array_shape0)*shape0+np.floor_divide(np.mod(x, cell_size_x), cell_size_x_eps_distribtion_array_shape1)).astype(np.int_)]
+
+class eps_mesh(eps_userdefine):
+    """
+    The rectangular lattice with array eps_distribtion_array in one period.
+    The cell corners are at (0, 0), (cell_size_x, 0), (0, cell_size_y), and (cell_size_x, cell_size_y).
+    TODO: The discontinuity of the dielectric constant need to be optimized.
+
+    Parameters
+    ----------
+    eps_distribtion_array : np.ndarray
+        The dielectric constant distribution in one period.
+    cell_size_x & cell_size_y is not used in final calculation, it will automatically determine by model.TMM.
+        (cell_size_x : float
+            The size of the cell in the x direction.
+        cell_size_y : float
+            The size of the cell in the y direction.)
+
+    Returns
+    -------
+    out : class
+        call the class with x and y.
+        The class returns the dielectric constant distribution in the cell.
+    """
+    eps_func = 'internal'
+    def __init__(self, eps_distribtion_array:np.ndarray, cell_size_x=1.0, cell_size_y=1.0):
+        self.eps_distribtion_array = eps_distribtion_array
+        self.cell_size_x = cell_size_x
+        self.cell_size_y = cell_size_y
+        self.max_eps = self.eps_distribtion_array.max()
+        self.min_eps = self.eps_distribtion_array.min()
+        self.avg_eps = self.eps_distribtion_array.mean()
+        self.FF = (self.max_eps-self.avg_eps)/(self.max_eps-self.min_eps) # effective fill factor
+        self.eps_type = 'MESH'
+        self.build()
+    
+    def build(self):
+        self.eps_distribtion_array_flatten = self.eps_distribtion_array.flatten()
+        self.cell_size_y_eps_distribtion_array_shape0 = 1/self.eps_distribtion_array.shape[0]
+        self.cell_size_x_eps_distribtion_array_shape1 = 1/self.eps_distribtion_array.shape[1]
+        self.shape0 = self.eps_distribtion_array.shape[0]
+        
+    def eps(self, x:np.ndarray, y:np.ndarray):
+        x = np.array(x)
+        input_shape = x.shape
+        x = x.flatten()
+        y = np.array(y).flatten()
+        eps_out =  __eps_mesh0__(x, y, self.cell_size_x, self.cell_size_y, self.eps_distribtion_array_flatten, self.cell_size_y_eps_distribtion_array_shape0, self.cell_size_x_eps_distribtion_array_shape1, self.shape0)
+        return eps_out.reshape(input_shape)
     
     def __call__(self, x, y):
         return self.eps(x, y)
