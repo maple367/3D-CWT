@@ -9,6 +9,10 @@
     - mph
     - dill
 - Comsol Multiphysics
+## Intallation
+```bash
+conda env create -f environment.yml
+```
 
 # TODO
 - [x] Add support for titled photonic crystal
