@@ -18,24 +18,25 @@ def run_simu(eps_array, sgm_solver):
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
     paras = model.model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = model.Model(paras)
-    cwt_solver = model.CWT_solver(pcsel_model)
-    cwt_solver.run(10, parallel=True)
-    res = cwt_solver.save_dict
-    model_size = int(200/cwt_solver.a) # 200 um
-    i_eigs_inf = np.argmin(np.imag(res['eigen_values']))
-    eig_real_inf = np.real(res['eigen_values'][i_eigs_inf])
-    eig_imag_inf = np.imag(res['eigen_values'][i_eigs_inf])
-    try:
-        sgm_solver.run(res, res['eigen_values'][i_eigs_inf], model_size, 17)
-        i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
-        eig_real = np.real(sgm_solver.eigen_values[i_eigs])
-        eig_imag = np.imag(sgm_solver.eigen_values[i_eigs])
-    except:
-        # bad input parameter, the model is not converge
-        eig_real = 0.0
-        eig_imag = 0.0
-    data = [eig_real, eig_imag, eig_real_inf, eig_imag_inf]
-    return data
+    pcsel_model.plot()
+    # cwt_solver = model.CWT_solver(pcsel_model)
+    # cwt_solver.run(10, parallel=True)
+    # res = cwt_solver.save_dict
+    # model_size = int(200/cwt_solver.a) # 200 um
+    # i_eigs_inf = np.argmin(np.imag(res['eigen_values']))
+    # eig_real_inf = np.real(res['eigen_values'][i_eigs_inf])
+    # eig_imag_inf = np.imag(res['eigen_values'][i_eigs_inf])
+    # try:
+    #     sgm_solver.run(res, res['eigen_values'][i_eigs_inf], model_size, 17)
+    #     i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
+    #     eig_real = np.real(sgm_solver.eigen_values[i_eigs])
+    #     eig_imag = np.imag(sgm_solver.eigen_values[i_eigs])
+    # except:
+    #     # bad input parameter, the model is not converge
+    #     eig_real = 0.0
+    #     eig_imag = 0.0
+    # data = [eig_real, eig_imag, eig_real_inf, eig_imag_inf]
+    # return data
 
 if __name__ == '__main__':
     import mph
