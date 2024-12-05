@@ -3,6 +3,7 @@ from ._collection import integral_method, Array_calculator
 from model.rect_lattice import eps_userdefine
 import warnings
 import numba
+import time
 
 
 class xi_calculator_DFT():
@@ -45,12 +46,27 @@ class xi_calculator_DFT():
         return self.xi_array
 
 
+class Array_calculator_central_symmetry(Array_calculator):
+    def _update_array(self, index, value):
+        while True:
+            try:
+                with self.lock:
+                    self.array = np.load(self.array_path, allow_pickle=True).item()
+                    self.array[index] = value
+                    self.array[tuple([-num for num in index])] = np.conj(value)
+                    np.save(self.array_path, self.array)
+                    return
+            except:
+                print(f'Fail in updating {self.notes} {index} with value {value}. Try again.')
+                time.sleep(0.1)
+
+
 @numba.njit(cache=True)
 def __xi__integrated_func__(val, x, y, m, n, beta_0_x, beta_0_y):
     return val*np.exp(1j*(beta_0_x*m*x+beta_0_y*n*y))
 
 # not vectorized
-class xi_calculator(Array_calculator):
+class xi_calculator(Array_calculator_central_symmetry):
     """
     Calculate the Fourier coefficients of the dielectric constant distribution.
 
@@ -90,13 +106,13 @@ class xi_calculator(Array_calculator):
     def _cal(self, index:tuple[int, int]):
         print(f'\rxi: {index}  ', end='', flush=True)
         if self.eps_type == 'CC':
-            self._xi = self._cal_circle(index) # maybe not need to assign?
+            self._xi = self._cal_circle(index) # TODO: maybe not need to assign?
         elif self.eps_type == 'RIT':
             self._xi = self._cal_ritriangle(index)
         else:
             self._xi = self._cal_general(index)
         return self._xi
-    
+
     def _cal_circle(self, index:tuple[int, int]):
         """Calculate the Fourier coefficients of the dielectric constant distribution for circle eps_func. Circle has discontinuity, so the integration should be separated into 3 zones."""
         m, n = index
@@ -184,8 +200,8 @@ class varsigma_matrix_calculator(Array_calculator):
     def _prepare_calculator(self):
         self._mu_func = self.model._mu_func
         self._nu_func = self.model._nu_func
-        self.mu_calculator = Array_calculator(self.model._mu_func, notes='mu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
-        self.nu_calculator = Array_calculator(self.model._nu_func, notes='nu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
+        self.mu_calculator = Array_calculator_central_symmetry(self.model._mu_func, notes='mu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
+        self.nu_calculator = Array_calculator_central_symmetry(self.model._nu_func, notes='nu(index=(m,n,r,s))', pathname_suffix=self.pathname_suffix, lock=self.lock)
         
     def _cal(self, index):
         print(f'\rvarsigma_matrix: {index}  ', end='', flush=True)
