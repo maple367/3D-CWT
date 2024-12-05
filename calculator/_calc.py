@@ -171,7 +171,7 @@ class xi_calculator(Array_calculator):
     def _cal_general(self, index:tuple[int, int]):
         integral_func = integral_method(3, method=self.method)()
         m, n = index
-        self._xi, self._abserr = integral_func(self._integrated_func, 0, self.cell_size_x, 0, self.cell_size_y, args=(m, n), **self.kwargs)
+        self._xi = integral_func(self._integrated_func, 0, self.cell_size_x, 0, self.cell_size_y, args=(m, n), **self.kwargs)
         self._xi = self._xi/(self.cell_size_x*self.cell_size_y)
         return self._xi
 

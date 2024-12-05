@@ -1,7 +1,7 @@
 import model
 import utils
 import model.rect_lattice
-from model import AlxGaAs, user_defined_material
+from model import AlxGaAs
 import numpy as np
 
 def run_simu(eps_array, sgm_solver):
