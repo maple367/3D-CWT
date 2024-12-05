@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import dblquad, quad, trapezoid, simpson, romb, qmc_quad
-import os, warnings, time
+import os, time
 
 
 class integral_method():
@@ -212,19 +212,14 @@ class Array_calculator():
         try: # if exist, return directly
             item = self.array[index]
             if (np.array(item == 'placeholder')).any(): # support both scalar and array
-                print(f'Calculating {self.notes} {index} is in progress...\nCheck again in 5 seconds.')
-                time.sleep(5)
-                warnings.warn(f'It will reduce the efficiency of the calculation. Please check the calculation progress.')
-                return self.__getitem__(index)
+                raise ValueError('The item in RAM is placeholder.')
             return item
         except: # if not exist, 
             try: # try update from file
                 self.array = np.load(self.array_path, allow_pickle=True).item()
                 item = self.array[index]
                 if item == 'placeholder':
-                    print(f'Calculating {self.notes} {index} is in progress...\nCheck again in 5 seconds.')
                     time.sleep(5)
-                    warnings.warn(f'It will reduce the efficiency of the calculation. Please check the calculation progress.')
                     return self.__getitem__(index)
                 return item
             except: # calculate and store, then return
