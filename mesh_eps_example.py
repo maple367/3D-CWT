@@ -41,8 +41,10 @@ def run_simu(eps_array, sgm_solver):
 if __name__ == '__main__':
     import mph
     client = mph.start(cores=8)
+    GaAs_eps = AlxGaAs(0).epsilon
     sgm_solver = model.SGM_solver(client)
-    eps_array = np.array([[10, 1.0, 10],
-                          [1.0, 10, 10],
-                          [10, 10, 10]])
+    eps_sample = np.random.random_sample((32, 32))
+    FF = 0.2
+    eps_thresh = np.percentile(eps_sample, FF*100)
+    eps_array = np.where(eps_sample>eps_thresh, GaAs_eps, 1.0)
     res = run_simu(eps_array, sgm_solver)
