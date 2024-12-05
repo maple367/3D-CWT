@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers,plot=False):
     semi_solver = solvers[0]
     sgm_solver = solvers[1]
-    rel_r = np.sqrt(FF/np.pi)
+    rel_r = np.sqrt(FF/np.pi) # filling factor
     Al_x = [x0, x1, x2, 0.4, 0.157, x5, x6]
     t_list = [0.12, t1, t2, t3, 0.076, t5, t6]
     is_phc = [True, True, False, False, False, False, False]
@@ -16,7 +16,8 @@ def run_simu(FF,x0,x1,x2,x5,x6,t1,t2,t3,t5,t6,c1,c2,c3,c4,solvers,plot=False):
     mat_list = []
     for i in range(len(is_phc)):
         if is_phc[i]:
-            mat_list.append((model.rect_lattice.eps_circle(rel_r, AlxGaAs(Al_x[i]))))
+            ##mat_list.append((model.rect_lattice.eps_circle(rel_r, AlxGaAs(Al_x[i]))))
+            mat_list.append((model.rect_lattice.eps_grid(AlxGaAs(Al_x[i]))))
         else:
             mat_list.append(AlxGaAs(Al_x[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[c1, c2, c3, c4]}
@@ -91,5 +92,5 @@ if __name__ == '__main__':
     import multiprocessing as mp
     mp.freeze_support()
     solvers = start_solver(cores=8)
-    res = run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers)
+    res = run_simu(0.181, 0.0, 0.1, 0.0, 0.2, 0.45, 0.23, 0.08, 0.025, 0.04, 2.110, 17.7, -3.23, 8.28, 2.00, solvers, plot=True)
     # res = (0.04226680510192401+0j)

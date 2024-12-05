@@ -176,3 +176,66 @@ class eps_ritriangle(eps_userdefine):
     
     def __call__(self, x, y):
         return self.eps(x, y)
+    
+class eps_grid(eps_userdefine):
+    """
+    The rectangular lattice divided into 30x30 smaller rectangular cells.
+    Each small cell randomly contains either the bulk material or the hole material.
+    
+    Parameters
+    ----------
+    mat_bulk : material_class
+        The material for the bulk. Default is AlxGaAs(0.0).
+    mat_hole : material_class
+        The material for the hole. Default is Air().
+    cell_size_x & cell_size_y will be automatically determined by model.TMM.
+        (cell_size_x : float
+            The size of the cell in the x direction.
+        cell_size_y : float
+            The size of the cell in the y direction.)
+    
+    Returns
+    -------
+    out : class
+        Call the class with x and y.
+        The class returns the dielectric constant distribution in the cell.
+    """
+    eps_func = None
+
+    def __init__(self, mat_bulk=AlxGaAs(0.0), mat_hole=Air(), cell_size_x=1.0, cell_size_y=1.0):
+        self.cell_size_x = cell_size_x
+        self.cell_size_y = cell_size_y
+        self.mat_bulk = mat_bulk
+        self.mat_hole = mat_hole
+        self.eps_bulk = mat_bulk.epsilon
+        self.eps_hole = mat_hole.epsilon
+        self.eps_type = 'grid'
+        self.num_divisions = 30  # Number of divisions along each axis
+        self.build()
+    
+    def build(self):
+        # Determine the size of each small cell in the grid
+        self.small_cell_size_x = self.cell_size_x / self.num_divisions
+        self.small_cell_size_y = self.cell_size_y / self.num_divisions
+        
+        # Randomly assign each small cell to either mat_bulk or mat_hole
+        self.grid = np.random.choice(
+            [self.eps_bulk, self.eps_hole],
+            size=(self.num_divisions, self.num_divisions)
+        )
+        
+        # Calculate the average dielectric constant
+        FF = np.mean(self.grid == self.eps_hole)  # Fraction of holes
+        self.avg_eps = self.eps_bulk * (1 - FF) + self.eps_hole * FF
+    
+    def eps(self, x, y):
+        # Find the indices of the small cell containing the point (x, y)
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+        ix = ((x % self.cell_size_x) // self.small_cell_size_x).astype(int)
+        iy = ((y % self.cell_size_y) // self.small_cell_size_y).astype(int)
+        # Return the dielectric constant of that small cell
+        return np.array([self.grid[_ix, _iy] for _ix, _iy in zip(ix, iy)])
+
+    def __call__(self, x, y):
+        return self.eps(x, y)
