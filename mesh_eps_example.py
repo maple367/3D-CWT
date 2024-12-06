@@ -44,8 +44,11 @@ if __name__ == '__main__':
     client = mph.start(cores=8)
     GaAs_eps = AlxGaAs(0).epsilon
     sgm_solver = model.SGM_solver(client)
-    eps_sample = np.random.random_sample((32, 32))
-    FF = 0.2
-    eps_thresh = np.percentile(eps_sample, FF*100)
-    eps_array = np.where(eps_sample>eps_thresh, GaAs_eps, 1.0)
-    res = run_simu(eps_array, sgm_solver)
+    i_iter = 0
+    while i_iter <= 10000:
+        eps_sample = np.random.random_sample((32, 32))
+        FF = 0.28
+        eps_thresh = np.percentile(eps_sample, FF*100)
+        eps_array = np.where(eps_sample>eps_thresh, GaAs_eps, 1.0)
+        res = run_simu(eps_array, sgm_solver)
+        i_iter += 1

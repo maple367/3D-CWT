@@ -8,14 +8,15 @@ dir_names = []
 FFs = []
 shapes = []
 reses = []
-for i in os.listdir('./history_res'):
+for i in os.listdir('./history_res')[:1]:
     dir_names += [i]
     res = utils.Data(f'./history_res/{i}').load_all()
     FFs += [res[1]['materials'][0].__dict__['FF']]
     shapes += [res[1]['materials'][0].__dict__['eps_type']]
     reses += [res]
 df = pd.DataFrame({'dir_name':dir_names, 'FF':FFs, 'shape':shapes, 'res':reses})
-
+# df.to_csv()
+# %%
 x = []
 y = []
 y1 = []
