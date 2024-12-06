@@ -18,6 +18,7 @@ conda env create -f environment.yml
 - [x] Add support for titled photonic crystal
 - [x] Add support for finite size photonic crystal
 - [ ] Add find_beta0 and find_k0 to class TMM
+- [ ] Pure python implementation
 
 # Release Notes
 ## Version 1.2.0
