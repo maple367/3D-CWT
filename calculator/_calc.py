@@ -1,49 +1,9 @@
 import numpy as np
 from ._collection import integral_method, Array_calculator
 from model.rect_lattice import eps_userdefine
-import warnings
 import numba
 import time
 
-
-class xi_calculator_DFT():
-    """
-    Calculate the Fourier coefficients of the dielectric constant distribution.
-    Use the Discrete Fourier Transform (DFT) to calculate the Fourier coefficients.
-
-    Parameters
-    ----------
-    eps_func : class eps_userdefine
-        The class contains dielectric constant distribution in 2D plane and cell size.
-    resolution : int
-        The sampling frequency or integral step frequency.
-
-    Returns
-    -------
-    out : class
-        The Fourier coefficients.
-    """
-    def __init__(self, eps_func:eps_userdefine, resolution:int):
-        warnings.warn("The DFT method is deprecated.", DeprecationWarning)
-        cell_size_x = eps_func.cell_size_x
-        cell_size_y = eps_func.cell_size_y
-        x_mesh = np.linspace(0, cell_size_x, resolution)
-        y_mesh = np.linspace(0, cell_size_y, resolution)
-        X, Y = np.meshgrid(x_mesh, y_mesh)
-        eps_array = eps_func.eps(X, Y)
-        self.xi_array = np.fft.fft2(eps_array)/(resolution*resolution)
-
-    def __getitem__(self, index):
-        return self.xi_array[index]
-    
-    def __mul__(self, other):
-        return  self.xi_array*other
-    
-    def __rmul__(self, other):
-        return  other*self.xi_array
-    
-    def get_raw_array(self):
-        return self.xi_array
 
 
 class Array_calculator_central_symmetry(Array_calculator):
@@ -178,6 +138,44 @@ class xi_calculator(Array_calculator_central_symmetry):
         self._xi = integral_func(self._integrated_func, 0, self.cell_size_x, 0, self.cell_size_y, args=(m, n), **self.kwargs)
         self._xi = self._xi/(self.cell_size_x*self.cell_size_y)
         return self._xi
+
+class xi_calculator_DFT(xi_calculator):
+    """
+    Calculate the Fourier coefficients of the dielectric constant distribution.
+    Use the Discrete Fourier Transform (DFT) to calculate the Fourier coefficients.
+
+    Parameters
+    ----------
+    eps_func : class eps_userdefine
+        The class contains dielectric constant distribution in 2D plane and cell size.
+    resolution : int
+        The sampling frequency or integral step frequency.
+
+    Returns
+    -------
+    out : class
+        The Fourier coefficients.
+    """
+    def __init__(self, eps_func:eps_userdefine, notes='', pathname_suffix='', resolution:int=23, **kwargs):
+        self.eps_func = eps_func
+        self.resolution = resolution
+        self._build_array()
+        super().__init__(eps_func, notes, pathname_suffix, **kwargs)
+
+    def _build_array(self):
+        XX, YY = np.meshgrid(np.linspace(self.eps_func.cell_size_x/self.resolution/2, self.eps_func.cell_size_x-self.eps_func.cell_size_x/self.resolution/2, self.resolution), np.linspace(self.eps_func.cell_size_y/self.resolution/2, self.eps_func.cell_size_y-self.eps_func.cell_size_y/self.resolution/2, self.resolution))
+        self.eps_array = self.eps_func(XX, YY)
+        self.xi_array = np.fft.fft2(self.eps_array)/(self.resolution**2)
+
+    def _cal(self, index:tuple[int, int]):
+        print(f'\rxi: {index}  ', end='', flush=True)
+        try:
+            self.array[index] = self.xi_array[index]
+        except:
+            if self.resolution < 2*np.max(np.abs(index))+1:
+                self.resolution = 2*np.max(np.abs(index))+1
+                self._build_array()
+            self._xi = self.xi_array[index]
 
 
 class varsigma_matrix_calculator(Array_calculator):
