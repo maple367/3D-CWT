@@ -156,15 +156,25 @@ class xi_calculator_DFT(xi_calculator):
     out : class
         The Fourier coefficients.
     """
-    def __init__(self, eps_func:eps_userdefine, notes='', pathname_suffix='', resolution:int=23, **kwargs):
+    def __init__(self, eps_func:eps_userdefine, notes='', pathname_suffix='', resolution:int=23, subresolution=10, **kwargs):
         self.eps_func = eps_func
         self.resolution = resolution
+        self.subresolution = subresolution
         self._build_array()
         super().__init__(eps_func, notes, pathname_suffix, **kwargs)
 
     def _build_array(self):
-        XX, YY = np.meshgrid(np.linspace(self.eps_func.cell_size_x/self.resolution/2, self.eps_func.cell_size_x-self.eps_func.cell_size_x/self.resolution/2, self.resolution), np.linspace(self.eps_func.cell_size_y/self.resolution/2, self.eps_func.cell_size_y-self.eps_func.cell_size_y/self.resolution/2, self.resolution))
-        self.eps_array = self.eps_func(XX, YY)
+        self.eps_array = np.empty((self.resolution, self.resolution), dtype=complex)
+        grid_size_x = self.eps_func.cell_size_x/self.resolution
+        grid_size_y = self.eps_func.cell_size_y/self.resolution
+        x_c = np.arange(0, self.eps_func.cell_size_x, grid_size_x) + grid_size_x/2
+        y_c = np.arange(0, self.eps_func.cell_size_y, grid_size_y) + grid_size_y/2
+        XX, YY = np.meshgrid(x_c, y_c)
+        for i in range(self.resolution):
+            for j in range(self.resolution):
+                xx_c = XX[i,j] + np.arange(-self.subresolution/2+1/2, self.subresolution/2+1/2)*grid_size_x/self.subresolution
+                yy_c = YY[i,j] + np.arange(-self.subresolution/2+1/2, self.subresolution/2+1/2)*grid_size_y/self.subresolution
+                self.eps_array[i,j] = np.average(self.eps_func.eps(xx_c, yy_c))
         self.xi_array = np.fft.fft2(self.eps_array)/(self.resolution**2)
 
     def _cal(self, index:tuple[int, int]):
@@ -176,6 +186,11 @@ class xi_calculator_DFT(xi_calculator):
                 self.resolution = 2*np.max(np.abs(index))+1
                 self._build_array()
             self._xi = self.xi_array[index]
+        return self._xi
+    
+    def set_resolution(self, resolution:int):
+        self.resolution = resolution
+        self._build_array()
 
 
 class varsigma_matrix_calculator(Array_calculator):

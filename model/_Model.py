@@ -387,7 +387,7 @@ class Model():
     out : class callable
         x, y, z : the position. When called, return epsilon. If not given x, y, average epsilon is return.
     """
-    def __init__(self, paras:model_parameters):
+    def __init__(self, paras:model_parameters, fast_mode=False):
         from calculator import integral_method
         integrated_func_2d = integral_method(3, 'dblquad')()
         integrated_func_1d = integral_method(3, 'quad')()
@@ -404,7 +404,7 @@ class Model():
         self.__no_doping_min__, self.__no_doping_max__ = np.min(np.where(np.array(self.paras.doping_para['is_no_doping']) == True)), np.max(np.where(np.array(self.paras.doping_para['is_no_doping']) == True))
         self.integrated_func_2d = integrated_func_2d
         self.integrated_func_1d = integrated_func_1d
-        self.prepare_calculator()
+        self.prepare_calculator(fast_mode)
     
     def _doping_(self, z):
         if z < self.z_boundary[0]:
@@ -465,8 +465,8 @@ class Model():
     def __call__(self, x=None, y=None, z=None):
         return self.eps_profile(x, y, z)
     
-    def prepare_calculator(self):
-        from calculator import xi_calculator
+    def prepare_calculator(self, fast_mode):
+        from calculator import xi_calculator, xi_calculator_DFT
         # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
         self.phc_boundary_l = []
         self.phc_boundary_r = []
@@ -475,7 +475,8 @@ class Model():
             if isinstance(self.paras.epsilons[i], eps_userdefine):
                 self.phc_boundary_l.append(self.z_boundary[i])
                 self.phc_boundary_r.append(self.z_boundary[i+1])
-                self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], f'xi((m,n))[{i}]', self.pathname_suffix, lock=self.lock))
+                if fast_mode: self.xi_calculator_collect.append(xi_calculator_DFT(self.paras.epsilons[i], f'xi((m,n))[{i}]', self.pathname_suffix, lock=self.lock))
+                else: self.xi_calculator_collect.append(xi_calculator(self.paras.epsilons[i], f'xi((m,n))[{i}]', self.pathname_suffix, lock=self.lock))
             else:
                 self.xi_calculator_collect.append(None)
         self._generate_integral_region_()

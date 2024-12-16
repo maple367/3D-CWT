@@ -21,7 +21,7 @@ if __name__ == '__main__':
         i_iter += 1
     # %%
     lock = mp.Manager().Lock()
-    dft_res = xi_calculator_DFT(eps_dis,pathname_suffix='dft_test',lock=lock)
+    dft_res = xi_calculator_DFT(eps_dis,pathname_suffix='dft_test',lock=lock,resolution=32)
     idft = np.fft.ifft2(dft_res.xi_array)*dft_res.resolution**2
 
     # %%
