@@ -1,14 +1,12 @@
 # %%
-import model
-import model.rect_lattice
-from model import AlxGaN
+from model import AlxGaN, rect_lattice, model_parameters, Model, CWT_solver, SGM_solver, SEMI_solver
 import numpy as np
 
 def start_solver(cores=8):
     import mph
     client = mph.start(cores=cores)
-    semi_solver = model.SEMI_solver(client)
-    sgm_solver = model.SGM_solver(client)
+    semi_solver = SEMI_solver(client)
+    sgm_solver = SGM_solver(client)
     return semi_solver, sgm_solver
 
 def run_simu(FF ,solvers, shape='CC'):
@@ -23,17 +21,17 @@ def run_simu(FF ,solvers, shape='CC'):
         if is_phc[i]:
             if shape == 'CC':
                 rel_r = np.sqrt(FF/np.pi)
-                mat_list.append((model.rect_lattice.eps_circle(rel_r, AlxGaN(Al_x[i]))))
+                mat_list.append((rect_lattice.eps_circle(rel_r, AlxGaN(Al_x[i]))))
             elif shape == 'RIT':
                 rel_r = np.sqrt(FF*2)
-                mat_list.append((model.rect_lattice.eps_ritriangle(rel_r, AlxGaN(Al_x[i]))))
+                mat_list.append((rect_lattice.eps_ritriangle(rel_r, AlxGaN(Al_x[i]))))
         else:
             mat_list.append(AlxGaN(Al_x[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
-    paras = model.model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
-    pcsel_model = model.Model(paras)
+    paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
+    pcsel_model = Model(paras)
     pcsel_model.plot()
-    cwt_solver = model.CWT_solver(pcsel_model)
+    cwt_solver = CWT_solver(pcsel_model)
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
     model_size = int(200/cwt_solver.a) # 200 um
@@ -49,13 +47,13 @@ def run_simu(FF ,solvers, shape='CC'):
         # bad input parameter, the model is not converge
         eig_real = 0.0
         eig_imag = 0.0
-    data = [FF, eig_real, eig_imag, eig_real_inf, eig_imag_inf, shape]
+    data = [FF, eig_real, eig_imag, eig_real_inf, eig_imag_inf, shape, paras.uuid]
     return data
 
 if __name__ == '__main__':
     ### README ###
     ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
-    data_set = {'FF': [], 'eig_real': [], 'eig_imag': [], 'eig_real_inf': [], 'eig_imag_inf': [], 'shape': []}
+    data_set = {'FF': [], 'eig_real': [], 'eig_imag': [], 'eig_real_inf': [], 'eig_imag_inf': [], 'shape': [], 'uuid': []}
     import multiprocessing as mp
     import pandas as pd
     mp.freeze_support()
