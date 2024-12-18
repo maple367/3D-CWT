@@ -6,7 +6,7 @@ class Data():
     def __init__(self, path:str):
         self.path = path
 
-    def load_res(self):
+    def load_cwt_res(self):
         file_path = os.path.join(self.path,'CWT_res.npy')
         data = np.load(file_path, allow_pickle=True).item()
         return data

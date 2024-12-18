@@ -30,7 +30,7 @@ def run_simu(FF ,solvers, shape='CC'):
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
     paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.45) # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = Model(paras)
-    pcsel_model.plot()
+    # pcsel_model.plot()
     cwt_solver = CWT_solver(pcsel_model)
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
@@ -45,8 +45,8 @@ def run_simu(FF ,solvers, shape='CC'):
         eig_imag = np.imag(sgm_solver.eigen_values[i_eigs])
     except:
         # bad input parameter, the model is not converge
-        eig_real = 0.0
-        eig_imag = 0.0
+        eig_real = np.nan
+        eig_imag = np.nan
     data = [FF, eig_real, eig_imag, eig_real_inf, eig_imag_inf, shape, paras.uuid]
     return data
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     import pandas as pd
     mp.freeze_support()
     solvers = start_solver(cores=8)
-    for FF in np.linspace(0.05,0.25,11):
+    for FF in np.linspace(0.05,0.45,11):
         res = run_simu(FF, solvers, shape='CC')
         for i, key in enumerate(data_set.keys()):
             data_set[key].append(res[i])
@@ -67,3 +67,15 @@ if __name__ == '__main__':
             data_set[key].append(res[i])
     df = pd.DataFrame(data_set)
     df.to_csv('GaN_data_set.csv', index=False)
+
+# %%
+if __name__ == '__main__':
+        ### README ###
+        ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
+    if False:
+        import pandas as pd
+        import utils
+        df = pd.read_csv('GaN_data_set.csv')
+        for uuid in df[df['shape']=='CC']['uuid']:
+            res = utils.Data(f'./history_res/{uuid}').load_all()
+# %%

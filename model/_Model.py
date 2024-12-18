@@ -591,7 +591,18 @@ class Model():
         plt.close()
 
 
-class CWT_solver():
+class general_solver():
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def run(self):
+        pass
+
+    def _save(self):
+        pass
+
+
+class CWT_solver(general_solver):
     # TODO: Add comments
     """
     
@@ -750,7 +761,7 @@ class CWT_solver():
         np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', self.save_dict)
 
 
-class SEMI_solver():
+class SEMI_solver(general_solver):
     """
     Parameters
     ----------
@@ -820,13 +831,26 @@ class SEMI_solver():
         self.P_spon = self.comsol_model.evaluate('intop1(semi.ot1.P_spon)') # W/m^2
         self.PCE = self.P_spon/(self.V0_1*self.J0_1)
         self.SE = self.R_spon/(self.J0_1/e)
-        print('The calculation is finished.', flush=True)
+        self._save()
+        print('The SEMI calculation is finished.', flush=True)
 
     def get_result(self,index):
         return self.PCE[index], self.SE[index]
     
+    def _save(self):
+        import os
+        if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
+            os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
+        self.save_dict = {'V0_1':self.V0_1,
+                    'J0_1':self.J0_1,
+                    'R_spon':self.R_spon,
+                    'P_spon':self.P_spon,
+                    'PCE':self.PCE,
+                    'SE':self.SE}
+        np.save(f'./history_res/{self.model.pathname_suffix}/SEMI_res.npy', self.save_dict)
+    
 
-class SGM_solver():
+class SGM_solver(general_solver):
     def __init__(self, client:mph.Client):
         comsol_model_file_path = os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_solver_20240922.mph')
         self.client = client
@@ -849,6 +873,8 @@ class SGM_solver():
         self.P_stim = self.comsol_model.evaluate('2*imag(lambda)*intall(abs(Rx)^2+abs(Sx)^2+abs(Ry)^2+abs(Sy)^2)')
         self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)') #TODO: checked
         self.P_rad = self.comsol_model.evaluate(f'2*{self.kappa_v_i}*intall(abs({self.xi_rads[0]}*Rx+{self.xi_rads[1]}*Sx)^2+abs({self.xi_rads[2]}*Ry+{self.xi_rads[3]}*Sy)^2)')
+        self._save()
+        print('The SGM calculation is finished.', flush=True)
     
     def _prepare_model_(self):
         self.coeff_a = [f'{np.real(_)}+{np.imag(_)}j' for _ in self.C_mat_sum.flatten()]
@@ -878,3 +904,13 @@ class SGM_solver():
         self.comsol_model.export('数据 1','./cwt_res.csv')
         data = pd.read_csv(os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_res.csv'), skiprows=8)
         return data
+    
+    def _save(self):
+        import os
+        if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
+            os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
+        self.save_dict = {'eigen_values':self.eigen_values,
+                    'P_stim':self.P_stim,
+                    'P_edge':self.P_edge,
+                    'P_rad':self.P_rad}
+        np.save(f'./history_res/{self.model.pathname_suffix}/SGM_res.npy', self.save_dict)
