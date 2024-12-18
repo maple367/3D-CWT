@@ -8,13 +8,14 @@ dir_names = []
 FFs = []
 shapes = []
 reses = []
-for i in os.listdir('./history_res')[:1]:
+dirnames = ['20241218145500_60f803b4ca0041fbbbfb16eba31bdbf7']
+for i in dirnames:
     dir_names += [i]
-    res = utils.Data(f'./history_res/{i}').load_all()
-    FFs += [res[1]['materials'][0].__dict__['FF']]
-    shapes += [res[1]['materials'][0].__dict__['FF']]
-    reses += [res]
-df = pd.DataFrame({'dir_name':dir_names, 'FF':FFs, 'shape':shapes, 'res':reses})
+    res = utils.Data(f'./history_res/{i}').load_model()['res']
+    cwt_res = res['cwt_res']
+    sgm_res = res['sgm_res']
+    Q = np.max(cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag))
+    print(Q)
 # df.to_csv()
 # %%
 x = []

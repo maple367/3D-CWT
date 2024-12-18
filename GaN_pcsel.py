@@ -9,7 +9,7 @@ def start_solver(cores=8):
     sgm_solver = SGM_solver(client)
     return semi_solver, sgm_solver
 
-def run_simu(FF ,solvers, shape='CC'):
+def run_simu(FF ,solvers:list[SEMI_solver|SGM_solver], shape='CC'):
     semi_solver = solvers[0]
     sgm_solver = solvers[1]
     n_list = [2.46, 2.38, 2.47, 2.46]
@@ -39,7 +39,7 @@ def run_simu(FF ,solvers, shape='CC'):
     eig_real_inf = np.real(res['eigen_values'][i_eigs_inf])
     eig_imag_inf = np.imag(res['eigen_values'][i_eigs_inf])
     try:
-        sgm_solver.run(res, res['eigen_values'][i_eigs_inf], model_size, 17)
+        sgm_solver.run(pcsel_model, res['eigen_values'][i_eigs_inf], model_size, 20)
         i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
         eig_real = np.real(sgm_solver.eigen_values[i_eigs])
         eig_imag = np.imag(sgm_solver.eigen_values[i_eigs])
@@ -47,6 +47,7 @@ def run_simu(FF ,solvers, shape='CC'):
         # bad input parameter, the model is not converge
         eig_real = np.nan
         eig_imag = np.nan
+    pcsel_model.save()
     data = [FF, eig_real, eig_imag, eig_real_inf, eig_imag_inf, shape, paras.uuid]
     return data
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     import pandas as pd
     mp.freeze_support()
     solvers = start_solver(cores=8)
-    for FF in np.linspace(0.05,0.45,11):
+    for FF in np.linspace(0.15,0.45,31):
         res = run_simu(FF, solvers, shape='CC')
         for i, key in enumerate(data_set.keys()):
             data_set[key].append(res[i])
@@ -72,10 +73,14 @@ if __name__ == '__main__':
 if __name__ == '__main__':
         ### README ###
         ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
-    if False:
+    if True:
         import pandas as pd
         import utils
         df = pd.read_csv('GaN_data_set.csv')
         for uuid in df[df['shape']=='CC']['uuid']:
-            res = utils.Data(f'./history_res/{uuid}').load_all()
+            res = utils.Data(f'./history_res/{uuid}').load_model()['res']
+            cwt_res = res['cwt_res']
+            sgm_res = res['sgm_res']
+            Q = np.max(cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag))
+            SE = sgm_res['P_rad']/sgm_res['P_stim']
 # %%

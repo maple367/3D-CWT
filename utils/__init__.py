@@ -6,8 +6,8 @@ class Data():
     def __init__(self, path:str):
         self.path = path
 
-    def load_cwt_res(self):
-        file_path = os.path.join(self.path,'CWT_res.npy')
+    def load_model(self):
+        file_path = os.path.join(self.path,'model.npy')
         data = np.load(file_path, allow_pickle=True).item()
         return data
 
@@ -15,6 +15,7 @@ class Data():
         datas = []
         for _ in os.listdir(self.path):
             file_path = os.path.join(self.path,_)
+            print(file_path)
             data = np.load(file_path, allow_pickle=True).item()
             datas.append(data)
         return datas

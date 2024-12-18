@@ -405,6 +405,7 @@ class Model():
         self.integrated_func_2d = integrated_func_2d
         self.integrated_func_1d = integrated_func_1d
         self.prepare_calculator(fast_mode)
+        self.res = {}
     
     def _doping_(self, z):
         if z < self.z_boundary[0]:
@@ -590,15 +591,29 @@ class Model():
         plt.show()
         plt.close()
 
+    def save(self):
+        import os
+        if not os.path.exists(f'./history_res/{self.pathname_suffix}/'):
+            os.mkdir(f'./history_res/{self.pathname_suffix}/')
+        save_dict = {
+            'gamma_phc': self.gamma_phc,
+            'coupling_coeff': self.coupling_coeff,
+            'xi_weight': self._xi_weight,
+            'fc_absorption': self.fc_absorption,
+            'kappa_v': self.kappa_v,
+            'fc_coupling_p': self._fc_coupling_p_,
+            'fc_coupling_n': self._fc_coupling_n_,
+            'res': self.res
+        }
+        np.save(f'./history_res/{self.pathname_suffix}/model.npy', save_dict)
+        print(f'The model is saved in ./history_res/{self.pathname_suffix}/model.npy.')
+
 
 class general_solver():
     def __init__(self, *args, **kwargs):
         pass
 
     def run(self):
-        pass
-
-    def _save(self):
         pass
 
 
@@ -683,7 +698,7 @@ class CWT_solver(general_solver):
         print('\rPre-calculation finished. Time cost: ', self._pre_cal_time, 's.', flush=True)
 
     def run(self, cut_off=10, parallel=True):
-        print(f'Start calculation of CWT with cut off {cut_off}...', flush=True)
+        print(f'Start to run CWT calculation with cut off {cut_off}.', flush=True)
         self._cut_off = cut_off
         if parallel: self._pre_cal_()
         kappa = self.kappa_calculator
@@ -703,8 +718,8 @@ class CWT_solver(general_solver):
                              [chi((0,-1,1,0),'x'), chi((0,-1,-1,0),'x'), chi((0,-1,0,1),'x'), chi((0,-1,0,-1),'x')]])
         self.C_mats = {'1D':C_mat_1D, 'rad':C_mat_rad, '2D':C_mat_2D}
         self.cal_eign_value()
-        self._save()
-        print(f'Calculation finished. Results is saved to ./history_res/{self.model.pathname_suffix}/CWT_res.npy', flush=True)
+        self.save2model()
+        print(f'The CWT calculation is finished.', flush=True)
 
     def cal_eign_value(self):
         from scipy.constants import c
@@ -735,10 +750,7 @@ class CWT_solver(general_solver):
                             np.sum([self.xi_calculator_collect[_][m,n+1]*self.model._xi_weight[_] for _ in range(len(self.xi_calculator_collect)) if self.xi_calculator_collect[_] is not None])])
         return xi_rads
 
-    def _save(self):
-        import os
-        if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
-            os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
+    def save2model(self):
         self.save_dict = {'C_mats':self.C_mats,
                     'C_mat_sum':self.C_mat_sum,
                     'eigen_values':self.eigen_values,
@@ -758,7 +770,7 @@ class CWT_solver(general_solver):
                     'norm_freq':self.norm_freq,
                     'n_eff':self.n_eff,
                     'Q':self.Q}
-        np.save(f'./history_res/{self.model.pathname_suffix}/CWT_res.npy', self.save_dict)
+        self.model.res['cwt_res'] = self.save_dict
 
 
 class SEMI_solver(general_solver):
@@ -837,17 +849,14 @@ class SEMI_solver(general_solver):
     def get_result(self,index):
         return self.PCE[index], self.SE[index]
     
-    def _save(self):
-        import os
-        if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
-            os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
+    def save2model(self):
         self.save_dict = {'V0_1':self.V0_1,
                     'J0_1':self.J0_1,
                     'R_spon':self.R_spon,
                     'P_spon':self.P_spon,
                     'PCE':self.PCE,
                     'SE':self.SE}
-        np.save(f'./history_res/{self.model.pathname_suffix}/SEMI_res.npy', self.save_dict)
+        self.model.res['semi_res'] = self.save_dict
     
 
 class SGM_solver(general_solver):
@@ -856,15 +865,16 @@ class SGM_solver(general_solver):
         self.client = client
         self.comsol_model = self.client.load(comsol_model_file_path)
 
-    def run(self, res:dict, init_eig_guess:complex, size:int, resolution:int):
+    def run(self, model:Model, init_eig_guess:complex, size:int, resolution:int):
         print('Start to run SGM calculation in COMSOL... ', flush=True)
-        self.res = res
+        self.model = model
+        self.res = self.model.res['cwt_res']
         self.C_mat_sum = self.res['C_mat_sum']
         self.a = self.res['a']
         self.init_eig_guess = init_eig_guess
         self.size = size
         self.resolution = resolution
-        self.kappa_v_i = np.imag(res['kappa_v'])
+        self.kappa_v_i = np.imag(self.res['kappa_v'])
         self.xi_rads = self.res['xi_rads']
         self._prepare_model_()
         self._apply_paras_()
@@ -873,7 +883,7 @@ class SGM_solver(general_solver):
         self.P_stim = self.comsol_model.evaluate('2*imag(lambda)*intall(abs(Rx)^2+abs(Sx)^2+abs(Ry)^2+abs(Sy)^2)')
         self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)') #TODO: checked
         self.P_rad = self.comsol_model.evaluate(f'2*{self.kappa_v_i}*intall(abs({self.xi_rads[0]}*Rx+{self.xi_rads[1]}*Sx)^2+abs({self.xi_rads[2]}*Ry+{self.xi_rads[3]}*Sy)^2)')
-        self._save()
+        self.save2model()
         print('The SGM calculation is finished.', flush=True)
     
     def _prepare_model_(self):
@@ -905,12 +915,9 @@ class SGM_solver(general_solver):
         data = pd.read_csv(os.path.join(os.path.dirname(__file__), '../utils/comsol_model/cwt_res.csv'), skiprows=8)
         return data
     
-    def _save(self):
-        import os
-        if not os.path.exists(f'./history_res/{self.model.pathname_suffix}/'):
-            os.mkdir(f'./history_res/{self.model.pathname_suffix}/')
+    def save2model(self):
         self.save_dict = {'eigen_values':self.eigen_values,
                     'P_stim':self.P_stim,
                     'P_edge':self.P_edge,
                     'P_rad':self.P_rad}
-        np.save(f'./history_res/{self.model.pathname_suffix}/SGM_res.npy', self.save_dict)
+        self.model.res['sgm_res'] = self.save_dict
