@@ -21,6 +21,7 @@ __Al411GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.411GaAs.csv')
 __Al452GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.452GaAs.csv')
 # The following reference is from doi:10.1063/1.343580
 __Al700GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.700GaAs.csv')
+# The following reference is from doi:10.1021/nn501601e
 
 class AlxGaAs(material_class):
     """
@@ -249,6 +250,14 @@ class InxGaN(material_class):
 
     def _cal_eps_(self):
         pass
+
+
+def ITO(material_class):
+    """
+
+    """
+    def __init__(self):
+        self.epsilon = 1.0 + 0.0j
 
 
 class Air(material_class):

@@ -553,7 +553,7 @@ class Model():
         res = [self.integrated_func_1d(integrated_func, bd[0], bd[1]) for bd in self._1d_phc_integral_region_]
         return -np.square(self.k0)/(2*self.beta0)*np.sum(res)
     
-    def plot(self):
+    def plot(self, plot_doping=False):
         import matplotlib.pyplot as plt
         z_mesh = np.linspace(self.z_boundary[0], self.z_boundary[-1], 5000)
         E_profile_s = self.e_normlized_intensity(z=z_mesh)
@@ -569,17 +569,18 @@ class Model():
         color1, color2, fontsize1, fontsize2, fontname = 'mediumblue', 'firebrick', 13, 18, 'serif'
         fig, ax0 = plt.subplots(figsize=(7,5))
         fig.subplots_adjust(left=0.12, right=0.86)
-        ax1 = plt.twinx()
-        ax0.plot(z_mesh, dopings, color=color1)
-        ax0.tick_params(axis='y', colors=color1, labelsize=10)
-        ax1.plot(z_mesh, eps_s, linestyle='--', color=color2)
-        ax1.plot(z_mesh, E_profile_s, linestyle='--')
-        ax1.fill_between(z_mesh, np.min(E_profile_s), E_profile_s, where=self.is_in_phc(z_mesh), alpha=0.4, hatch='//', color='orange')
-        ax1.tick_params(axis='y', colors=color2, labelsize=10)
-        ax0.set_xlabel(r'z ($\mu m$)', fontsize=fontsize1, fontname=fontname)
-        ax0.set_ylabel(r'Doping ($\mu m^{-3}$)', fontsize=fontsize1, fontname=fontname, color=color1)
-        ax0.set_yscale('symlog', linthresh=np.min(dopings[dopings!=0.0]))
-        ax1.set_ylabel(r'$\epsilon_r$ and Normalized $|E|^2$', fontsize=fontsize1, fontname=fontname, color=color2)
+        ax0.plot(z_mesh, eps_s, linestyle='--', color=color2)
+        ax0.plot(z_mesh, E_profile_s, linestyle='--')
+        ax0.fill_between(z_mesh, np.min(E_profile_s), E_profile_s, where=self.is_in_phc(z_mesh), alpha=0.4, hatch='//', color='orange')
+        ax0.tick_params(axis='y', colors=color2, labelsize=10)
+        if plot_doping:
+            ax1 = plt.twinx()
+            ax1.plot(z_mesh, dopings, color=color1)
+            ax1.tick_params(axis='y', colors=color1, labelsize=10)
+            ax1.set_xlabel(r'z ($\mu m$)', fontsize=fontsize1, fontname=fontname)
+            ax1.set_ylabel(r'Doping ($\mu m^{-3}$)', fontsize=fontsize1, fontname=fontname, color=color1)
+            ax1.set_yscale('symlog', linthresh=np.min(dopings[dopings!=0.0]))
+        ax0.set_ylabel(r'$\epsilon_r$ and Normalized $|E|^2$', fontsize=fontsize1, fontname=fontname, color=color2)
         plt.title('', fontsize=fontsize2, fontname=fontname)
         ax2 = ax0.inset_axes([0.65, 0.10, 0.24, 0.24])
         im = ax2.imshow(np.real(eps_mesh_phc), cmap='Greys')
@@ -916,7 +917,14 @@ class SGM_solver(general_solver):
         return data
     
     def save2model(self):
-        self.save_dict = {'eigen_values':self.eigen_values,
+        self.save_dict = {'C_mat_sum':self.C_mat_sum,
+                    'a':self.a,
+                    'init_eig_guess':self.init_eig_guess,
+                    'size':self.size,
+                    'resolution':self.resolution,
+                    'kappa_v_i':self.kappa_v_i,
+                    'xi_rads':self.xi_rads,
+                    'eigen_values':self.eigen_values,
                     'P_stim':self.P_stim,
                     'P_edge':self.P_edge,
                     'P_rad':self.P_rad}

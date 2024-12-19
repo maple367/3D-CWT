@@ -8,7 +8,7 @@ dir_names = []
 FFs = []
 shapes = []
 reses = []
-dirnames = ['20241218145500_60f803b4ca0041fbbbfb16eba31bdbf7']
+dirnames = ['20241218152759_db1a835e3fe24510ae626f95d7184dba']
 for i in dirnames:
     dir_names += [i]
     res = utils.Data(f'./history_res/{i}').load_model()['res']

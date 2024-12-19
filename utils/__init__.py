@@ -5,13 +5,25 @@ import os
 class Data():
     def __init__(self, path:str):
         self.path = path
+        self.loaded = False
 
     def load_model(self):
+        if self.loaded: return print('Some data has been loaded.')
         file_path = os.path.join(self.path,'model.npy')
         data = np.load(file_path, allow_pickle=True).item()
+        self.__dict__.update(data)
+        self.loaded = True
+        return data
+    
+    def load_para(self):
+        if self.loaded: return print('Some data has been loaded.')
+        file_path = os.path.join(self.path,'input_para.npy')
+        data = np.load(file_path, allow_pickle=True).item()
+        self.__dict__.update(data)
+        self.loaded = True
         return data
 
-    def load_all(self):
+    def get_all(self):
         datas = []
         for _ in os.listdir(self.path):
             file_path = os.path.join(self.path,_)
