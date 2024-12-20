@@ -29,9 +29,8 @@ def run_simu(FF ,solvers:list[SEMI_solver|SGM_solver], shape='CC'):
             mat_list.append(AlxGaAs(Al_x[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
     paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
-    print(paras.tmm.conveged)
-    return {'FF': FF, 'Q': 1, 'SE': 2, 'shape': shape, 'uuid': paras.uuid}
     pcsel_model = Model(paras)
+    print(pcsel_model.gamma_phc)
     pcsel_model.plot()
     cwt_solver = CWT_solver(pcsel_model)
     cwt_solver.run(10, parallel=True)
@@ -73,6 +72,6 @@ if __name__ == '__main__':
                 group_data.plot.line(x='FF', y='Q', ax=axs[0], marker='o', label=shape_name)
                 group_data.plot.line(x='FF', y='SE', ax=axs[1], marker='o', label=shape_name)
             plt.pause(0.1)
+    df.to_csv('GaAs_data_set.csv', index=False)
     plt.ioff()
     plt.show()
-# %%

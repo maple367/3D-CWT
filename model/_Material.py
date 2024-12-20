@@ -22,6 +22,7 @@ __Al452GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.452GaAs.csv')
 # The following reference is from doi:10.1063/1.343580
 __Al700GaAs_path__ = os.path.join(base_dir, './mat_database/Al0.700GaAs.csv')
 # The following reference is from doi:10.1021/nn501601e
+__ITO_path__ = os.path.join(base_dir, './mat_database/ITO.csv')
 
 class AlxGaAs(material_class):
     """
@@ -252,13 +253,37 @@ class InxGaN(material_class):
         pass
 
 
-def ITO(material_class):
+class ITO(material_class):
     """
+    Reference: doi:10.1021/nn501601e
 
+    Parameters
+    ----------
+    wavelength : float
+        The wavelength, unit in um.
+
+    Returns
+    -------
+    out : class
+        The class of ITO.
+        self.epsilon : complex
+            The epsilon of ITO.
+        self.n : float
+            The refractive index of ITO.
+        self.k : float
+            The extinction coefficient of ITO.
     """
-    def __init__(self):
-        self.epsilon = 1.0 + 0.0j
+    def __init__(self, wavelength:float=0.98):
+        self.wavelength = wavelength
+        self._cal_eps_()
+        super().__init__()
 
+    def _cal_eps_(self):
+        nk_data = pd.read_csv(__ITO_path__)
+        self.n = np.interp(self.wavelength, nk_data['wl'], nk_data['n'])
+        self.k = np.interp(self.wavelength, nk_data['wl'], nk_data['k'])
+        self.epsilon = np.square(self.n + 1j*self.k)
+        
 
 class Air(material_class):
     """

@@ -8,7 +8,7 @@ dir_names = []
 FFs = []
 shapes = []
 reses = []
-dirnames = ['20241218152759_db1a835e3fe24510ae626f95d7184dba']
+dirnames = ['20241219173726_0d5e8b96982f47c3a8e10f94cca7266a','20241219173824_8907cd3448e1426eb522807103fa5b87','20241219173919_0d3171718ea448ff9e2e0a8d2870ae6b']
 for i in dirnames:
     dir_names += [i]
     res = utils.Data(f'./history_res/{i}').load_model()['res']
@@ -16,6 +16,7 @@ for i in dirnames:
     sgm_res = res['sgm_res']
     Q = np.max(cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag))
     print(Q)
+    print((sgm_res['P_rad']+sgm_res['P_edge'])/sgm_res['P_stim'])
 # df.to_csv()
 # %%
 x = []

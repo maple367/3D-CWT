@@ -213,18 +213,19 @@ class TMM():
             return log_t11
         beta_sol_fun = 1.0
         if self.conveged: beta_sol = self.beta_sol
-        while (beta_sol_fun >= -10.0) and (self.find_modes_iter < len(self.beta_r_sorted)-1):
-            if self.beta_init is None:
-                beta_sol = multistart_opt(t_11_func_beta_log_real, bounds=[self.beta_r_min, self.beta_r_max], grid_num=50*(self.find_modes_iter+1), method='TNC')
-                beta_init = np.array([beta_sol.x, 0])
-            else:
-                beta_init = self.beta_init
-            beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
-            if beta_sol.fun < -6.0:
-                self.beta_init = beta_sol.x
-                self.conveged = True
-            beta_sol_fun = beta_sol.fun
-            self.find_modes_iter += 1
+        else:
+            while (beta_sol_fun >= -10.0) and (self.find_modes_iter < len(self.beta_r_sorted)-1):
+                if self.beta_init is None:
+                    beta_sol = multistart_opt(t_11_func_beta_log_real, bounds=[self.beta_r_min, self.beta_r_max], grid_num=50*(self.find_modes_iter+1), method='TNC')
+                    beta_init = np.array([beta_sol.x, 0])
+                else:
+                    beta_init = self.beta_init
+                beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
+                if beta_sol.fun < -6.0:
+                    self.beta_init = beta_sol.x
+                    self.conveged = True
+                beta_sol_fun = beta_sol.fun
+                self.find_modes_iter += 1
         self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
         self.beta_sol = beta_sol
         _ = t_11_func_beta_log(beta_sol.x) # update the T_total, V_s, V_s_flatten
@@ -590,7 +591,6 @@ class Model():
         cb.ax.xaxis.set_ticks_position('top')
         cb.ax.xaxis.set_label_position('top')
         plt.show()
-        plt.close()
 
     def save(self):
         import os
@@ -882,7 +882,8 @@ class SGM_solver(general_solver):
         self.comsol_model.solve()
         self.eigen_values = self.comsol_model.evaluate('lambda')
         self.P_stim = self.comsol_model.evaluate('2*imag(lambda)*intall(abs(Rx)^2+abs(Sx)^2+abs(Ry)^2+abs(Sy)^2)')
-        self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)') #TODO: checked
+        self.P_edge = self.comsol_model.evaluate('intyd(abs(Sx)^2)+intyd(abs(Rx)^2)+intxd(abs(Sy)^2)+intxd(abs(Ry)^2)')
+        # TODO: checked the P_rad
         self.P_rad = self.comsol_model.evaluate(f'2*{self.kappa_v_i}*intall(abs({self.xi_rads[0]}*Rx+{self.xi_rads[1]}*Sx)^2+abs({self.xi_rads[2]}*Ry+{self.xi_rads[3]}*Sy)^2)')
         self.save2model()
         print('The SGM calculation is finished.', flush=True)
