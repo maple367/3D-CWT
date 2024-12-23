@@ -43,7 +43,49 @@ def multistart_opt(func, bounds, grid_num=50, method='TNC', thershold=None):
     x_sols = np.array([x_sols0[i] for i in range(len(x_sols0)) if np.isfinite(y_sols0[i])])
     return opt_sol(x_sols, y_sols, thershold)
 
-@numba.njit(cache=True)
+def step_complex_opt(func, beta0, threshold=1e-10, b=1e-6, max_iter=1000):
+    i = 0
+    beta_dict = {(0):beta0}
+    res_dict = {(0):func(beta_dict[0])}
+    delta_beta_dict = {(0):(1+1j)*b*res_dict[0]}
+    while (i < max_iter) and (res_dict[i] > threshold):
+        deltas = [np.real(delta_beta_dict[i]),
+                  1j*np.imag(delta_beta_dict[i])]
+        beta_dict[i+1] = beta_dict[i]
+        res_dict[i+1] = res_dict[i]
+        smaller = [False, False]
+        for index, delta in enumerate(deltas):
+            for sign in [-1, 1]:
+                beta = beta_dict[i]+sign*delta
+                res = func(beta)
+                if res < res_dict[i+1]:
+                    beta_dict[i+1] = beta
+                    res_dict[i+1] = res
+                    smaller[index] = True
+        if smaller[0] or smaller[1]:
+            delta_beta_dict[i+1] = delta_beta_dict[i]
+            if smaller[0]:
+                delta_beta_dict[i+1] += np.real(0.1*delta_beta_dict[i])
+            if smaller[1]:
+                delta_beta_dict[i+1] += 1j*np.imag(0.1*delta_beta_dict[i])
+        else:
+            delta_beta_dict[i+1] = 0.5*delta_beta_dict[i]
+            # check if reach precision limit
+            reach_limit_real, reach_limit_imag = False, False
+            if beta_dict[i+1] == beta_dict[i+1] + np.real(delta_beta_dict[i+1]):
+                delta_beta_dict[i+1] += np.real(delta_beta_dict[i+1])
+                reach_limit_real = True
+            if beta_dict[i+1] == beta_dict[i+1] + 1j*np.imag(delta_beta_dict[i+1]):
+                delta_beta_dict[i+1] += 1j*np.imag(delta_beta_dict[i+1])
+                reach_limit_imag = True
+            if reach_limit_real and reach_limit_imag:
+                if res_dict[i+1] == res_dict[i]:
+                    return opt_sol([beta_dict[i]], [res_dict[i]])
+        i+=1
+        print(i)
+    return opt_sol([beta_dict[i]], [res_dict[i]])
+
+# @numba.njit(cache=True)
 def __find_layer__(z, _z_boundary_without_lb, _len_z_boundary_2):
     """
     Parameters
@@ -211,24 +253,24 @@ class TMM():
             self._construct_matrix(beta)
             log_t11 = np.log10(np.abs(self.t_11))
             return log_t11
-        beta_sol_fun = 1.0
+        def t_11_func_beta_abs(beta:complex):
+            self._construct_matrix(beta)
+            return np.abs(self.t_11)
         if self.conveged: beta_sol = self.beta_sol
         else:
-            while (beta_sol_fun >= -10.0) and (self.find_modes_iter < len(self.beta_r_sorted)-1):
-                if self.beta_init is None:
-                    beta_sol = multistart_opt(t_11_func_beta_log_real, bounds=[self.beta_r_min, self.beta_r_max], grid_num=50*(self.find_modes_iter+1), method='TNC')
-                    beta_init = np.array([beta_sol.x, 0])
-                else:
-                    beta_init = self.beta_init
-                beta_sol = minimize(t_11_func_beta_log, x0=beta_init, method='Nelder-Mead')
-                if beta_sol.fun < -6.0:
-                    self.beta_init = beta_sol.x
-                    self.conveged = True
-                beta_sol_fun = beta_sol.fun
-                self.find_modes_iter += 1
-        self.beta = beta_sol.x[0]+1j*beta_sol.x[1]
+            if self.beta_init is None:
+                beta_sol = multistart_opt(t_11_func_beta_log_real, bounds=[self.beta_r_min, self.beta_r_max], grid_num=200, method='TNC')
+                beta_init = beta_sol.x
+            else:
+                beta_init = self.beta_init
+            beta_sol = step_complex_opt(t_11_func_beta_abs, beta_init)
+            if beta_sol.fun < 1e-6:
+                self.beta_init = beta_sol.x
+                self.conveged = True
+            self.find_modes_iter += 1
+        self.beta = beta_sol.x
         self.beta_sol = beta_sol
-        _ = t_11_func_beta_log(beta_sol.x) # update the T_total, V_s, V_s_flatten
+        _ = t_11_func_beta_abs(beta_sol.x) # update the T_total, V_s, V_s_flatten
         # if _ > -10.0: raise RuntimeError(f't11 is not converge! abs(t11) = {10**_}.')
         self._cal_normlized_constant()
         self.V_s_flatten = np.array([_.flatten() for _ in self.V_s])

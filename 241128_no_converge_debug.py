@@ -29,10 +29,10 @@ def run_simu(FF ,solvers:list[SEMI_solver|SGM_solver], shape='CC'):
             mat_list.append(AlxGaAs(Al_x[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
     paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
-    print(paras.tmm.conveged)
-    return {'FF': FF, 'Q': 1, 'SE': 2, 'shape': shape, 'uuid': paras.uuid}
+    print(paras.tmm.conveged, paras.tmm.t_11)
     pcsel_model = Model(paras)
     pcsel_model.plot()
+    return {'FF': FF, 'Q': 1, 'SE': 2, 'shape': shape, 'uuid': paras.uuid}
     cwt_solver = CWT_solver(pcsel_model)
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
     import pandas as pd
     import matplotlib.pyplot as plt
-    plt.ion()
+    # plt.ion()
     fig, axs = plt.subplots(2,1,figsize=(6,6),sharex='all')
     solvers = start_solver(cores=8)
     datas = []

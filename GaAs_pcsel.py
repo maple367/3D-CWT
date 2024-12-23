@@ -75,3 +75,48 @@ if __name__ == '__main__':
     df.to_csv('GaAs_data_set.csv', index=False)
     plt.ioff()
     plt.show()
+
+# %%
+if __name__ == '__main__':
+    import multiprocessing as mp
+    mp.freeze_support()
+    ### README ###
+    ### Don't run any sentence out of this block, otherwise it will be called by the child process and cause error. ###
+    import pandas as pd
+    import utils
+    import numpy as np
+    df = pd.read_csv('GaAs_data_set.csv')
+    Q_list = []
+    SE_list = []
+    FF_list = []
+    fliter_shape = 'CC'
+    for uuid in df['uuid']:
+        res = utils.Data(f'./history_res/{uuid}').load_model()['res']
+        cwt_res = res['cwt_res']
+        if df[df['uuid']==uuid]['shape'].values[0] != fliter_shape:
+            continue
+        try:
+            sgm_res = res['sgm_res']
+            if sgm_res['size'] <=500:
+                continue
+            index = np.argmax(cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag))
+            Q = cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag)
+            Q_list.append(Q[index])
+            SE = sgm_res['P_edge']/sgm_res['P_stim']
+            SE_list.append(1-SE[index])
+            FF_list.append(df[df['uuid']==uuid]['FF'].values[0])
+        except:
+            continue
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    ax.plot(FF_list, Q_list, marker='o', label='Q', color='r')
+    twinx = ax.twinx()
+    twinx.plot(FF_list, SE_list, marker='o', label=r'$P_{\mathrm{rad}}/P_{\mathrm{stim}}$', color='b')
+    ax.legend(loc='center left')
+    twinx.legend(loc='center right')
+    ax.set_xlabel('FF')
+    ax.set_ylabel('Q')
+    twinx.set_ylabel(r'$P_{\mathrm{rad}}/P_{\mathrm{stim}}$')
+    ax.set_title(fliter_shape)
+    plt.show()
+# %%
