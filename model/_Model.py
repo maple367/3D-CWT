@@ -82,7 +82,6 @@ def step_complex_opt(func, beta0, threshold=1e-10, b=1e-6, max_iter=1000):
                 if res_dict[i+1] == res_dict[i]:
                     return opt_sol([beta_dict[i]], [res_dict[i]])
         i+=1
-        print(i)
     return opt_sol([beta_dict[i]], [res_dict[i]])
 
 # @numba.njit(cache=True)

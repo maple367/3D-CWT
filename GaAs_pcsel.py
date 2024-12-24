@@ -12,10 +12,10 @@ def start_solver(cores=8):
 def run_simu(FF ,solvers:list[SEMI_solver|SGM_solver], shape='CC'):
     semi_solver = solvers[0]
     sgm_solver = solvers[1]
-    Al_x = [0.0, 0.4, 0.157, 0.45, 0.0]
-    t_list = [0.43, 0.025, 0.116, 2.11, 0.5]
-    is_phc = [True, False, False, False, False]
-    is_no_doping = [False, True, True, True, False]
+    Al_x = [0.0, 0.1, 0.0, 0.4, 0.157, 0.45, 0.0]
+    t_list = [0.1, 0.25, 0.08, 0.025, 0.116, 2.11, 0.5]
+    is_phc = [True, True, True, False, False, False, False]
+    is_no_doping = [False, False, False, True, True, True, False]
     mat_list = []
     for i in range(len(is_phc)):
         if is_phc[i]:
@@ -30,18 +30,20 @@ def run_simu(FF ,solvers:list[SEMI_solver|SGM_solver], shape='CC'):
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
     paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = Model(paras)
-    print(pcsel_model.gamma_phc)
-    pcsel_model.plot()
+    # print(pcsel_model.gamma_phc)
+    # pcsel_model.plot()
     cwt_solver = CWT_solver(pcsel_model)
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
+    if cwt_solver.a > 0.5:
+        return {'FF': FF, 'Q': np.nan, 'SE': np.nan, 'shape': shape, 'uuid': paras.uuid}
     model_size = int(200/cwt_solver.a) # 200 um
     i_eigs_inf = np.argmin(np.real(res['eigen_values']))
     try:
         sgm_solver.run(pcsel_model, res['eigen_values'][i_eigs_inf], model_size, 20)
         Q = np.max(res['beta0'].real/(2*sgm_solver.eigen_values.imag))
         i_eigs = np.argmax(res['beta0'].real/(2*sgm_solver.eigen_values.imag))
-        SE = sgm_solver.P_rad/sgm_solver.P_stim
+        SE = 1-sgm_solver.P_edge/sgm_solver.P_stim
         SE = SE[i_eigs]
     except:
         # bad input parameter, the model is not converge
@@ -89,20 +91,25 @@ if __name__ == '__main__':
     Q_list = []
     SE_list = []
     FF_list = []
-    fliter_shape = 'CC'
+    fliter_shape = 'RIT'
     for uuid in df['uuid']:
-        res = utils.Data(f'./history_res/{uuid}').load_model()['res']
+        try:
+            res = utils.Data(f'./history_res/{uuid}').load_model()['res']
+        except:
+            continue
         cwt_res = res['cwt_res']
         if df[df['uuid']==uuid]['shape'].values[0] != fliter_shape:
             continue
         try:
             sgm_res = res['sgm_res']
-            if sgm_res['size'] <=500:
+            if sgm_res['a'] >= 0.5:
                 continue
             index = np.argmax(cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag))
             Q = cwt_res['beta0'].real/(2*sgm_res['eigen_values'].imag)
-            Q_list.append(Q[index])
             SE = sgm_res['P_edge']/sgm_res['P_stim']
+            if SE[index] < 0:
+                continue
+            Q_list.append(Q[index])
             SE_list.append(1-SE[index])
             FF_list.append(df[df['uuid']==uuid]['FF'].values[0])
         except:
