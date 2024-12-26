@@ -40,15 +40,45 @@ def run_simu(eps_array, sgm_solver):
     return data
 
 if __name__ == '__main__':
-    import mph
-    client = mph.start(cores=8)
+    def gaussian_2d(x, y, x0, y0, sigma_x, sigma_y, theta):
+        x = x-x0
+        y = y-y0
+        x_theta = x*np.cos(theta) + y*np.sin(theta)
+        y_theta = -x*np.sin(theta) + y*np.cos(theta)
+        return np.exp(-(x_theta**2/(2*sigma_x**2) + y_theta**2/(2*sigma_y**2)))
+            
+    def generate_sample_array(x_size, y_size, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s):
+        XX, YY = np.meshgrid(np.linspace(0, 1, x_size), np.linspace(0, 1, y_size))
+        z = 0.0
+        for i in range(num_holes):
+            x0 = x0_s[i]
+            y0 = y0_s[i]
+            sigma_x = sigma_x_s[i]
+            sigma_y = sigma_y_s[i]
+            theta = theta_s[i]
+            z += gaussian_2d(XX, YY, x0, y0, sigma_x, sigma_y, theta)
+        return z
+    
+    import matplotlib.pyplot as plt
+    # import mph
+    # client = mph.start(cores=8)
     GaAs_eps = AlxGaAs(0).epsilon
-    sgm_solver = model.SGM_solver(client)
+    # sgm_solver = model.SGM_solver(client)
     i_iter = 0
-    while i_iter <= 10000:
-        eps_sample = np.random.random_sample((32, 32))
+    while i_iter <= 10:
+        num_holes = 2
+        x0_s = np.random.rand(num_holes)*0.8+0.1
+        y0_s = np.random.rand(num_holes)*0.8+0.1
+        sigma_x_s = np.random.rand(num_holes)*0.1
+        sigma_y_s = np.random.rand(num_holes)*0.1
+        theta_s = np.random.rand(num_holes)*2*np.pi
+        eps_sample = generate_sample_array(128, 128, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
         FF = 0.28
-        eps_thresh = np.percentile(eps_sample, FF*100)
-        eps_array = np.where(eps_sample>eps_thresh, GaAs_eps, 1.0)
-        res = run_simu(eps_array, sgm_solver)
+        eps_thresh = np.percentile(eps_sample, (1-FF)*100)
+        eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
+        plt.imshow(np.real(eps_array), cmap='gist_gray_r')
+        plt.colorbar()
+        plt.show()
+        # res = run_simu(eps_array, sgm_solver)
         i_iter += 1
+    
