@@ -1,10 +1,7 @@
-import model
 import utils
-import model.rect_lattice
-from model import AlxGaAs
 import numpy as np
-
-def run_simu(eps_array, sgm_solver):
+from model import AlxGaAs, rect_lattice, model_parameters, Model, CWT_solver, SGM_solver
+def run_simu(eps_array, sgm_solver:SGM_solver):
     Al_x =         [0.0,  0.0,  0.4,   0.191, 0.45]
     t_list =       [0.35, 0.08, 0.025, 0.116, 2.11]
     is_phc =       [True, False,False, False, False]
@@ -12,32 +9,34 @@ def run_simu(eps_array, sgm_solver):
     mat_list = []
     for i in range(len(is_phc)):
         if is_phc[i]:
-            mat_list.append(model.rect_lattice.eps_mesh(eps_array))
+            mat_list.append(rect_lattice.eps_mesh(eps_array))
         else:
             mat_list.append(AlxGaAs(Al_x[i]))
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
-    paras = model.model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
-    pcsel_model = model.Model(paras)
-    # pcsel_model.plot()
-    cwt_solver = model.CWT_solver(pcsel_model)
+    paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
+    pcsel_model = Model(paras)
+    pcsel_model.plot()
+    cwt_solver = CWT_solver(pcsel_model)
     # cwt_solver.core_num = 80 # Because the limitation of Windows, the core_num should be smaller than 61
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
+    if cwt_solver.a > 0.5:
+        return {'Q': np.nan, 'SE': np.nan, 'uuid': paras.uuid}
     model_size = int(200/cwt_solver.a) # 200 um
-    i_eigs_inf = np.argmin(np.imag(res['eigen_values']))
-    eig_real_inf = np.real(res['eigen_values'][i_eigs_inf])
-    eig_imag_inf = np.imag(res['eigen_values'][i_eigs_inf])
+    i_eigs_inf = np.argmin(np.real(res['eigen_values']))
     try:
-        sgm_solver.run(res, res['eigen_values'][i_eigs_inf], model_size, 17)
-        i_eigs = np.argmin(np.imag(sgm_solver.eigen_values))
-        eig_real = np.real(sgm_solver.eigen_values[i_eigs])
-        eig_imag = np.imag(sgm_solver.eigen_values[i_eigs])
+        sgm_solver.run(pcsel_model, res['eigen_values'][i_eigs_inf], model_size, 20)
+        Q = np.max(res['beta0'].real/(2*sgm_solver.eigen_values.imag))
+        i_eigs = np.argmax(res['beta0'].real/(2*sgm_solver.eigen_values.imag))
+        SE = 1-sgm_solver.P_edge/sgm_solver.P_stim
+        SE = SE[i_eigs]
     except:
         # bad input parameter, the model is not converge
-        eig_real = 0.0
-        eig_imag = 0.0
-    data = [eig_real, eig_imag, eig_real_inf, eig_imag_inf]
-    return data
+        Q = np.nan
+        SE = np.nan
+    pcsel_model.save()
+    data_set = {'Q': Q, 'SE': SE, 'uuid': paras.uuid}
+    return data_set
 
 if __name__ == '__main__':
     def gaussian_2d(x, y, x0, y0, sigma_x, sigma_y, theta):
@@ -58,27 +57,29 @@ if __name__ == '__main__':
             theta = theta_s[i]
             z += gaussian_2d(XX, YY, x0, y0, sigma_x, sigma_y, theta)
         return z
-    
-    import matplotlib.pyplot as plt
-    # import mph
-    # client = mph.start(cores=8)
+    import pandas as pd
+    import mph
+    client = mph.start(cores=8)
     GaAs_eps = AlxGaAs(0).epsilon
-    # sgm_solver = model.SGM_solver(client)
+    sgm_solver = SGM_solver(client)
     i_iter = 0
-    while i_iter <= 10:
+    data_set = []
+    while i_iter < 1:
         num_holes = 2
         x0_s = np.random.rand(num_holes)*0.8+0.1
         y0_s = np.random.rand(num_holes)*0.8+0.1
         sigma_x_s = np.random.rand(num_holes)*0.1
         sigma_y_s = np.random.rand(num_holes)*0.1
         theta_s = np.random.rand(num_holes)*2*np.pi
-        eps_sample = generate_sample_array(128, 128, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
+        eps_sample = generate_sample_array(32, 32, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
         FF = 0.28
         eps_thresh = np.percentile(eps_sample, (1-FF)*100)
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
-        plt.imshow(np.real(eps_array), cmap='gist_gray_r')
-        plt.colorbar()
-        plt.show()
-        # res = run_simu(eps_array, sgm_solver)
+        res = run_simu(eps_array, sgm_solver)
+        data_set.append(res)
+        print(res)
         i_iter += 1
+        if i_iter%50 == 0:
+            df = pd.DataFrame(data_set)
+            df.to_csv('mesh_data_set.csv', index=False)
     
