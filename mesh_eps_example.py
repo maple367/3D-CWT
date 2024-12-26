@@ -64,7 +64,7 @@ if __name__ == '__main__':
     sgm_solver = SGM_solver(client)
     i_iter = 0
     data_set = []
-    while i_iter < 1:
+    while i_iter < 10000:
         num_holes = 2
         x0_s = np.random.rand(num_holes)*0.8+0.1
         y0_s = np.random.rand(num_holes)*0.8+0.1
@@ -77,8 +77,8 @@ if __name__ == '__main__':
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
         res = run_simu(eps_array, sgm_solver)
         data_set.append(res)
-        print(res)
         i_iter += 1
+        print(f'iter {i_iter}:', res)
         if i_iter%50 == 0:
             df = pd.DataFrame(data_set)
             df.to_csv('mesh_data_set.csv', index=False)
