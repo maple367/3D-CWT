@@ -15,13 +15,11 @@ def run_simu(eps_array, sgm_solver:SGM_solver):
     doping_para = {'is_no_doping':is_no_doping,'coeff':[17.7, -3.23, 8.28, 2.00]}
     paras = model_parameters((t_list, mat_list, doping_para), surface_grating=True, k0=2*np.pi/0.98) # input tuple (t_list, eps_list, index where is the active layer)
     pcsel_model = Model(paras)
-    pcsel_model.plot()
+    # pcsel_model.plot()
     cwt_solver = CWT_solver(pcsel_model)
     # cwt_solver.core_num = 80 # Because the limitation of Windows, the core_num should be smaller than 61
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
-    if cwt_solver.a > 0.5:
-        return {'Q': np.nan, 'SE': np.nan, 'uuid': paras.uuid}
     model_size = int(200/cwt_solver.a) # 200 um
     i_eigs_inf = np.argmin(np.real(res['eigen_values']))
     try:
@@ -38,25 +36,26 @@ def run_simu(eps_array, sgm_solver:SGM_solver):
     data_set = {'Q': Q, 'SE': SE, 'uuid': paras.uuid}
     return data_set
 
+def gaussian_2d(x, y, x0, y0, sigma_x, sigma_y, theta):
+    x = x-x0
+    y = y-y0
+    x_theta = x*np.cos(theta) + y*np.sin(theta)
+    y_theta = -x*np.sin(theta) + y*np.cos(theta)
+    return np.exp(-(x_theta**2/(2*sigma_x**2) + y_theta**2/(2*sigma_y**2)))
+        
+def generate_sample_array(x_size, y_size, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s):
+    XX, YY = np.meshgrid(np.linspace(0, 1, x_size), np.linspace(0, 1, y_size))
+    z = 0.0
+    for i in range(num_holes):
+        x0 = x0_s[i]
+        y0 = y0_s[i]
+        sigma_x = sigma_x_s[i]
+        sigma_y = sigma_y_s[i]
+        theta = theta_s[i]
+        z += gaussian_2d(XX, YY, x0, y0, sigma_x, sigma_y, theta)
+    return z
+
 if __name__ == '__main__':
-    def gaussian_2d(x, y, x0, y0, sigma_x, sigma_y, theta):
-        x = x-x0
-        y = y-y0
-        x_theta = x*np.cos(theta) + y*np.sin(theta)
-        y_theta = -x*np.sin(theta) + y*np.cos(theta)
-        return np.exp(-(x_theta**2/(2*sigma_x**2) + y_theta**2/(2*sigma_y**2)))
-            
-    def generate_sample_array(x_size, y_size, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s):
-        XX, YY = np.meshgrid(np.linspace(0, 1, x_size), np.linspace(0, 1, y_size))
-        z = 0.0
-        for i in range(num_holes):
-            x0 = x0_s[i]
-            y0 = y0_s[i]
-            sigma_x = sigma_x_s[i]
-            sigma_y = sigma_y_s[i]
-            theta = theta_s[i]
-            z += gaussian_2d(XX, YY, x0, y0, sigma_x, sigma_y, theta)
-        return z
     import pandas as pd
     import mph
     client = mph.start(cores=8)
