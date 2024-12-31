@@ -16,6 +16,7 @@ class Data():
         return data
     
     def load_para(self):
+        import multiprocessing as mp
         if self.loaded: return print('Some data has been loaded.')
         file_path = os.path.join(self.path,'input_para.npy')
         data = np.load(file_path, allow_pickle=True).item()
