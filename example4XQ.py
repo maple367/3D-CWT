@@ -1,4 +1,3 @@
-import utils
 import numpy as np
 from model import AlxGaAs, rect_lattice, model_parameters, Model, CWT_solver, SGM_solver
 def run_simu(variable, sgm_solver:SGM_solver):
