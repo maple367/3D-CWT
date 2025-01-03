@@ -17,7 +17,7 @@ def run_simu(eps_array, sgm_solver:SGM_solver):
     pcsel_model = Model(paras)
     # pcsel_model.plot()
     cwt_solver = CWT_solver(pcsel_model)
-    # cwt_solver.core_num = 80 # Because the limitation of Windows, the core_num should be smaller than 61
+    cwt_solver.core_num = 40 # Because the limitation of Windows, the core_num should be smaller than 61
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
     model_size = int(200/cwt_solver.a) # 200 um
@@ -64,14 +64,14 @@ if __name__ == '__main__':
     i_iter = 0
     data_set = []
     while i_iter < 10000:
-        num_holes = 2
+        num_holes = 3
         x0_s = np.random.rand(num_holes)*0.8+0.1
         y0_s = np.random.rand(num_holes)*0.8+0.1
         sigma_x_s = np.random.rand(num_holes)*0.1
         sigma_y_s = np.random.rand(num_holes)*0.1
         theta_s = np.random.rand(num_holes)*2*np.pi
         eps_sample = generate_sample_array(32, 32, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
-        FF = 0.28
+        FF = np.random.rand()*0.4+0.1
         eps_thresh = np.percentile(eps_sample, (1-FF)*100)
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
         res = run_simu(eps_array, sgm_solver)
@@ -80,5 +80,7 @@ if __name__ == '__main__':
         print(f'iter {i_iter}:', res)
         if i_iter%50 == 0:
             df = pd.DataFrame(data_set)
-            df.to_csv('mesh_data_set.csv', index=False)
+            df.to_csv('mesh_data_set_3hole.csv', index=False)
+    df = pd.DataFrame(data_set)
+    df.to_csv('mesh_data_set_3hole.csv', index=False)
     
