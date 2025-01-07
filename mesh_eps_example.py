@@ -33,7 +33,7 @@ def run_simu(eps_array, sgm_solver:SGM_solver):
         Q = np.nan
         SE = np.nan
     pcsel_model.save()
-    data_set = {'Q': Q, 'SE': SE, 'uuid': paras.uuid}
+    data_set = {'Q': Q, 'SE': SE, 'uuid': paras.uuid, 't11': pcsel_model.tmm.t_11, 'time_cost': cwt_solver._pre_cal_time}
     return data_set
 
 def gaussian_2d(x, y, x0, y0, sigma_x, sigma_y, theta):
