@@ -7,7 +7,7 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib.pyplot as plt
 
-    data_set_file = 'mesh_data_set.csv'
+    data_set_file = 'mesh_data_set_3hole.csv'
     df = pd.read_csv(data_set_file)
     # df.plot.scatter(x='Q', y='SE', marker='o', s=3)
     # plt.xscale('log')
@@ -25,7 +25,7 @@ if __name__ == '__main__':
             datas.append({'eps_array': pseduo_eps_array, 'Q': line[0], 'SE': line[1]})
         i += 1
         print(i)
-    np.savez_compressed('mesh_data_rand.npz', pd.DataFrame(datas).sample(frac=1))
+    np.savez_compressed(f'{data_set_file.removesuffix('.csv')}.npz', pd.DataFrame(datas).sample(frac=1))
     # %%
     index = 367
     temp_para = utils.Data(f'./history_res/{df.iloc[index,2]}')
