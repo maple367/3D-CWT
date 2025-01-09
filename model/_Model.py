@@ -1,4 +1,5 @@
 import numpy as np
+np.seterr(over='ignore', invalid='ignore')
 import os
 import mph
 from scipy.optimize import Bounds, dual_annealing, minimize, direct, differential_evolution
@@ -84,7 +85,7 @@ def step_complex_opt(func, beta0, threshold=1e-10, b=1e-6, max_iter=1000):
         i+=1
     return opt_sol([beta_dict[i]], [res_dict[i]])
 
-# @numba.njit(cache=True)
+@numba.njit(cache=True)
 def __find_layer__(z, _z_boundary_without_lb, _len_z_boundary_2):
     """
     Parameters
