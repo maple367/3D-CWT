@@ -63,12 +63,12 @@ if __name__ == '__main__':
     import csv
     import os
     save_path = 'mesh_data_set_3hole.csv'
-    if os.path.exists(save_path):
-        open(save_path, 'w').close()
     header = ['Q', 'SE', 'uuid', 't11', 'time_cost']
-    f = open('mesh_data_set_3hole.csv', mode='a', newline='',encoding='utf-8')
-    writer = csv.writer(f)
-    writer.writerow(header)
+    
+    if not os.path.exists(save_path):
+        with open(save_path, mode='a', newline='',encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
 
     i_iter = 0
     while True:
@@ -83,7 +83,9 @@ if __name__ == '__main__':
         eps_thresh = np.percentile(eps_sample, (1-FF)*100)
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
         res = run_simu(eps_array, sgm_solver)
-        writer.writerow([res[key] for key in header])
+        with open(save_path, mode='a', newline='',encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow([res[key] for key in header])
         i_iter += 1
-        print(i_iter, res)
+        print(f'{i_iter}: {res}')
     
