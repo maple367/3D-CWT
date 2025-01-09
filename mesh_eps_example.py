@@ -56,14 +56,22 @@ def generate_sample_array(x_size, y_size, num_holes, x0_s, y0_s, sigma_x_s, sigm
     return z
 
 if __name__ == '__main__':
-    import pandas as pd
     import mph
     client = mph.start(cores=8)
     GaAs_eps = AlxGaAs(0).epsilon
     sgm_solver = SGM_solver(client)
+    import csv
+    import os
+    save_path = 'mesh_data_set_3hole.csv'
+    if os.path.exists(save_path):
+        open(save_path, 'w').close()
+    header = ['Q', 'SE', 'uuid', 't11', 'time_cost']
+    f = open('mesh_data_set_3hole.csv', mode='a', newline='',encoding='utf-8')
+    writer = csv.writer(f)
+    writer.writerow(header)
+
     i_iter = 0
-    data_set = []
-    while i_iter < 10000:
+    while True:
         num_holes = 3
         x0_s = np.random.rand(num_holes)*0.8+0.1
         y0_s = np.random.rand(num_holes)*0.8+0.1
@@ -75,12 +83,7 @@ if __name__ == '__main__':
         eps_thresh = np.percentile(eps_sample, (1-FF)*100)
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
         res = run_simu(eps_array, sgm_solver)
-        data_set.append(res)
+        writer.writerow([res[key] for key in header])
         i_iter += 1
-        print(f'iter {i_iter}:', res)
-        if i_iter%50 == 0:
-            df = pd.DataFrame(data_set)
-            df.to_csv('mesh_data_set_3hole.csv', index=False)
-    df = pd.DataFrame(data_set)
-    df.to_csv('mesh_data_set_3hole.csv', index=False)
+        print(i_iter, res)
     
