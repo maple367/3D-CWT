@@ -389,7 +389,6 @@ class model_parameters():
 
     def _update_cellsize_(self):
         a = 2*np.pi/np.real(self.tmm.beta)
-        print(f'a: {a} um')
         self.cellsize_x = a
         self.cellsize_y = a
         for i in range(len(self.materials)):
