@@ -4,7 +4,7 @@ history*/
 FF.csv
 *.png
 *.npy
-
+*.npz
 
 
 # Byte-compiled / optimized / DLL files
