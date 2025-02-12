@@ -62,7 +62,7 @@ if __name__ == '__main__':
     sgm_solver = SGM_solver(client)
     import csv
     import os
-    save_path = 'mesh_data_set_3hole.csv'
+    save_path = 'mesh_data_set_3hole_lessscale.csv'
     header = ['Q', 'SE', 'uuid', 't11', 'time_cost']
     
     if not os.path.exists(save_path):
@@ -73,15 +73,20 @@ if __name__ == '__main__':
     i_iter = 0
     while True:
         num_holes = 3
-        x0_s = np.random.rand(num_holes)*0.8+0.1
-        y0_s = np.random.rand(num_holes)*0.8+0.1
-        sigma_x_s = np.random.rand(num_holes)*0.1
-        sigma_y_s = np.random.rand(num_holes)*0.1
+        x0_s = np.random.rand(num_holes)*0.2+np.array([0.15, 0.15, 0.65])
+        y0_s = np.random.rand(num_holes)*0.2+np.array([0.15, 0.65, 0.65])
+        sigma_x_s = np.random.rand(num_holes)*0.1+0.05
+        sigma_y_s = np.random.rand(num_holes)*0.1+0.05
         theta_s = np.random.rand(num_holes)*2*np.pi
-        eps_sample = generate_sample_array(32, 32, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
-        FF = np.random.rand()*0.4+0.1
+        eps_sample = generate_sample_array(32*10, 32*10, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
+        FF = np.random.rand()*0.1+0.25
         eps_thresh = np.percentile(eps_sample, (1-FF)*100)
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
+        eps_array = eps_array.reshape(32,10,32,10)
+        eps_array = eps_array.mean(axis=(1,3))
+        import matplotlib.pyplot as plt
+        plt.imshow(eps_array.real)
+        plt.show()
         res = run_simu(eps_array, sgm_solver)
         with open(save_path, mode='a', newline='',encoding='utf-8') as f:
             writer = csv.writer(f)

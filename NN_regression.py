@@ -56,8 +56,8 @@ class CustomDataset(Dataset):
     
 # %%
 '''数据集'''
-training_data = CustomDataset(train_df['eps_array'].values, train_df['SE'].values)
-test_data = CustomDataset(test_df['eps_array'].values, test_df['SE'].values)
+training_data = CustomDataset(train_df['eps_array'].values, np.log(train_df['Q'].values))
+test_data = CustomDataset(test_df['eps_array'].values, np.log(test_df['Q'].values))
 
 '''
 创建数据DataLoader（数据加载器）
@@ -83,10 +83,10 @@ class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
         self.flatten = nn.Flatten()
-        self.hidden1 = nn.Linear(32 * 32 * 2, 256)  # Adjusted for real and imaginary parts
-        self.hidden2 = nn.Linear(256, 64)
-        self.hidden3 = nn.Linear(64, 64)
-        self.out = nn.Linear(64, 1)  # Output
+        self.hidden1 = nn.Linear(32 * 32 * 2, 2048)  # Adjusted for real and imaginary parts
+        self.hidden2 = nn.Linear(2048, 1024)
+        self.hidden3 = nn.Linear(1024, 1024)
+        self.out = nn.Linear(1024, 1)  # Output
 
     def forward(self, x):
         x = self.flatten(x)
@@ -105,7 +105,7 @@ model = NeuralNetwork().to(device)
 print(model)
 # 损失函数和优化器
 loss_fn = nn.MSELoss()  # Mean Squared Error for real and imaginary parts
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.00015)
 
 # 训练函数
 def train(dataloader, model, loss_fn, optimizer):
@@ -126,13 +126,26 @@ def test(dataloader, model, loss_fn):
     num_batches = len(dataloader)
     model.eval()  # 测试模式
     test_loss, correct = 0, 0
+    pred_list = []
+    y_list = []
     with torch.no_grad():
         for x, y in dataloader:
+            y_list += list(y.cpu().numpy())
             x, y = x.to(device), y.to(device)
             pred = model(x)
+            pred_list += list(pred.cpu().numpy())
             test_loss += loss_fn(pred, y).item()
         test_loss /= num_batches
         print(f'Test result: Avg loss: {test_loss}')
+    import matplotlib.pyplot as plt
+    plt.plot([min(np.min(y_list),np.min(pred_list)), max(np.max(y_list),np.max(pred_list))], [min(np.min(y_list),np.min(pred_list)), max(np.max(y_list),np.max(pred_list))])
+    plt.scatter(y_list, pred_list)
+    plt.xlabel('True')
+    plt.ylabel('Predicted')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.show()
+    plt.close()
     return test_loss
 
 # 训练和测试循环
