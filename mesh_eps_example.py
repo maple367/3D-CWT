@@ -17,7 +17,7 @@ def run_simu(eps_array, sgm_solver:SGM_solver):
     pcsel_model = Model(paras)
     # pcsel_model.plot()
     cwt_solver = CWT_solver(pcsel_model)
-    cwt_solver.core_num = 40 # Because the limitation of Windows, the core_num should be smaller than 61
+    cwt_solver.core_num = 20 # Because the limitation of Windows, the core_num should be smaller than 61
     cwt_solver.run(10, parallel=True)
     res = cwt_solver.save_dict
     model_size = int(200/cwt_solver.a) # 200 um
@@ -84,13 +84,16 @@ if __name__ == '__main__':
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
         eps_array = eps_array.reshape(32,10,32,10)
         eps_array = eps_array.mean(axis=(1,3))
-        import matplotlib.pyplot as plt
-        plt.imshow(eps_array.real)
-        plt.show()
+        #import matplotlib.pyplot as plt
+        #plt.imshow(eps_array.real)
+        #plt.colorbar()
+        #plt.show()
         res = run_simu(eps_array, sgm_solver)
         with open(save_path, mode='a', newline='',encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow([res[key] for key in header])
         i_iter += 1
         print(f'{i_iter}: {res}')
+        if os.path.exists('stop'):
+            break
     

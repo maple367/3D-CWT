@@ -7,7 +7,7 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib.pyplot as plt
 
-    data_set_file = 'mesh_data_set_3hole.csv'
+    data_set_file = 'mesh_data_set_3hole_lessscale.csv'
     df = pd.read_csv(data_set_file)
     # df.plot.scatter(x='Q', y='SE', marker='o', s=3)
     # plt.xscale('log')
