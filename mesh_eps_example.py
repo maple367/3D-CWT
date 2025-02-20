@@ -94,6 +94,6 @@ if __name__ == '__main__':
             writer.writerow([res[key] for key in header])
         i_iter += 1
         print(f'{i_iter}: {res}')
-        if os.path.exists('stop'):
+        if os.path.exists('stop'): # if the file 'stop' exists, the program will stop
             break
     
