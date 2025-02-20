@@ -82,7 +82,7 @@ test_data = CustomDataset(test_df['eps_array'].values, test_df['SE'].values)
 
 # DataLoader
 
-batch_size = 64
+batch_size = 1024
 train_dataloader = DataLoader(training_data,batch_size=batch_size,drop_last=True)
 test_dataloader = DataLoader(test_data,batch_size=batch_size)
 
