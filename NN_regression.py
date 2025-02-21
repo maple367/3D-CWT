@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, Dataset  #数据包管理工具
 from torchvision.transforms import ToTensor  #数据转换，张量
 
 # visualization
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, r2_score, explained_variance_score
 import seaborn as sns
 
 def plot_confusion_matrix(y_true, y_pred, num_classes):
@@ -34,8 +34,12 @@ def plot_confusion_matrix(y_true, y_pred, num_classes):
     plt.title('Confusion Matrix')
     plt.show()
 
-def plot_distribution(y_true, y_pred):
+def plot_distribution(y_true, y_pred, kde=False):
+    y_true = np.array(y_true).flatten()
+    y_pred = np.array(y_pred).flatten()
     plt.figure(figsize=(8, 6))
+    if kde:
+        sns.kdeplot(x=y_true, y=y_pred, fill=True, cbar=True, thresh=0.05)
     # Plotting the distribution of true vs predicted values
     plt.scatter(y_true, y_pred, alpha=0.15)
     plt.plot([min(y_true), max(y_true)], [min(y_true), max(y_true)], 'r--', label="Perfect Fit")  # Diagonal line
@@ -43,6 +47,15 @@ def plot_distribution(y_true, y_pred):
     plt.ylabel('Predicted Values')
     plt.title('True vs Predicted Values')
     plt.legend()
+    plt.show()
+
+def plot_error_distribution(y_true, y_pred, bins=50, density=True, cumulative=True, alpha=0.6, color='g', **kwargs):
+    error = np.abs(np.array(y_true) - np.array(y_pred))
+    plt.figure(figsize=(8, 6))
+    plt.hist(error, bins=bins, density=density, cumulative=cumulative, alpha=alpha, color=color, **kwargs)
+    plt.xlabel('Error')
+    plt.ylabel('Cumulative Frequency')
+    plt.title('Error Distribution')
     plt.show()
 
 class CustomDataset(Dataset):
@@ -74,39 +87,21 @@ class CustomDataset(Dataset):
         label = self.labels[idx]
         
         return sample, label
-    
-# %%
-# data set
-training_data = CustomDataset(train_df['eps_array'].values, train_df['SE'].values)
-test_data = CustomDataset(test_df['eps_array'].values, test_df['SE'].values)
 
-# DataLoader
 
-batch_size = 1024
-train_dataloader = DataLoader(training_data,batch_size=batch_size,drop_last=True)
-test_dataloader = DataLoader(test_data,batch_size=batch_size)
-
-for X,Y in train_dataloader:  # X is the input, Y is the label
-    print(f'Shape of X:{X.shape} {X.dtype}')
-    print(f'Shape of Y:{Y.shape} {Y.dtype}')
-    break
-
-# gpu or cpu
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f'Using {device}.')
-# %%
 # NN model
 class SimpleFC(nn.Module):
     def __init__(self):
         super(SimpleFC, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(2 * 32 * 32, 1024)
-        self.fc2 = nn.Linear(1024, 512)
+        self.fc1 = nn.Linear(2 * 32 * 32, 2048)
+        self.fc2 = nn.Linear(2048, 512)
         self.fc3 = nn.Linear(512, 256)
         self.fc4 = nn.Linear(256, 64)
         self.fc_out = nn.Linear(64, 1)
-        # self.dropout = nn.Dropout(0.2)
-        self.activation = nn.Softplus()
+        self.dropout = nn.Dropout(0.2)
+        # self.activation = nn.Softplus()
+        self.activation = nn.PReLU()
 
     def forward(self, x):
         x = self.flatten(x)
@@ -116,30 +111,7 @@ class SimpleFC(nn.Module):
         x = self.activation(self.fc4(x))
         x = self.fc_out(x)
         return x
-
-
-# %%
-# NN model
-
-
-# loss function and optimizer
-
-class CustomLoss(nn.Module):
-    def __init__(self):
-        super(CustomLoss, self).__init__()
-        self.loss_fn = nn.Tanhshrink()
-
-    def forward(self, pred, target):
-        error = torch.abs(pred - target)
-        loss = self.loss_fn(error*50.0).mean()
-        return loss
-
-model = SimpleFC().to(device)
-# loss_fn = nn.MSELoss()  # Mean Squared Error
-# loss_fn = nn.CrossEntropyLoss()
-loss_fn = CustomLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
-
+    
 # training function
 def train(dataloader, model, loss_fn, optimizer):
     model.train()
@@ -171,12 +143,38 @@ def test(dataloader, model, loss_fn):
         test_loss /= num_batches
     
     print(f'Test Avg loss: {test_loss}')
-    # calculate the root mean square error (RMSE)
-    rmse = np.sqrt(np.mean((np.array(pred_list) - np.array(y_list)) ** 2))
-    print(f"RMSE: {rmse}")
+    # calculate scores
+    print(f'R^2: {r2_score(y_list, pred_list)}')
+    print(f'Explained Variance: {explained_variance_score(y_list, pred_list)}')
     plot_distribution(y_list, pred_list)
     return test_loss
 
+# %%
+# data set
+training_data = CustomDataset(train_df['eps_array'].values, train_df['SE'].values)
+test_data = CustomDataset(test_df['eps_array'].values, test_df['SE'].values)
+
+# DataLoader
+
+batch_size = 64
+train_dataloader = DataLoader(training_data,batch_size=batch_size,drop_last=True)
+test_dataloader = DataLoader(test_data,batch_size=batch_size)
+
+for X,Y in train_dataloader:  # X is the input, Y is the label
+    print(f'Shape of X:{X.shape} {X.dtype}')
+    print(f'Shape of Y:{Y.shape} {Y.dtype}')
+    break
+
+# gpu or cpu
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f'Using {device}.')
+# %%
+
+model = SimpleFC().to(device)
+# loss_fn = nn.MSELoss()  # Mean Squared Error
+# loss_fn = nn.CrossEntropyLoss()
+loss_fn = nn.SmoothL1Loss(beta=0.1)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
 
 # initialize the iteration of epochs
 epochs = 30
@@ -200,4 +198,19 @@ ax.legend()
 ax.set_xlabel('Epoch')
 ax.set_ylabel('Loss')
 plt.show()
+
+model.eval()
+test_loss = 0
+pred_list = []
+y_list = []
+with torch.no_grad():
+    for x, y in test_dataloader:
+        y_list += list(y.cpu().numpy())
+        x, y = x.to(device), y.to(device)
+        pred = model(x)
+        pred_list += list(pred.cpu().numpy())
+        test_loss += loss_fn(pred, y.unsqueeze(1)).item()
+pred_list = np.array(pred_list).flatten()
+y_list = np.array(y_list).flatten()
+plot_error_distribution(y_list, pred_list, cumulative=True)
 # %%

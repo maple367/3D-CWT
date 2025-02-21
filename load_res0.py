@@ -30,7 +30,8 @@ for line in df.values:
         datas.append({'eps_array': pseduo_eps_array, 'Q': line[0], 'SE': line[1]})
     i += 1
     print(i)
-np.savez_compressed(f'{data_set_file.removesuffix('.csv')}{suffix}.npz', pd.DataFrame(datas).sample(frac=1))
+datas = pd.DataFrame(datas)#.sample(frac=1, random_state=233)
+np.savez_compressed(f'{data_set_file.removesuffix('.csv')}{suffix}.npz', datas)
 # %%
 arrays = pd.DataFrame(datas)['eps_array'].values
 array_tuples = {tuple(arr.flatten()) for arr in arrays}
