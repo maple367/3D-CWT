@@ -9,7 +9,7 @@ df = pd.DataFrame(all_data, columns=['eps_array', 'Q', 'SE'])
 
 df = df[(df['SE'] <= 1.0) & (df['SE'] >= 0.0) & (df['Q'] >= 0.0)]
 # df['eps_array'] = df['eps_array'].apply(lambda x: x.astype(np.float32))
-df['eps_array'] = df['eps_array'].apply(lambda x: (np.fft.fftshift(np.fft.fft2(x)/1024).astype(np.complex64)))
+df['eps_array'] = df['eps_array'].apply(lambda x: ((np.fft.fft2(x)/1024).astype(np.complex64)))
 df['SE'] = df['SE'].astype(np.float32)
 df['Q'] = df['Q'].astype(np.float32)
 
@@ -58,20 +58,6 @@ def plot_error_distribution(y_true, y_pred, bins=50, density=True, cumulative=Tr
     plt.title('Error Distribution')
     plt.show()
 
-def positional_encoding(seq_len, d_model):
-    """
-    生成正弦和余弦位置编码
-    :param seq_len: 序列的长度
-    :param d_model: 编码的维度
-    :return: 位置编码矩阵
-    """
-    pe = np.zeros((seq_len, d_model))
-    for pos in range(seq_len):
-        for i in range(0, d_model, 2):
-            pe[pos, i] = np.sin(pos / (10000 ** (i / d_model)))
-            if i + 1 < d_model:
-                pe[pos, i + 1] = np.cos(pos / (10000 ** ((i + 1) / d_model)))
-    return torch.tensor(pe, dtype=torch.float32)
 
 class CustomDataset(Dataset):
     def __init__(self, data, labels):
@@ -117,11 +103,10 @@ class SimpleFC(nn.Module):
         self.dropout = nn.Dropout(0.2)
         # self.activation = nn.Softplus()
         self.activation = nn.PReLU()
-        self.pos_embedding = nn.Parameter(positional_encoding(32*32, 2))
+        self.pos_embedding = nn.Parameter(torch.randn(1, 32, 32, 1))
 
     def forward(self, x):
-        x = self.flatten(x)
-        x = x + self.pos_embedding.flatten()
+        x = x + self.pos_embedding.repeat(1,1,1,2)
         x = self.flatten(x)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
@@ -195,7 +180,7 @@ loss_fn = nn.SmoothL1Loss(beta=0.1)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
 
 # initialize the iteration of epochs
-epochs = 30
+epochs = 100
 train_losses = []
 test_losses = []
 
