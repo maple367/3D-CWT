@@ -120,8 +120,8 @@ class SimpleFC(nn.Module):
         self.pos_embedding = nn.Parameter(positional_encoding(32*32, 2))
 
     def forward(self, x):
-        # pos_embedding = self.pos_embedding.repeat(x.shape[0], 1, 1)
-        # x = x + self.pos_embedding
+        x = self.flatten(x)
+        x = x + self.pos_embedding.flatten()
         x = self.flatten(x)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
