@@ -216,4 +216,6 @@ with torch.no_grad():
 pred_list = np.array(pred_list).flatten()
 y_list = np.array(y_list).flatten()
 plot_error_distribution(y_list, pred_list, cumulative=True)
+from scipy.stats import pearsonr
+print(f'Pearson Correlation: {pearsonr(y_list, pred_list)}')
 # %%
