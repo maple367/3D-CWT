@@ -176,11 +176,11 @@ print(f'Using {device}.')
 model = SimpleFC().to(device)
 # loss_fn = nn.MSELoss()  # Mean Squared Error
 # loss_fn = nn.CrossEntropyLoss()
-loss_fn = nn.SmoothL1Loss(beta=0.1)
+loss_fn = nn.SmoothL1Loss(beta=0.05)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
 
 # initialize the iteration of epochs
-epochs = 100
+epochs = 30
 train_losses = []
 test_losses = []
 
