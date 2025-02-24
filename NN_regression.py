@@ -8,12 +8,11 @@ all_data = np.load('mesh_data_set_3hole_lessscale.npz',allow_pickle=True)['arr_0
 df = pd.DataFrame(all_data, columns=['eps_array', 'Q', 'SE'])
 
 df = df[(df['SE'] <= 1.0) & (df['SE'] >= 0.0) & (df['Q'] >= 0.0)]
-# df['eps_array'] = df['eps_array'].apply(lambda x: x.astype(np.float32))
 df['eps_array'] = df['eps_array'].apply(lambda x: ((np.fft.fft2(x)/1024).astype(np.complex64)))
 df['SE'] = df['SE'].astype(np.float32)
 df['Q'] = df['Q'].astype(np.float32)
 
-train_df = df.sample(frac=0.9, random_state=233)
+train_df = df.sample(frac=0.95, random_state=233)
 test_df = df.drop(train_df.index)
 # %%
 import torch.cuda
@@ -113,11 +112,14 @@ class SimpleFC(nn.Module):
         x = self.activation(self.fc3(x))
         x = self.activation(self.fc4(x))
         x = self.fc_out(x)
+        x = torch.sigmoid(x)
         return x
     
 # training function
 def train(dataloader, model, loss_fn, optimizer):
+    num_batches = len(dataloader)
     model.train()
+    train_loss = 0
     for x, y in dataloader:
         x, y = x.to(device), y.to(device)
         optimizer.zero_grad()
@@ -125,7 +127,9 @@ def train(dataloader, model, loss_fn, optimizer):
         loss = loss_fn(pred, y.unsqueeze(1))  # regression problem needs to adjust the label to ensure it is 1D
         loss.backward()
         optimizer.step()
-    print(f'Train Avg loss: {loss.item()}')
+        train_loss += loss.item()
+    train_loss /= num_batches
+    print(f'Train Avg loss: {loss}')
     return loss.item()
 
 # test function
@@ -176,11 +180,11 @@ print(f'Using {device}.')
 model = SimpleFC().to(device)
 # loss_fn = nn.MSELoss()  # Mean Squared Error
 # loss_fn = nn.CrossEntropyLoss()
-loss_fn = nn.SmoothL1Loss(beta=0.05)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0015)
+loss_fn = nn.SmoothL1Loss(beta=0.1)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
 
 # initialize the iteration of epochs
-epochs = 30
+epochs = 100
 train_losses = []
 test_losses = []
 

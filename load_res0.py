@@ -1,6 +1,7 @@
 import utils
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 data_set_file = 'mesh_data_set_3hole_lessscale.csv'
 suffix = ''
@@ -30,6 +31,12 @@ for line in df.values:
         datas.append({'eps_array': pseduo_eps_array, 'Q': line[0], 'SE': line[1]})
     i += 1
     print(i)
+    from matplotlib.colors import LogNorm
+    plt.imshow(np.fft.fftshift(np.fft.fft2(eps_array).imag), cmap='Grays', norm=LogNorm())
+    plt.tick_params(labelbottom=False, labelleft=False, labelright=False, labeltop=False)
+    plt.tick_params(bottom=False, left=False, right=False, top=False)
+    plt.colorbar()
+    plt.show()
 datas = pd.DataFrame(datas)#.sample(frac=1, random_state=233)
 np.savez_compressed(f'{data_set_file.removesuffix('.csv')}{suffix}.npz', datas)
 # %%
