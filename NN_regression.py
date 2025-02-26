@@ -224,7 +224,9 @@ def evaluate_model(model, dataloader):
     y_list = np.array(y_list).flatten()
     plot_distribution(y_list, pred_list)
     plot_error_distribution(y_list, pred_list, cumulative=True)
-    print(f'Pearson Correlation: {pearsonr(y_list, pred_list)}')
+    pearson_r = pearsonr(y_list, pred_list)
+    print(f'Pearson Correlation: {pearson_r}')
+    return pearson_r
 
 def epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer, epochs=100):
     train_losses = []
@@ -245,25 +247,26 @@ def generate_dataloader(training_data, test_data, batch_size=64):
         break
     return train_dataloader, test_dataloader
 
-def run_SE():
+def run_SE(beta=0.1, lr=0.0005):
     train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, train_df['SE'].values),
                                                             CustomDataset(test_df['eps_array'].values, test_df['SE'].values),
                                                             batch_size=64)
     model = FC4SE().to(device)
-    loss_fn = nn.SmoothL1Loss(beta=0.1)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
+    loss_fn = nn.SmoothL1Loss(beta=beta)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     train_losses, test_losses = epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer)
-    evaluate_model(model, test_dataloader)
+    pearson_r = evaluate_model(model, test_dataloader)
+    return pearson_r
 
-def run_Q():
+def run_Q(beta=0.1, lr=0.0005):
     train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, np.log10(1/train_df['Q'].values)),
                                                             CustomDataset(test_df['eps_array'].values, np.log10(1/test_df['Q'].values)),
                                                             batch_size=64)
     model = FC4Q().to(device)
-    loss_fn = nn.SmoothL1Loss(beta=0.1)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
+    loss_fn = nn.SmoothL1Loss(beta=beta)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     train_losses, test_losses = epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer)
-    evaluate_model(model, test_dataloader)
-
+    pearson_r = evaluate_model(model, test_dataloader)
+    return pearson_r
 # %%
 run_SE()
