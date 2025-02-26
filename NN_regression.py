@@ -2,6 +2,7 @@
 '''加载数据'''
 import numpy as np
 import pandas as pd
+from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 import torch.cuda
 from torch import nn    #导入神经网络模块
@@ -159,45 +160,6 @@ class FC4Q(nn.Module):
         return x
 
 
-# training function
-def train(dataloader, model, loss_fn, optimizer):
-    num_batches = len(dataloader)
-    model.train()
-    train_loss = 0
-    for x, y in dataloader:
-        x, y = x.to(device), y.to(device)
-        optimizer.zero_grad()
-        pred = model(x)
-        loss = loss_fn(pred, y.unsqueeze(1))  # regression problem needs to adjust the label to ensure it is 1D
-        loss.backward()
-        optimizer.step()
-        train_loss += loss.item()
-    train_loss /= num_batches
-    print(f'Train Avg loss: {loss}')
-    return loss.item()
-
-# test function
-def test(dataloader, model, loss_fn):
-    num_batches = len(dataloader)
-    model.eval()
-    test_loss = 0
-    pred_list = []
-    y_list = []
-    with torch.no_grad():
-        for x, y in dataloader:
-            y_list += list(y.cpu().numpy())
-            x, y = x.to(device), y.to(device)
-            pred = model(x)
-            pred_list += list(pred.cpu().numpy())
-            test_loss += loss_fn(pred, y.unsqueeze(1)).item()
-        test_loss /= num_batches
-    print(f'Test Avg loss: {test_loss}')
-    # calculate scores
-    print(f'R^2: {r2_score(y_list, pred_list)}')
-    print(f'Explained Variance: {explained_variance_score(y_list, pred_list)}')
-    # plot_distribution(y_list, pred_list)
-    return test_loss
-
 def plot_learning_curve(train_losses, test_losses):
     import matplotlib.pyplot as plt
     num_cut = 0
@@ -209,7 +171,6 @@ def plot_learning_curve(train_losses, test_losses):
     ax.set_ylabel('Loss')
     plt.show()
 
-from scipy.stats import pearsonr
 def evaluate_model(model, dataloader):
     model.eval()
     pred_list = []
@@ -224,19 +185,11 @@ def evaluate_model(model, dataloader):
     y_list = np.array(y_list).flatten()
     plot_distribution(y_list, pred_list)
     plot_error_distribution(y_list, pred_list, cumulative=True)
+    r2 = r2_score(y_list, pred_list)
     pearson_r = pearsonr(y_list, pred_list)
+    print(f'R^2: {r2}')
     print(f'Pearson Correlation: {pearson_r}')
-    return pearson_r
-
-def epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer, epochs=100):
-    train_losses = []
-    test_losses = []
-    for epoch in range(epochs):
-        print(f'##### Epoch {epoch + 1}/{epochs} #####')
-        train_losses += [train(train_dataloader, model, loss_fn, optimizer)]
-        test_losses += [test(test_dataloader, model, loss_fn)]
-    plot_learning_curve(train_losses, test_losses)
-    return train_losses, 
+    return r2
 
 def generate_dataloader(training_data, test_data, batch_size=64):
     train_dataloader = DataLoader(training_data, batch_size=batch_size, drop_last=True)
@@ -247,26 +200,106 @@ def generate_dataloader(training_data, test_data, batch_size=64):
         break
     return train_dataloader, test_dataloader
 
-def run_SE(beta=0.1, lr=0.0005):
-    train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, train_df['SE'].values),
-                                                            CustomDataset(test_df['eps_array'].values, test_df['SE'].values),
-                                                            batch_size=64)
-    model = FC4SE().to(device)
-    loss_fn = nn.SmoothL1Loss(beta=beta)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    train_losses, test_losses = epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer)
-    pearson_r = evaluate_model(model, test_dataloader)
-    return pearson_r
-
-def run_Q(beta=0.1, lr=0.0005):
-    train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, np.log10(1/train_df['Q'].values)),
-                                                            CustomDataset(test_df['eps_array'].values, np.log10(1/test_df['Q'].values)),
-                                                            batch_size=64)
-    model = FC4Q().to(device)
-    loss_fn = nn.SmoothL1Loss(beta=beta)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    train_losses, test_losses = epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer)
-    pearson_r = evaluate_model(model, test_dataloader)
-    return pearson_r
 # %%
-run_SE()
+import optuna
+class Objective:
+    def __init__(self, func='SE'):
+        self.func = self._run_SE_ if func == 'SE' else self._run_Q_
+
+    def __call__(self, trial):
+        # Calculate an objective value by using the extra arguments.
+        beta = trial.suggest_float('beta', 0.01, 1.0)
+        lr = trial.suggest_float('lr', 0.0001, 0.01)
+        print(f'trial: beta={beta}, lr={lr}')
+        result = self.func(beta, lr, trial)
+        print('result:', result)
+        return 1 - result
+    
+    def run(self, beta=0.1, lr=0.0005, trial=None):
+        return self.func(beta, lr, trial)
+    
+    def _run_SE_(self, beta=0.1, lr=0.0005, trial=None):
+        train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, train_df['SE'].values),
+                                                                CustomDataset(test_df['eps_array'].values, test_df['SE'].values),
+                                                                batch_size=64)
+        model = FC4SE().to(device)
+        r2 = self._run_learn_(model, train_dataloader, test_dataloader, beta, lr, trial=trial)
+        return r2
+    
+    def _run_Q_(self, beta=0.1, lr=0.0005, trial=None):
+        train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, np.log10(1/train_df['Q'].values)),
+                                                                CustomDataset(test_df['eps_array'].values, np.log10(1/test_df['Q'].values)),
+                                                                batch_size=64)
+        model = FC4Q().to(device)
+        r2 = self._run_learn_(model, train_dataloader, test_dataloader, beta, lr, trial=trial)
+        return r2
+    
+    def _run_learn_(self, model, train_dataloader, test_dataloader, beta, lr, trial=None):
+        print(model)
+        loss_fn = nn.SmoothL1Loss(beta=beta)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        train_losses, test_losses = self._epoch_run_(model, train_dataloader, test_dataloader, loss_fn, optimizer, trial=trial)
+        r2 = evaluate_model(model, test_dataloader)
+        return r2
+        
+    def _epoch_run_(self, model, train_dataloader, test_dataloader, loss_fn, optimizer, epochs=100, trial=None):
+        train_losses = []
+        test_losses = []
+        for epoch in range(epochs):
+            print(f'##### Epoch {epoch + 1}/{epochs} #####')
+            train_losses += [self._train_(train_dataloader, model, loss_fn, optimizer)]
+            test_losses += [self._test_(test_dataloader, model, loss_fn, trial, epoch)]
+        plot_learning_curve(train_losses, test_losses)
+        return train_losses, test_losses
+    
+    def _train_(self, dataloader, model, loss_fn, optimizer):
+        num_batches = len(dataloader)
+        model.train()
+        train_loss = 0
+        for x, y in dataloader:
+            x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
+            pred = model(x)
+            loss = loss_fn(pred, y.unsqueeze(1))
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        train_loss /= num_batches
+        print(f'Train Avg loss: {loss}')
+        return loss.item
+    
+    def _test_(self, dataloader, model, loss_fn, trial=None, epoch=None):
+        num_batches = len(dataloader)
+        model.eval()
+        test_loss = 0
+        pred_list = []
+        y_list = []
+        with torch.no_grad():
+            for x, y in dataloader:
+                y_list += list(y.cpu().numpy())
+                x, y = x.to(device), y.to(device)
+                pred = model(x)
+                pred_list += list(pred.cpu().numpy())
+                test_loss += loss_fn(pred, y.unsqueeze(1)).item()
+            test_loss /= num_batches
+        print(f'Test Avg loss: {test_loss}')
+        pred_list = np.array(pred_list).flatten()
+        y_list = np.array(y_list).flatten()
+        r2 = r2_score(y_list, pred_list)
+        pearson_r = pearsonr(y_list, pred_list)
+        print(f'R^2: {r2}')
+        print(f'Pearson Correlation: {pearson_r}')
+        if trial is not None:
+            trial.report(r2, epoch)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+        return test_loss
+
+# If you just want to run the training process, you can use the following code.
+# r2 = Objective('SE').run() # or Objective('Q').run()
+# print(f'R^2: {r2}')
+
+# Execute an optimization by using an `Objective` instance.
+sampler = optuna.samplers.TPESampler(seed=seed_number)
+study = optuna.create_study(sampler=sampler, pruner=optuna.pruners.MedianPruner(), direction='maximize')
+study.optimize(Objective('SE'), n_trials=100, n_jobs=1)
