@@ -239,10 +239,10 @@ def epoch_run(model, train_dataloader, test_dataloader, loss_fn, optimizer, epoc
 def generate_dataloader(training_data, test_data, batch_size=64):
     train_dataloader = DataLoader(training_data, batch_size=batch_size, drop_last=True)
     test_dataloader = DataLoader(test_data, batch_size=batch_size)
-#    for X,Y in train_dataloader:  # X is the input, Y is the label
-#        print(f'Shape of X:{X.shape} {X.dtype}')
-#        print(f'Shape of Y:{Y.shape} {Y.dtype}')
-#        break
+    for X,Y in train_dataloader:  # X is the input, Y is the label
+        print(f'Shape of X:{X.shape} {X.dtype}')
+        print(f'Shape of Y:{Y.shape} {Y.dtype}')
+        break
     return train_dataloader, test_dataloader
 
 def run_SE():
