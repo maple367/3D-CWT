@@ -50,7 +50,7 @@ def plot_confusion_matrix(y_true, y_pred, num_classes):
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Confusion Matrix')
-    plt.show()
+    plt.show(block=False)
 
 def plot_distribution(y_true, y_pred, kde=False):
     y_true = np.array(y_true).flatten()
@@ -65,7 +65,8 @@ def plot_distribution(y_true, y_pred, kde=False):
     plt.ylabel('Predicted Values')
     plt.title('True vs Predicted Values')
     plt.legend()
-    plt.show()
+    plt.show(block=False)
+    plt.close()
 
 def plot_error_distribution(y_true, y_pred, bins=50, density=True, cumulative=True, alpha=0.6, color='g', **kwargs):
     error = np.abs(np.array(y_true) - np.array(y_pred))
@@ -74,7 +75,8 @@ def plot_error_distribution(y_true, y_pred, bins=50, density=True, cumulative=Tr
     plt.xlabel('Error')
     plt.ylabel('Cumulative Frequency')
     plt.title('Error Distribution')
-    plt.show()
+    plt.show(block=False)
+    plt.close()
 
 
 class CustomDataset(Dataset):
@@ -169,7 +171,8 @@ def plot_learning_curve(train_losses, test_losses):
     ax.legend()
     ax.set_xlabel('Epoch')
     ax.set_ylabel('Loss')
-    plt.show()
+    plt.show(block=False)
+    plt.close()
 
 def evaluate_model(model, dataloader):
     model.eval()
@@ -208,12 +211,12 @@ class Objective:
 
     def __call__(self, trial):
         # Calculate an objective value by using the extra arguments.
-        beta = trial.suggest_float('beta', 0.01, 1.0)
-        lr = trial.suggest_float('lr', 0.0001, 0.01)
+        beta = trial.suggest_float('beta', 0.01, 0.5)
+        lr = trial.suggest_float('lr', 0.0001, 0.002)
         print(f'trial: beta={beta}, lr={lr}')
         result = self.func(beta, lr, trial)
         print('result:', result)
-        return 1 - result
+        return result
     
     def run(self, beta=0.1, lr=0.0005, trial=None):
         return self.func(beta, lr, trial)
@@ -227,8 +230,8 @@ class Objective:
         return r2
     
     def _run_Q_(self, beta=0.1, lr=0.0005, trial=None):
-        train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, np.log10(1/train_df['Q'].values)),
-                                                                CustomDataset(test_df['eps_array'].values, np.log10(1/test_df['Q'].values)),
+        train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, np.log10(train_df['Q'].values)),
+                                                                CustomDataset(test_df['eps_array'].values, np.log10(test_df['Q'].values)),
                                                                 batch_size=64)
         model = FC4Q().to(device)
         r2 = self._run_learn_(model, train_dataloader, test_dataloader, beta, lr, trial=trial)
@@ -236,9 +239,11 @@ class Objective:
     
     def _run_learn_(self, model, train_dataloader, test_dataloader, beta, lr, trial=None):
         print(model)
+        self.model = model
         loss_fn = nn.SmoothL1Loss(beta=beta)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         train_losses, test_losses = self._epoch_run_(model, train_dataloader, test_dataloader, loss_fn, optimizer, trial=trial)
+        plot_learning_curve(train_losses, test_losses)
         r2 = evaluate_model(model, test_dataloader)
         return r2
         
@@ -249,7 +254,6 @@ class Objective:
             print(f'##### Epoch {epoch + 1}/{epochs} #####')
             train_losses += [self._train_(train_dataloader, model, loss_fn, optimizer)]
             test_losses += [self._test_(test_dataloader, model, loss_fn, trial, epoch)]
-        plot_learning_curve(train_losses, test_losses)
         return train_losses, test_losses
     
     def _train_(self, dataloader, model, loss_fn, optimizer):
@@ -265,8 +269,8 @@ class Objective:
             optimizer.step()
             train_loss += loss.item()
         train_loss /= num_batches
-        print(f'Train Avg loss: {loss}')
-        return loss.item
+        print(f'Train Avg loss: {train_loss}')
+        return train_loss
     
     def _test_(self, dataloader, model, loss_fn, trial=None, epoch=None):
         num_batches = len(dataloader)
@@ -293,6 +297,8 @@ class Objective:
             trial.report(r2, epoch)
             if trial.should_prune():
                 raise optuna.TrialPruned()
+            if r2 < -1 and epoch > 20:
+                raise optuna.TrialPruned()
         return test_loss
 
 # If you just want to run the training process, you can use the following code.
@@ -302,4 +308,17 @@ class Objective:
 # Execute an optimization by using an `Objective` instance.
 sampler = optuna.samplers.TPESampler(seed=seed_number)
 study = optuna.create_study(sampler=sampler, pruner=optuna.pruners.MedianPruner(), direction='maximize')
-study.optimize(Objective('SE'), n_trials=100, n_jobs=1)
+'''
+SE
+best trial: beta=0.20792354901416032, lr=0.00013650540364085198
+R^2: 0.5821914076805115
+Pearson Correlation: PearsonRResult(statistic=0.7728493021769817, pvalue=0.0)
+'''
+objective = Objective('SE')
+'''
+trial: beta=0.16523405042720546, lr=0.00012158075688545713
+R^2: 0.7434459924697876
+Pearson Correlation: PearsonRResult(statistic=0.8680221987384458, pvalue=0.0)
+'''
+# objective = Objective('Q')
+study.optimize(objective, n_trials=500, n_jobs=1)
