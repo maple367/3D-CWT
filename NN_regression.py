@@ -1,9 +1,12 @@
 # %%
 '''加载数据'''
+import time
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
+rcParams['font.family'] = 'Times New Roman'
 import torch.cuda
 from torch import nn    #导入神经网络模块
 # gpu or cpu
@@ -35,7 +38,7 @@ all_data = np.load('mesh_data_set_3hole_lessscale.npz',allow_pickle=True)['arr_0
 df = pd.DataFrame(all_data, columns=['eps_array', 'Q', 'SE'])
 
 df = df[(df['SE'] <= 1.0) & (df['SE'] >= 0.0) & (df['Q'] >= 0.0)]
-df['eps_array'] = df['eps_array'].apply(lambda x: ((np.fft.fft2(x)/1024).astype(np.complex64)))
+df['eps_array'] = df['eps_array'].apply(lambda x: ((np.fft.fftshift(np.fft.fft2(x)/1024)).astype(np.complex64)))
 df['SE'] = df['SE'].astype(np.float32)
 df['Q'] = df['Q'].astype(np.float32)
 
@@ -43,16 +46,11 @@ train_df = df.sample(frac=0.95, random_state=seed_number)
 test_df = df.drop(train_df.index)
 # %%
 # visualization
-def plot_confusion_matrix(y_true, y_pred, num_classes):
-    cm = confusion_matrix(y_true, y_pred, labels=range(num_classes))
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=range(num_classes), yticklabels=range(num_classes))
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
-    plt.show(block=False)
+import os
+if not os.path.exists('./nn_opt'):
+    os.makedirs('./nn_opt')
 
-def plot_distribution(y_true, y_pred, kde=False):
+def plot_distribution(y_true, y_pred, kde=False, prefix=''):
     y_true = np.array(y_true).flatten()
     y_pred = np.array(y_pred).flatten()
     plt.figure(figsize=(8, 6))
@@ -65,19 +63,29 @@ def plot_distribution(y_true, y_pred, kde=False):
     plt.ylabel('Predicted Values')
     plt.title('True vs Predicted Values')
     plt.legend()
-    plt.show(block=False)
-    plt.close()
+    plt.savefig(f'./nn_opt/{prefix}_true_vs_pred.png')
+    plt.clf()
 
-def plot_error_distribution(y_true, y_pred, bins=50, density=True, cumulative=True, alpha=0.6, color='g', **kwargs):
+def plot_error_distribution(y_true, y_pred, bins=50, density=True, cumulative=True, alpha=0.6, color='g', prefix='', **kwargs):
     error = np.abs(np.array(y_true) - np.array(y_pred))
     plt.figure(figsize=(8, 6))
     plt.hist(error, bins=bins, density=density, cumulative=cumulative, alpha=alpha, color=color, **kwargs)
     plt.xlabel('Error')
     plt.ylabel('Cumulative Frequency')
     plt.title('Error Distribution')
-    plt.show(block=False)
-    plt.close()
+    plt.savefig(f'./nn_opt/{prefix}_error_distribution.png')
+    plt.clf()
 
+def plot_learning_curve(train_losses, test_losses, prefix=''):
+    num_cut = 0
+    fig, ax = plt.subplots()
+    ax.plot(train_losses[num_cut:], label='train')
+    ax.plot(test_losses[num_cut:], label='test', color='orange')
+    ax.legend()
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('Loss')
+    plt.savefig(f'./nn_opt/{prefix}_learning_curve.png')
+    plt.clf()
 
 class CustomDataset(Dataset):
     def __init__(self, data, labels):
@@ -86,8 +94,27 @@ class CustomDataset(Dataset):
         :param data: input data (numpy or other format)
         :param labels: label data
         """
-        self.data = data
+        self._data_ = data
         self.labels = labels
+        self._process_data()
+        
+    def _process_data(self):
+        self.data = []
+        for data in self._data_:
+            flited = []
+            for i in range(32):
+                for j in range(32):
+                    if i < 16:
+                        if j >= 32 - i:
+                            flited.append(data[i][j])
+                    else:
+                        if j >= 31 - i:
+                            flited.append(data[i][j])
+            data = np.array(flited)
+            real_part = np.real(data)
+            imaginary_part = np.imag(data)
+            data = np.stack((real_part, imaginary_part), axis=-1)
+            self.data.append(data)
     
     def __len__(self):
         """
@@ -100,33 +127,25 @@ class CustomDataset(Dataset):
         return the sample and label at the given index
         :param idx: index of the sample
         """
-
         sample = self.data[idx]
-        real_part = np.real(sample)
-        imaginary_part = np.imag(sample)
-        sample = np.stack((real_part, imaginary_part), axis=-1)
         label = self.labels[idx]
-        
         return sample, label
-
 
 # NN model
 class FC4SE(nn.Module):
     def __init__(self):
         super(FC4SE, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(2 * 32 * 32, 2048)
-        self.fc2 = nn.Linear(2048, 512)
+        self.fc1 = nn.Linear(32 * 32, 1024)
+        self.fc2 = nn.Linear(1024, 512)
         self.fc3 = nn.Linear(512, 256)
         self.fc4 = nn.Linear(256, 64)
         self.fc_out = nn.Linear(64, 1)
-        # self.dropout = nn.Dropout(0.2)
-        # self.activation = nn.Softplus()
         self.activation = nn.PReLU()
-        self.pos_embedding = nn.Parameter(torch.randn(1, 32, 32, 1))
+        self.pos_embedding = nn.Parameter(torch.randn(1, 512, 1))
 
     def forward(self, x):
-        x = x + self.pos_embedding.repeat(1,1,1,2)
+        x = x + self.pos_embedding.repeat(1,1,2)
         x = self.flatten(x)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
@@ -141,18 +160,16 @@ class FC4Q(nn.Module):
     def __init__(self):
         super(FC4Q, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(2 * 32 * 32, 2048)
-        self.fc2 = nn.Linear(2048, 512)
+        self.fc1 = nn.Linear(32 * 32, 1024)
+        self.fc2 = nn.Linear(1024, 512)
         self.fc3 = nn.Linear(512, 256)
         self.fc4 = nn.Linear(256, 64)
         self.fc_out = nn.Linear(64, 1)
-        # self.dropout = nn.Dropout(0.2)
-        # self.activation = nn.Softplus()
         self.activation = nn.PReLU()
-        self.pos_embedding = nn.Parameter(torch.randn(1, 32, 32, 1))
+        self.pos_embedding = nn.Parameter(torch.randn(1, 512, 1))
 
     def forward(self, x):
-        x = x + self.pos_embedding.repeat(1,1,1,2)
+        x = x + self.pos_embedding.repeat(1,1,2)
         x = self.flatten(x)
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
@@ -162,19 +179,7 @@ class FC4Q(nn.Module):
         return x
 
 
-def plot_learning_curve(train_losses, test_losses):
-    import matplotlib.pyplot as plt
-    num_cut = 0
-    fig, ax = plt.subplots()
-    ax.plot(train_losses[num_cut:], label='train')
-    ax.plot(test_losses[num_cut:], label='test', color='orange')
-    ax.legend()
-    ax.set_xlabel('Epoch')
-    ax.set_ylabel('Loss')
-    plt.show(block=False)
-    plt.close()
-
-def evaluate_model(model, dataloader):
+def evaluate_model(model, dataloader, mark=''):
     model.eval()
     pred_list = []
     y_list = []
@@ -186,8 +191,8 @@ def evaluate_model(model, dataloader):
             pred_list += list(pred.cpu().numpy())
     pred_list = np.array(pred_list).flatten()
     y_list = np.array(y_list).flatten()
-    plot_distribution(y_list, pred_list)
-    plot_error_distribution(y_list, pred_list, cumulative=True)
+    plot_distribution(y_list, pred_list, prefix=mark)
+    plot_error_distribution(y_list, pred_list, cumulative=True, prefix=mark)
     r2 = r2_score(y_list, pred_list)
     pearson_r = pearsonr(y_list, pred_list)
     print(f'R^2: {r2}')
@@ -207,12 +212,24 @@ def generate_dataloader(training_data, test_data, batch_size=64):
 import optuna
 class Objective:
     def __init__(self, func='SE'):
-        self.func = self._run_SE_ if func == 'SE' else self._run_Q_
+        if func == 'SE':
+            self.func = self._run_SE_
+            self.train_data = CustomDataset(train_df['eps_array'].values, train_df['SE'].values)
+            self.test_data = CustomDataset(test_df['eps_array'].values, test_df['SE'].values)
+        elif func == 'Q':
+            self.func = self._run_Q_
+            self.train_data = CustomDataset(train_df['eps_array'].values, np.log10(train_df['Q'].values))
+            self.test_data = CustomDataset(test_df['eps_array'].values, np.log10(test_df['Q'].values))
+        else:
+            raise ValueError('Invalid function.')
+        self.train_dataloader, self.test_dataloader = generate_dataloader(self.train_data,
+                                                                          self.test_data,
+                                                                          batch_size=64)
 
     def __call__(self, trial):
         # Calculate an objective value by using the extra arguments.
-        beta = trial.suggest_float('beta', 0.01, 0.5)
-        lr = trial.suggest_float('lr', 0.0001, 0.002)
+        beta = trial.suggest_float('beta', 0.01, 0.2)
+        lr = trial.suggest_float('lr', 0.00001, 0.001)
         print(f'trial: beta={beta}, lr={lr}')
         result = self.func(beta, lr, trial)
         print('result:', result)
@@ -222,29 +239,25 @@ class Objective:
         return self.func(beta, lr, trial)
     
     def _run_SE_(self, beta=0.1, lr=0.0005, trial=None):
-        train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, train_df['SE'].values),
-                                                                CustomDataset(test_df['eps_array'].values, test_df['SE'].values),
-                                                                batch_size=64)
+        c_time = time.strftime('%y-%m-%d_%H-%M-%S',time.localtime(time.time()))
         model = FC4SE().to(device)
-        r2 = self._run_learn_(model, train_dataloader, test_dataloader, beta, lr, trial=trial)
+        r2 = self._run_learn_(model, self.train_dataloader, self.test_dataloader, beta, lr, trial=trial, mark=f'SE_{c_time}')
         return r2
     
     def _run_Q_(self, beta=0.1, lr=0.0005, trial=None):
-        train_dataloader, test_dataloader = generate_dataloader(CustomDataset(train_df['eps_array'].values, np.log10(train_df['Q'].values)),
-                                                                CustomDataset(test_df['eps_array'].values, np.log10(test_df['Q'].values)),
-                                                                batch_size=64)
+        c_time = time.strftime('%y-%m-%d_%H-%M-%S',time.localtime(time.time()))
         model = FC4Q().to(device)
-        r2 = self._run_learn_(model, train_dataloader, test_dataloader, beta, lr, trial=trial)
+        r2 = self._run_learn_(model, self.train_dataloader, self.test_dataloader, beta, lr, trial=trial, mark='Q_{c_time}')
         return r2
     
-    def _run_learn_(self, model, train_dataloader, test_dataloader, beta, lr, trial=None):
+    def _run_learn_(self, model, train_dataloader, test_dataloader, beta, lr, trial=None, mark=''):
         print(model)
         self.model = model
         loss_fn = nn.SmoothL1Loss(beta=beta)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         train_losses, test_losses = self._epoch_run_(model, train_dataloader, test_dataloader, loss_fn, optimizer, trial=trial)
-        plot_learning_curve(train_losses, test_losses)
-        r2 = evaluate_model(model, test_dataloader)
+        plot_learning_curve(train_losses, test_losses, prefix=mark)
+        r2 = evaluate_model(model, test_dataloader, mark=mark)
         return r2
         
     def _epoch_run_(self, model, train_dataloader, test_dataloader, loss_fn, optimizer, epochs=100, trial=None):
@@ -294,9 +307,6 @@ class Objective:
         print(f'R^2: {r2}')
         print(f'Pearson Correlation: {pearson_r}')
         if trial is not None:
-            trial.report(r2, epoch)
-            if trial.should_prune():
-                raise optuna.TrialPruned()
             if r2 < -1 and epoch > 20:
                 raise optuna.TrialPruned()
         return test_loss
@@ -307,18 +317,23 @@ class Objective:
 
 # Execute an optimization by using an `Objective` instance.
 sampler = optuna.samplers.TPESampler(seed=seed_number)
-study = optuna.create_study(sampler=sampler, pruner=optuna.pruners.MedianPruner(), direction='maximize')
+study = optuna.create_study(sampler=sampler, direction='maximize')
+objective = Objective('SE')
+study.optimize(objective, n_trials=500, n_jobs=1)
 '''
 SE
-best trial: beta=0.20792354901416032, lr=0.00013650540364085198
-R^2: 0.5821914076805115
-Pearson Correlation: PearsonRResult(statistic=0.7728493021769817, pvalue=0.0)
+trial: beta=0.09178184385648053, lr=2.1059675996980374e-05
+R^2: 0.5606043934822083
+Pearson Correlation: PearsonRResult(statistic=0.7690863364241467, pvalue=0.0)
 '''
-objective = Objective('SE')
+# objective_SE = Objective('SE')
+# objective_SE.run(beta=0.20792354901416032, lr=0.00013650540364085198)
+# torch.save(objective_SE.model, 'SE_model.pth')
 '''
-trial: beta=0.16523405042720546, lr=0.00012158075688545713
-R^2: 0.7434459924697876
-Pearson Correlation: PearsonRResult(statistic=0.8680221987384458, pvalue=0.0)
+trial: beta=0.10824711361774697, lr=6.526571864860588e-05
+R^2: 0.7575156092643738
+Pearson Correlation: PearsonRResult(statistic=0.8733898155500965, pvalue=0.0)
 '''
-# objective = Objective('Q')
-study.optimize(objective, n_trials=500, n_jobs=1)
+# objective_Q = Objective('Q')
+# objective_Q.run(beta=0.16523405042720546, lr=0.00012158075688545713)
+# torch.save(objective_Q.model, 'Q_model.pth')
