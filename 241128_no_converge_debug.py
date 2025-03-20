@@ -1,4 +1,4 @@
-# %%
+
 from model import AlxGaAs, rect_lattice, model_parameters, Model, CWT_solver, SGM_solver, SEMI_solver, user_defined_material
 import numpy as np
 
