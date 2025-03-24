@@ -312,7 +312,7 @@ if __name__ == '__main__':
         eps_array = eps_array.mean(axis=(1,3))
         return eps_array
 
-    def objective_function(SEE, Q, lambda_penalty=5e-5):
+    def objective_function(SEE, Q, Target=1.0, lambda_penalty=5e-5):
         """
         Objective function for optimizing photonic crystal design.
         
@@ -325,12 +325,12 @@ if __name__ == '__main__':
             float: Objective function value (to be minimized).
         """
         penalty = max(0, 1e4 - Q)  # Apply penalty if Q < 1e4
-        loss = -SEE + lambda_penalty * penalty
+        loss = abs(Target-SEE) + lambda_penalty * penalty
         return loss
 
     def opt_fun(x):
         SE, Q = run_prediction(x[0:3], x[3:6], x[6:9], x[9:12], x[12:15], x[15])
-        return objective_function(SE, Q)
+        return objective_function(SE, Q, Target=1.0)
 
 
     # i_iter = 0
@@ -356,7 +356,7 @@ if __name__ == '__main__':
     bounds += [(0.0, 2*np.pi)]*3
     bounds += [(0.25, 0.35)]
     time_start = time.time()
-    direct_res = direct(opt_fun, bounds, maxiter=1000, vol_tol=1e-48)
+    direct_res = direct(opt_fun, bounds, maxiter=1000, vol_tol=1e-64)
     time_end = time.time()
     print('time cost', time_end - time_start, 's')
     print(direct_res)
@@ -368,4 +368,10 @@ if __name__ == '__main__':
     # validation_res = run_validation(*params)
     # print(validation_res)
 
-# %%
+    # %%
+    plt.imshow(np.real(preview(*params)), cmap='Greys')
+    plt.colorbar()
+    plt.xticks([])
+    plt.yticks([])
+    # plt.savefig('preview.png')
+    plt.show()
