@@ -56,44 +56,55 @@ def generate_sample_array(x_size, y_size, num_holes, x0_s, y0_s, sigma_x_s, sigm
     return z
 
 if __name__ == '__main__':
-    import mph
-    client = mph.start(cores=8)
+    #import mph
+    #client = mph.start(cores=8)
     GaAs_eps = AlxGaAs(0).epsilon
-    sgm_solver = SGM_solver(client)
-    import csv
-    import os
-    save_path = 'mesh_data_set_3hole_lessscale.csv'
-    header = ['Q', 'SE', 'uuid', 't11', 'time_cost']
+    #sgm_solver = SGM_solver(client)
+    #import csv
+    #import os
+    #save_path = 'mesh_data_set_3hole_lessscale.csv'
+    #header = ['Q', 'SE', 'uuid', 't11', 'time_cost']
     
-    if not os.path.exists(save_path):
-        with open(save_path, mode='a', newline='',encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-
+    #if not os.path.exists(save_path):
+    #    with open(save_path, mode='a', newline='',encoding='utf-8') as f:
+    #        writer = csv.writer(f)
+    #        writer.writerow(header)
     i_iter = 0
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(10, 10, figsize=(10, 10))
+    axs = axs.flatten()
     while True:
         num_holes = 3
-        x0_s = np.random.rand(num_holes)*0.2+np.array([0.15, 0.15, 0.65])
-        y0_s = np.random.rand(num_holes)*0.2+np.array([0.15, 0.65, 0.65])
+        x0_s = np.random.uniform(0.2,0.8,num_holes)
+        y0_s = np.random.uniform(0.2,0.8,num_holes)
         sigma_x_s = np.random.rand(num_holes)*0.1+0.05
         sigma_y_s = np.random.rand(num_holes)*0.1+0.05
         theta_s = np.random.rand(num_holes)*2*np.pi
+        XX,YY = np.meshgrid([-1,0,1],[-1,0,1])
+        x0_s = x0_s.repeat(9) + np.array(XX.flatten().tolist()*num_holes)
+        y0_s = y0_s.repeat(9) + np.array(YY.flatten().tolist()*num_holes)
+        num_holes *= 9
+        sigma_x_s = sigma_x_s.repeat(9)
+        sigma_y_s = sigma_y_s.repeat(9)
+        theta_s = theta_s.repeat(9)
         eps_sample = generate_sample_array(32*10, 32*10, num_holes, x0_s, y0_s, sigma_x_s, sigma_y_s, theta_s)
         FF = np.random.rand()*0.1+0.25
         eps_thresh = np.percentile(eps_sample, (1-FF)*100)
         eps_array = np.where(eps_sample<eps_thresh, GaAs_eps, 1.0)
         eps_array = eps_array.reshape(32,10,32,10)
         eps_array = eps_array.mean(axis=(1,3))
-        #import matplotlib.pyplot as plt
-        #plt.imshow(eps_array.real)
-        #plt.colorbar()
-        #plt.show()
-        res = run_simu(eps_array, sgm_solver)
-        with open(save_path, mode='a', newline='',encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow([res[key] for key in header])
+        axs[i_iter].imshow(eps_array.real)
+        axs[i_iter].set_axis_off()
         i_iter += 1
-        print(f'{i_iter}: {res}')
-        if os.path.exists('stop'): # if the file 'stop' exists, the program will stop
+        if i_iter >= 100:
             break
+        #res = run_simu(eps_array, sgm_solver)
+        #with open(save_path, mode='a', newline='',encoding='utf-8') as f:
+        #    writer = csv.writer(f)
+        #    writer.writerow([res[key] for key in header])
+        #i_iter += 1
+        #print(f'{i_iter}: {res}')
+        #if os.path.exists('stop'): # if the file 'stop' exists, the program will stop
+        #    break
+    plt.show()
     

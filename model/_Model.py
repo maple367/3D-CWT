@@ -509,13 +509,15 @@ class Model():
         return self.eps_profile(x, y, z)
     
     def prepare_calculator(self, fast_mode):
-        from calculator import xi_calculator, xi_calculator_DFT
+        from calculator import xi_calculator, xi_calculator_DFT, Array_calculator
         # Detect the boundary of the eps_userdefine. Assuming photonic crystal layers are continuous.
+        self.phc_layer_index = []
         self.phc_boundary_l = []
         self.phc_boundary_r = []
         self.xi_calculator_collect = []
         for i in range(len(self.paras.epsilons)):
             if isinstance(self.paras.epsilons[i], eps_userdefine):
+                self.phc_layer_index.append(i)
                 self.phc_boundary_l.append(self.z_boundary[i])
                 self.phc_boundary_r.append(self.z_boundary[i+1])
                 if fast_mode: self.xi_calculator_collect.append(xi_calculator_DFT(self.paras.epsilons[i], f'xi((m,n))[{i}]', self.pathname_suffix, lock=self.lock))
@@ -531,6 +533,7 @@ class Model():
         self._fc_coupling_n_ = self.integrated_func_1d(lambda z: self.e_normlized_intensity(z)*self.doping(z), self.z_boundary[self.__no_doping_max__+1], self.z_boundary[-1])
         self.fc_absorption = self._fc_coupling_p_*7e-10+self._fc_coupling_n_*3e-10
         self.kappa_v = -(self.k0**4)/(2*self.beta0)*np.sum([self.integrated_func_2d(lambda z,z_prime: self.Green_func_fundamental(z,z_prime)*self.e_normlized_amplitude(z_prime)*np.conj(self.e_normlized_amplitude(z)), bd[0], bd[1], bd[2], bd[3]) for bd in self._2d_phc_integral_region_])
+        self.kappa_p = Array_calculator(self._green_function_correction_, f'kappa_p', self.pathname_suffix, lock=self.lock)
 
     def _generate_integral_region_(self):
         self._1d_phc_integral_region_ = []
@@ -540,6 +543,29 @@ class Model():
         for i in range(len(self.phc_boundary_l)):
             for j in range(len(self.phc_boundary_l)):
                 self._2d_phc_integral_region_.append([self.phc_boundary_l[i], self.phc_boundary_r[i], self.phc_boundary_l[j], self.phc_boundary_r[j]])
+
+    def _green_function_correction_(self, order=(0,0)):
+        # Calculate the Green function correction coefficient
+        phc_layer_index = np.array(self.phc_layer_index)
+        if self.paras.surface_grating:
+            phc_layer_index += 1
+        T_mat_s = []
+        for i in range(len(self.tmm._layer_thicknesses_)):
+            t_i = self.tmm._layer_thicknesses_[i]
+            z_i = self.tmm._z_boundary_[i]+self.tmm._layer_thicknesses_[i]/2
+            z_i_1 = self.tmm._z_boundary_[i+1]+self.tmm._layer_thicknesses_[i+1]/2
+            beta_z_i = self.beta_z_func_higher_order(z_i, order)
+            beta_z_i_1 = self.beta_z_func_higher_order(z_i_1, order)
+            T_mat = 0.5*np.array([[(1+beta_z_i_1/beta_z_i)*np.exp(1j*beta_z_i*t_i), (1-beta_z_i_1/beta_z_i)*np.exp(1j*beta_z_i*t_i)],
+                                  [(1-beta_z_i_1/beta_z_i)*np.exp(-1j*beta_z_i*t_i), (1+beta_z_i_1/beta_z_i)*np.exp(-1j*beta_z_i*t_i)]])
+            T_mat_s.append(T_mat)
+        T_r = T_mat_s[phc_layer_index[-1]+1:]
+        T_r_total = self.tmm._matrix_multiply(T_r)
+        T_l = T_mat_s[:phc_layer_index[0]]
+        T_l_total = self.tmm._matrix_multiply(T_l)
+        kappa_p1 = T_r_total[0,1]/T_r_total[1,1]
+        kappa_p2 = -T_l_total[1,1]/T_l_total[1,0]
+        return kappa_p1, kappa_p2
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
