@@ -565,18 +565,25 @@ class Model():
         T_l_total = self.tmm._matrix_multiply(T_l)
         kappa_p1 = T_r_total[0,1]/T_r_total[1,1]
         kappa_p2 = -T_l_total[1,1]/T_l_total[1,0]
-        return kappa_p1, kappa_p2
+        A0_coeff = (1+kappa_p2)/(1-kappa_p1*kappa_p2)
+        B0_coeff = kappa_p1*(1+kappa_p2)/(1-kappa_p1*kappa_p2)
+        C0_coeff = kappa_p2*(1+kappa_p1)/(1-kappa_p1*kappa_p2)
+        D0_coeff = (1+kappa_p1)/(1-kappa_p1*kappa_p2)
+        return A0_coeff, B0_coeff, C0_coeff, D0_coeff
 
     def Green_func_fundamental(self, z, z_prime):
         # Approximatly Green function
-        return -1j/(2*self.beta_z_func_fundamental(z))*np.exp(-1j*self.beta_z_func_fundamental(z)*np.abs(z-z_prime))
-    
-    def beta_z_func_fundamental(self, z):
-        return self.k0*np.sqrt(self.__eps_profile_z(z))
+        return self.Green_func_higher_order(z, z_prime, (0,0))
     
     def Green_func_higher_order(self, z, z_prime, order):
         # Approximatly Green function of higher order
-        return 1/(2*self.beta_z_func_higher_order(z, order))*np.exp(-self.beta_z_func_higher_order(z, order)*np.abs(z-z_prime))
+        A0, B0, C0, D0 = self.kappa_p(order)
+        beta_z = self.beta_z_func_higher_order(z, order)
+        z_distance = z-z_prime
+        if z_distance >= 0:
+            return -1j/(2*beta_z)*(A0*np.exp(-1j*beta_z*z_distance) + B0*np.exp(1j*beta_z*z_distance))
+        else:
+            return -1j/(2*beta_z)*(C0*np.exp(-1j*beta_z*z_distance) + D0*np.exp(1j*beta_z*z_distance))
     
     def beta_z_func_higher_order(self, z, order):
         m, n = order
