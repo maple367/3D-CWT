@@ -21,6 +21,8 @@ conda env create -f environment.yml
 - [ ] Pure python implementation
 
 # Release Notes
+## Version 1.3.0
+ - Use high accuracy Green's function.
 ## Version 1.2.0
  - Consider the symmetry of the fourier coefficients, so that the calculation of the fourier coefficients is faster.
 ## Version 1.0.0
