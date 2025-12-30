@@ -70,7 +70,7 @@ In BibTeX format:
 }
 ```
 or in following IEEE format:  
-[1] H. Huang, C. Yang, H. Li, and Z. Zhang, ‘Unveiling the potential of photonic crystal surface emitting lasers: a concise review’, Semicond. Sci. Technol., vol. 40, no. 4, p. 43001, Apr. 2025, doi: 10.1088/1361-6641/adb7fd.
+[1] H. Huang, C. Yang, H. Li, and Z. Zhang, ‘Unveiling the potential of photonic crystal surface emitting lasers: a concise review’, Semicond. Sci. Technol., vol. 40, no. 4, p. 43001, Apr. 2025, doi: 10.1088/1361-6641/adb7fd.  
 [2] H. Huang, Z. Xu, Q. Xin, and Z. Zhang, ‘Towards efficient PCSEL design: a fully AI-driven approach’, 2025. doi: 10.48550/ARXIV.2503.11022.
 
 
