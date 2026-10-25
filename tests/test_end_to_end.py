@@ -18,6 +18,8 @@ def test_cli_export(tmp_path):
     assert proc.returncode==0,proc.stderr
     summary=json.loads((out/'summary.json').read_text())
     assert summary['status']=='converged'
+    from importlib.metadata import version
+    assert summary['environment']['cwt3d'] == version('cwt3d')
     assert summary['solver']['residual_tolerance']==1e-9
     assert summary['solver']['requested']==3
     assert len(summary['modes'])==3

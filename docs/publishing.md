@@ -38,10 +38,10 @@ This is a build check, not proof that PyPI authorization has been configured.
 ## Publish a version
 
 1. Set `[project].version` in `pyproject.toml` to the intended, unused PyPI
-   version and commit it to `latest`. The initial package version is `0.1.0`;
+   version and commit it to `latest`. The first stable package version is `1.0.0`;
    historical application release numbers are separate.
 2. Create a GitHub Release with the exact tag `v` followed by that version
-   (for example, `v0.1.0`), targeting the tested commit on `latest`.
+   (for example, `v1.0.0`), targeting the tested commit on `latest`.
 3. Publish it as a normal release. Drafts do not run the workflow; GitHub
    releases marked **pre-release** run checks but do not upload to PyPI.
 4. Wait for the **Upload to PyPI** job to finish and check the files and version
@@ -67,7 +67,7 @@ From a clean checkout:
 python -m pip install ".[dev,plot]" build twine
 python -m pytest -q
 python -m build
-python scripts/check_release.py --artifacts dist --tag v0.1.0
+python scripts/check_release.py --artifacts dist --tag v1.0.0
 python -m twine check --strict dist/*
 ```
 

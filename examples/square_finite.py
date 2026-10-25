@@ -4,6 +4,7 @@ Run after installing cwt3d. No legacy imports, GPU, COMSOL, or implicit cache.
 """
 import argparse
 import csv
+from importlib.metadata import version
 import json
 from pathlib import Path
 import platform
@@ -81,7 +82,7 @@ def compute(args,coupling=None,source=None):
     rows=[dict(index=i,delta_um_inverse=m.delta,alpha_um_inverse=m.alpha,residual=m.residual,
         boundary_error=m.boundary_error,**dict(m.budget)) for i,m in enumerate(modes)]
     summary=dict(schema='cwt3d-demo-v1',status=result.status,input={**vars(args),'output':str(args.output),'sigma':[args.sigma.real,args.sigma.imag]},
-        source=source,environment=dict(python=platform.python_version(),numpy=np.__version__,scipy=scipy.__version__,cwt3d='0.1.0',source_digest=algorithm_digest(),precision='complex128'),
+        source=source,environment=dict(python=platform.python_version(),numpy=np.__version__,scipy=scipy.__version__,cwt3d=version('cwt3d'),source_digest=algorithm_digest(),precision='complex128'),
         normalization=modes[0].normalization,units=dict(modes[0].units),modes=rows,
         cache='disabled (no disk reads/writes)',solver={k:([v.real,v.imag] if isinstance(v,complex) else v) for k,v in result.metadata.items()},spectrum_scope='targeted subset only; not a lowest-threshold/all-spectrum certificate',
         coupling_seconds=coupling_seconds,lu_seconds=result.lu_seconds,iteration_seconds=result.iteration_seconds)
