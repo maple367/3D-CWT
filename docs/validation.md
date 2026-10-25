@@ -753,3 +753,72 @@ full `pytest -q` -> **213 passed, 3 existing NumPy deprecation warnings**.
 or calculator modules. Only the three new src modules, new coupling test,
 and this appendix are changed. No commit/push was made. Task 7 awaits
 independent specification and quality review.
+
+## Task 8: face-staggered rectangular layout and exact boundary elimination
+
+Public API: `from cwt3d.finite import StaggeredGrid, WaveFields`.
+`StaggeredGrid(Nx, Ny, Lx_um, Ly_um)` is immutable. Nx/Ny count cells;
+`hx_um=Lx_um/Nx`, `hy_um=Ly_um/Ny`; lengths/coordinates are in um.
+Rows index y and columns index x on `[0,Lx_um] x [0,Ly_um]`.
+
+| Component | Full locations / shape | Eliminated incoming face | Retained free block |
+|---|---|---|---|
+| Rx | x-face, y-center / (Ny,Nx+1) | `[:,0]` | `[:,1:]` |
+| Sx | x-face, y-center / (Ny,Nx+1) | `[:,-1]` | `[:,:-1]` |
+| Ry | x-center, y-face / (Ny+1,Nx) | `[0,:]` | `[1:,:]` |
+| Sy | x-center, y-face / (Ny+1,Nx) | `[-1,:]` | `[:-1,:]` |
+
+The four free blocks each have shape `(Ny,Nx)`. Their C-order flattenings
+are concatenated in `BASIC_WAVE_ORDER=(Rx,Sx,Ry,Sy)`, giving exactly
+`n_dof=4*Nx*Ny`. `component_shape(name)` describes full fields;
+`free_index(name,row,col)` maps full indices, returning -1 only for its
+own incoming face and rejecting negative/out-of-range/noninteger indices.
+For Nx=2, Ny=3, block offsets are 0,6,12,18; independent hand-written full
+index tables in test 01 assert every free id occurs exactly once.
+There is no shared four-component corner node: each wave has its own face
+locations. A one-cell domain has four free outgoing amplitudes, not four
+fully Dirichlet waves. No dummy values or 1e8 boundary penalties are used.
+
+- `coordinates(name)` returns read-only full-face `(X_um,Y_um)` meshes;
+  `coordinates()` returns `(Ny,Nx)` cell-center meshes.
+- `unpack(vector)` snapshots a finite `(n_dof,)` numeric vector as four full
+  complex128 arrays in `WaveFields`, restoring exact zero incoming entries.
+- `pack(fields)` checks the exact full shapes and rejects **any** nonzero
+  incoming amplitude (including 1e-300j). It returns a read-only free-vector
+  snapshot; outgoing faces are retained. Real numeric inputs are accepted.
+- `WaveFields(Rx,Sx,Ry,Sy)` independently snapshots finite 2-D numeric arrays.
+  It has no mutable public config or metadata. All public array getters use
+  new ndarray headers with direct immutable bytes bases, including `.base`
+  traversal protection; input mutation and public shape/dtype/strides edits
+  cannot pollute saved fields, a grid, or another result.
+- `interpolate(fields)` geometrically averages adjacent faces into four
+  `(Ny,Nx)` arrays in another `WaveFields`, for later receiver coupling and
+  mass terms. Rx/Sx average left/right; Ry/Sy average bottom/top. Arbitrary
+  finite full fields are allowed here; interpolation does not enforce BCs.
+
+### Actual TDD and verification evidence
+
+1. Tests preceded the package: targeted pytest returned **1 collection
+   error**, `ModuleNotFoundError: cwt3d.finite`. This is scaffolding RED,
+   not a demonstrated numerical failure of an old discretization.
+2. GREEN: `.venv/Scripts/python.exe -m pytest tests/test_grid.py -q` ->
+   **65 passed**. Tests cover rectangular Nx=2,Ny=3,Lx=8,Ly=9 coordinates,
+   manual free-id tables, exact complex roundtrips, four incoming/outgoing
+   faces, one-cell intersections, constants and BC-compatible linear fields,
+   read-only snapshots including public metadata edits and retained siblings,
+   invalid counts/lengths/derived underflow/shapes/indices/nonfinite fields.
+   Only intentional metadata-mutation deprecations in the new test are
+   locally filtered; existing tests/warnings are unchanged.
+3. Full `.venv/Scripts/python.exe -m pytest -q` -> **278 passed, 3 existing
+   NumPy warnings**. `git diff --check` passed. A fresh-process test executes
+   grid operations without loading model/calculator/utils/mph/numba.
+4. Independent probe `.validation-scratch/task8_metrics.py` returned:
+   `n_dof=24`, vector roundtrip max absolute error **0.0**, incoming max
+   amplitude **0.0**, complex linear center interpolation error **0.0**,
+   and unique/complete free-index coverage **True**.
+
+Only the new finite package, new grid tests and this appendix are changed.
+Legacy code remains untouched. No commit/push. Independent specification
+and quality reviews are pending in the parent workflow. This is layout and
+boundary elimination only: no PDE A/B assembly (Task 9), finite-domain
+eigenvalue solver (Task 10), or completed finite-domain eigenproblem.
