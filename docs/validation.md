@@ -83,3 +83,145 @@ source-free Green ODE plus jump/decay, and direct Fourier coefficients.
 Do not merely redirect legacy bug-expectation assertions to the new API or
 claim coverage from an oracle testing only itself. No future numerical
 modules or geometric Fourier implementation are supplied in Task 2.
+
+## Task 3: independent geometry and Fourier APIs
+
+Task 3 now adds real new-API acceptance tests without changing the historical
+legacy tests or source. No waveguide, Green function, or coupling matrix is
+implemented here. The package root exports are unchanged; import the two
+small modules directly.
+
+### Coordinates and public entry points
+
+- `geometry.CircleHole(radius_um, period_um=(1,1), center_um=None,
+  eps_background=1, eps_hole=0)` provides broadcast evaluation, exact
+  `fill_fraction`, and `mean_epsilon`. The default center is the cell midpoint.
+- `geometry.RightTriangleHole(legs_um, ...)` has independent positive x/y
+  legs. `center_um` is its **centroid**; the right-angle vertex is
+  `center - legs/3`. Equal legs describe the literature's isosceles case;
+  unequal legs are not mislabeled as isosceles. Rotation is not supported.
+- Coordinates and periods are in um; the cell is `[0,ax] x [0,ay]`.
+  Hole extents must fit entirely inside the cell: clipping/wrapping is never
+  silently used to change the area. Calling geometry outside the cell does
+  not wrap it; periodic wrapping, when needed, is explicit caller work.
+- `geometry.sample_permittivity(callable, period_um, shape=(Ny,Nx))`
+  evaluates `epsilon(x_um,y_um)` with NumPy broadcasting at midpoint samples
+  `x=(j+1/2)*ax/Nx`, `y=(i+1/2)*ay/Ny`.
+  `SampledPermittivity(values, period_um=(1,1))` snapshots an existing finite
+  complex grid with immutable storage. Rows are **y**, columns are **x**.
+  Values are point samples, **not pixel averages**. No pixel-sinc correction
+  or continuous-boundary interpretation is implied.
+- All Fourier functions accept signed integer `orders` of shape `(...,2)`,
+  with last axis `(m,n)`, and return complex arrays of shape `(...)`.
+  The coefficient is the cell average of
+  `epsilon*exp(+2*pi*i*(m*x/ax+n*y/ay))`; reconstruction has the negative sign.
+- `fourier.shape_fourier(hole, orders, quadrature_order=64)` uses the exact
+  circle Bessel form and a separate zero-order limit plus background.
+  Triangles use the reference integral below, not an unverified closed form.
+- `fourier.integrate_hole_fourier(hole, orders, quadrature_order=64)` uses
+  polar quadrature for circles and the smooth Duffy map for triangles,
+  including their Jacobians, integrating only the inclusion contrast.
+- `fourier.integrate_fourier(epsilon, period_um, orders,
+  quadrature_order=64)` is a tensor Gauss-Legendre reference for general
+  smooth broadcast-compatible complex functions. It rejects incompatible
+  callable output shapes. Fixed quadrature order is **not an adaptive error
+  tolerance**: establish convergence by increasing it. Discontinuous arbitrary
+  masks need domain splitting or independent resolution checks.
+- `fourier.fft_fourier(sampled, orders)` computes one positive-sign `ifft2`
+  batch, indexes `[n % Ny,m % Nx]`, and applies the midpoint phase
+  `exp(i*pi*(m/Nx+n/Ny))`. There is no `_xi`, global cache, or first-call
+  initialization dependency. Duplicate requests and out-of-band orders raise.
+  Canonical indices are `-(N//2)` through `(N-1)//2`; even grids accept only
+  the **negative** Nyquist representative. The grid is never silently enlarged.
+  Complex materials do not obey an assumed conjugate symmetry.
+
+### TDD and actual verification
+
+1. Tests were written before either module. The first targeted run failed
+   with **2 collection errors** (`cwt3d.geometry` absent): scaffolding RED,
+   not a demonstrated numerical defect.
+2. The initial implementation exposed two overly optimistic test assumptions:
+   triangle harmonic `(13,-11)` needs more than 24 Gauss nodes per axis for
+   near-machine accuracy, and a discontinuous triangle on a 901x1100 midpoint
+   grid has about `1.14e-3` error, not `<8e-4`. Tests now compare 48/64 Gauss
+   rules and multiple midpoint resolutions rather than claiming a single-grid
+   high precision. No geometry or coefficient was altered to force these checks.
+3. A further behavior-first test for incompatible callable output genuinely
+   returned **1 failed** (`DID NOT RAISE ValueError`) against the new integrator.
+   Explicit broadcasting to the intended quadrature grid fixed the silent
+   extra-axis integration; that regression is now GREEN.
+4. Full repository run: `.venv/Scripts/python.exe -m pytest -q` ->
+   **81 passed** (34 previous + 47 new). `git diff --check` passed.
+   A fresh-process probe loaded the new APIs without any `model`, `calculator`,
+   `mph`, or `numba` modules. Numba/COMSOL were neither installed nor required.
+
+The independently executed probe at
+`.validation-scratch/task3_metrics.py` returned these absolute errors:
+
+| Check | Maximum absolute error |
+|---|---:|
+| Circle Bessel vs 80-node polar quadrature, complex contrast | 1.78e-16 |
+| Triangle 8 vs 64 Gauss nodes, including `(13,-11)` | 2.51e-3 |
+| Triangle 24 vs 64 nodes | 2.47e-5 |
+| Triangle 48 vs 64 nodes | 1.92e-15 |
+| Triangle 80 vs 64 nodes | 5.12e-16 |
+| Smooth asymmetric complex function FFT, `(Ny,Nx)=(35,48)` | 2.78e-16 |
+| Same smooth function, direct 64-node integration | 4.44e-16 |
+
+Discontinuous geometry midpoint-grid errors (including the zero order):
+
+| Geometry | `(Ny,Nx)` | Maximum absolute error |
+|---|---|---:|
+| Circle | `(41,54)` | 3.99e-4 |
+| Circle | `(181,246)` | 2.38e-4 |
+| Circle | `(701,950)` | 1.36e-5 |
+| Triangle | `(451,550)` | 1.19e-3 |
+| Triangle | `(901,1100)` | 1.14e-3 |
+| Triangle | `(1801,2200)` | 4.31e-4 |
+
+Boundary convergence is not generally monotonic at each resolution. Tests
+also cover all canonical orders of a random complex 7x10 grid against an
+explicit independent discrete sum, sign/axis ordering, Nyquist center phase,
+real-only conjugate symmetry, continuous translations, reconstruction,
+first/repeated calls and changing grid data. Circle/triangle average epsilon
+and exact fill fractions have dedicated tests, as do invalid geometry,
+materials, grids, quadrature orders, harmonic indices and alias requests.
+
+Remaining limits: fixed-order reference quadrature has no certified error
+estimate; arbitrarily high harmonics require convergence studies. FFT aliases
+unresolved content in sampled data even when requested orders are in-band.
+No continuous high-order accuracy or speedup benchmark is claimed. Analytic
+circle evaluation and a batched FFT are the only performance-oriented paths
+in this task. Legacy DFT remains intentionally unfixed; its new independent
+replacement is what these acceptance tests verify.
+
+### Task 3 quality fix: sampled-array metadata isolation
+
+The original `values` getter returned the internal ndarray. Immutable bytes
+prevented element writes but did not protect ndarray `shape`, `dtype`, or
+`strides`: changing public metadata silently changed subsequent FFT results.
+
+- Behavior-first RED:
+  `.venv/Scripts/python.exe -m pytest tests/test_fourier.py -q -k sampled_metadata`
+  returned **3 failed, 23 deselected** before the implementation changed.
+  All failures were exact FFT equality assertions after metadata mutation,
+  not collection/setup failures. Reshaping `(3,4)` to `(2,6)` changed the
+  `(1,0)` coefficient from `-0.7071067811865476j` to approximately `-1j`.
+- The minimal fix stores immutable bytes and a private shape tuple, and
+  reconstructs a fresh ndarray header on each `values` access with
+  `np.ndarray(..., buffer=bytes)`. Its public `.base` is the immutable bytes,
+  not an internal ndarray. No per-access data copy or mutable backing is used;
+  element assignment and `setflags(write=True)` remain rejected.
+- The three regressions exercise shape/dtype/strides mutations and traverse
+  every ndarray in the public `.base` chain, so merely returning a view of
+  the old internal array would not suffice. They verify exact FFT equality,
+  unchanged input data/metadata, retained getter results, fresh getter results,
+  and a separate sampled snapshot created from the exposed values.
+- GREEN: the same targeted command returned **3 passed, 23 deselected**.
+  `.venv/Scripts/python.exe -m pytest -q` returned **84 passed, 3 warnings**.
+  The warnings are NumPy deprecations for the deliberately exercised metadata
+  setters. `git diff --check` passed (only a Git LF/CRLF conversion notice).
+
+This fix does not expand numerical-scale guarantees: extreme lengths near
+`1e-160` or `1e160` um are not certified against underflow/overflow. No legacy
+source or Fourier implementation was changed for this quality fix.
