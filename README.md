@@ -89,6 +89,7 @@ is `2*alpha`.
 - [70 µm structure, results, and numerical checks](docs/examples/liang-70um.md)
 - [Model conventions and earlier literature checks](docs/literature_validation.md)
 - [Numerical tests](docs/validation.md) and [performance measurements](docs/performance.md)
+- [Publishing releases to PyPI](docs/publishing.md)
 
 The current model covers lossless scalar TE waves on a square lattice. The
 70 µm calculation uses a layered outgoing Green function and halfspace

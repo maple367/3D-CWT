@@ -1,0 +1,10 @@
+include LICENSE README.md README.pypi.md pyproject.toml
+recursive-include src/cwt3d *.py
+recursive-include examples *.py
+recursive-include tests *.py
+recursive-include benchmarks *.py
+recursive-include scripts *.py
+recursive-include docs *.md *.json *.csv *.png
+# These two files are parsed, not imported, by historical-defect tests.
+include model/_Model.py calculator/_calc.py
+global-exclude __pycache__ *.py[cod] .DS_Store

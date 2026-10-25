@@ -1,18 +1,26 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cwt3d"
 version = "0.1.0"
 description = "Independent numerical core for three-dimensional coupled-wave theory"
+readme = "README.pypi.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "scipy>=1.10"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "tomli>=2; python_version < '3.11'"]
 plot = ["matplotlib>=3.6"]
 numba = ["numba>=0.61"]
+
+[project.urls]
+Homepage = "https://github.com/maple367/3D-CWT"
+Documentation = "https://github.com/maple367/3D-CWT/blob/latest/docs/api.md"
+Issues = "https://github.com/maple367/3D-CWT/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
