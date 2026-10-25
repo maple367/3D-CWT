@@ -1,0 +1,516 @@
+{
+  "kind": "coupling",
+  "environment": {
+    "source_digest": "f8bd39fa2326a78b641c5e996164dcdf6548a349564e12d88a6df518ac9ae26a",
+    "python": "3.13.14",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "logical_cpus": 16,
+    "threads": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "BLIS_NUM_THREADS": "1"
+    },
+    "precision": "complex128",
+    "jit": "N/A (no JIT)",
+    "rss_peak_bytes": null,
+    "note": "Thread environment fixed before importing NumPy; RSS not measured."
+  },
+  "rows": [
+    {
+      "geometry": "single_circle",
+      "cutoff": 1,
+      "quadrature_order": 12,
+      "fourier_order": 64,
+      "convergence_reference_q": 24,
+      "repeats": 3,
+      "warmup_per_backend": 1,
+      "reference_samples_seconds": [
+        0.03141010005492717,
+        0.03131469996878877,
+        0.034663000027649105
+      ],
+      "prepared_samples_seconds": [
+        0.012069499993231148,
+        0.01209880004171282,
+        0.01203199999872595
+      ],
+      "reference_median_seconds": 0.03141010005492717,
+      "prepared_median_seconds": 0.012069499993231148,
+      "speedup": 2.60243589813519,
+      "matrix_max_error": 0.0,
+      "eigen_set_max_error": 0.0,
+      "q12_vs_q24_matrix_max_error": 2.823925224926892e-17,
+      "q18_vs_q24_matrix_max_error": 1.6943551349561353e-16,
+      "q12_vs_q24_eigen_set_max_error": 2.959566913413653e-17,
+      "q24_reference_samples_seconds": [
+        0.12025409995112568
+      ],
+      "cache_miss_seconds": 0.01788579998537898,
+      "cache_hit_samples_seconds": [
+        0.014415599987842143,
+        0.007516500016208738,
+        0.007249000016599894
+      ],
+      "cache_hit_median_seconds": 0.007516500016208738,
+      "kernel_timings": {
+        "reference": {
+          "init_samples_seconds": [
+            6.54000323265791e-05,
+            4.5199994929134846e-05,
+            3.63999861292541e-05
+          ],
+          "init_median_seconds": 4.5199994929134846e-05,
+          "steady_samples_seconds": [
+            0.00888360000681132,
+            0.008796899986919016,
+            0.00912090000929311
+          ],
+          "steady_median_seconds": 0.00888360000681132,
+          "scalar_cold_samples_seconds": [
+            0.0001422999775968492,
+            0.000125400023534894,
+            0.00011069996980950236
+          ],
+          "scalar_cold_median_seconds": 0.000125400023534894
+        },
+        "prepared": {
+          "init_samples_seconds": [
+            0.00015350000467151403,
+            0.00011029996676370502,
+            9.699998190626502e-05
+          ],
+          "init_median_seconds": 0.00011029996676370502,
+          "steady_samples_seconds": [
+            0.0013109000283293426,
+            0.0012945000198669732,
+            0.001289099978748709
+          ],
+          "steady_median_seconds": 0.0012945000198669732,
+          "scalar_cold_samples_seconds": [
+            0.00020359997870400548,
+            0.0001745999907143414,
+            0.00016380002489313483
+          ],
+          "scalar_cold_median_seconds": 0.0001745999907143414
+        }
+      },
+      "radial_count": 2,
+      "cache_cleanup": "exact key removed after measurement"
+    },
+    {
+      "geometry": "single_circle",
+      "cutoff": 3,
+      "quadrature_order": 12,
+      "fourier_order": 64,
+      "convergence_reference_q": 24,
+      "repeats": 3,
+      "warmup_per_backend": 1,
+      "reference_samples_seconds": [
+        0.11967420001747087,
+        0.11703059996943921,
+        0.11994150001555681
+      ],
+      "prepared_samples_seconds": [
+        0.05725980002898723,
+        0.05894519999856129,
+        0.05847160000121221
+      ],
+      "reference_median_seconds": 0.11967420001747087,
+      "prepared_median_seconds": 0.05847160000121221,
+      "speedup": 2.0467064355172395,
+      "matrix_max_error": 0.0,
+      "eigen_set_max_error": 0.0,
+      "q12_vs_q24_matrix_max_error": 2.2030998816184092e-16,
+      "q18_vs_q24_matrix_max_error": 1.8309346819176897e-16,
+      "q12_vs_q24_eigen_set_max_error": 4.857225740277099e-16,
+      "q24_reference_samples_seconds": [
+        0.4416528000147082
+      ],
+      "cache_miss_seconds": 0.061622300010640174,
+      "cache_hit_samples_seconds": [
+        0.015084900020156056,
+        0.007420999987516552,
+        0.0073924000025726855
+      ],
+      "cache_hit_median_seconds": 0.007420999987516552,
+      "kernel_timings": {
+        "reference": {
+          "init_samples_seconds": [
+            6.54000323265791e-05,
+            4.5199994929134846e-05,
+            3.63999861292541e-05
+          ],
+          "init_median_seconds": 4.5199994929134846e-05,
+          "steady_samples_seconds": [
+            0.00888360000681132,
+            0.008796899986919016,
+            0.00912090000929311
+          ],
+          "steady_median_seconds": 0.00888360000681132,
+          "scalar_cold_samples_seconds": [
+            0.0001422999775968492,
+            0.000125400023534894,
+            0.00011069996980950236
+          ],
+          "scalar_cold_median_seconds": 0.000125400023534894
+        },
+        "prepared": {
+          "init_samples_seconds": [
+            0.00015350000467151403,
+            0.00011029996676370502,
+            9.699998190626502e-05
+          ],
+          "init_median_seconds": 0.00011029996676370502,
+          "steady_samples_seconds": [
+            0.0013109000283293426,
+            0.0012945000198669732,
+            0.001289099978748709
+          ],
+          "steady_median_seconds": 0.0012945000198669732,
+          "scalar_cold_samples_seconds": [
+            0.00020359997870400548,
+            0.0001745999907143414,
+            0.00016380002489313483
+          ],
+          "scalar_cold_median_seconds": 0.0001745999907143414
+        }
+      },
+      "radial_count": 9,
+      "cache_cleanup": "exact key removed after measurement"
+    },
+    {
+      "geometry": "single_circle",
+      "cutoff": 10,
+      "quadrature_order": 12,
+      "fourier_order": 64,
+      "convergence_reference_q": 24,
+      "repeats": 3,
+      "warmup_per_backend": 1,
+      "reference_samples_seconds": [
+        0.7675939999753609,
+        0.7859990000142716,
+        0.771097099990584
+      ],
+      "prepared_samples_seconds": [
+        0.40189979999559,
+        0.43087730003753677,
+        0.39717929996550083
+      ],
+      "reference_median_seconds": 0.771097099990584,
+      "prepared_median_seconds": 0.40189979999559,
+      "speedup": 1.9186302157877289,
+      "matrix_max_error": 0.0,
+      "eigen_set_max_error": 0.0,
+      "q12_vs_q24_matrix_max_error": 1.8235608335859244e-11,
+      "q18_vs_q24_matrix_max_error": 2.2530044628618934e-16,
+      "q12_vs_q24_eigen_set_max_error": 2.44721465314542e-11,
+      "q24_reference_samples_seconds": [
+        2.8312457999563776
+      ],
+      "cache_miss_seconds": 0.4011644999845885,
+      "cache_hit_samples_seconds": [
+        0.014946799958124757,
+        0.007838400022592396,
+        0.007622300006914884
+      ],
+      "cache_hit_median_seconds": 0.007838400022592396,
+      "kernel_timings": {
+        "reference": {
+          "init_samples_seconds": [
+            6.54000323265791e-05,
+            4.5199994929134846e-05,
+            3.63999861292541e-05
+          ],
+          "init_median_seconds": 4.5199994929134846e-05,
+          "steady_samples_seconds": [
+            0.00888360000681132,
+            0.008796899986919016,
+            0.00912090000929311
+          ],
+          "steady_median_seconds": 0.00888360000681132,
+          "scalar_cold_samples_seconds": [
+            0.0001422999775968492,
+            0.000125400023534894,
+            0.00011069996980950236
+          ],
+          "scalar_cold_median_seconds": 0.000125400023534894
+        },
+        "prepared": {
+          "init_samples_seconds": [
+            0.00015350000467151403,
+            0.00011029996676370502,
+            9.699998190626502e-05
+          ],
+          "init_median_seconds": 0.00011029996676370502,
+          "steady_samples_seconds": [
+            0.0013109000283293426,
+            0.0012945000198669732,
+            0.001289099978748709
+          ],
+          "steady_median_seconds": 0.0012945000198669732,
+          "scalar_cold_samples_seconds": [
+            0.00020359997870400548,
+            0.0001745999907143414,
+            0.00016380002489313483
+          ],
+          "scalar_cold_median_seconds": 0.0001745999907143414
+        }
+      },
+      "radial_count": 60,
+      "cache_cleanup": "exact key removed after measurement"
+    },
+    {
+      "geometry": "dual_circle_triangle",
+      "cutoff": 1,
+      "quadrature_order": 12,
+      "fourier_order": 64,
+      "convergence_reference_q": 24,
+      "repeats": 3,
+      "warmup_per_backend": 1,
+      "reference_samples_seconds": [
+        0.11230420001083985,
+        0.10582960001192987,
+        0.11040280002634972
+      ],
+      "prepared_samples_seconds": [
+        0.03321129997493699,
+        0.03439420001814142,
+        0.05042470002081245
+      ],
+      "reference_median_seconds": 0.11040280002634972,
+      "prepared_median_seconds": 0.03439420001814142,
+      "speedup": 3.209924928276196,
+      "matrix_max_error": 0.0,
+      "eigen_set_max_error": 0.0,
+      "q12_vs_q24_matrix_max_error": 4.654751537338637e-17,
+      "q18_vs_q24_matrix_max_error": 6.64494378989995e-17,
+      "q12_vs_q24_eigen_set_max_error": 1.111048707064052e-16,
+      "q24_reference_samples_seconds": [
+        0.393620099988766
+      ],
+      "cache_miss_seconds": 0.03931760002160445,
+      "cache_hit_samples_seconds": [
+        0.013687799975741655,
+        0.007340200012549758,
+        0.007519699982367456
+      ],
+      "cache_hit_median_seconds": 0.007519699982367456,
+      "kernel_timings": {
+        "reference": {
+          "init_samples_seconds": [
+            4.529999569058418e-05,
+            3.15000070258975e-05,
+            2.7499976567924023e-05
+          ],
+          "init_median_seconds": 3.15000070258975e-05,
+          "steady_samples_seconds": [
+            0.00946740002837032,
+            0.009526899957563728,
+            0.009437200031243265
+          ],
+          "steady_median_seconds": 0.00946740002837032,
+          "scalar_cold_samples_seconds": [
+            0.0001471999567002058,
+            0.00012750003952533007,
+            0.00011969998013228178
+          ],
+          "scalar_cold_median_seconds": 0.00012750003952533007
+        },
+        "prepared": {
+          "init_samples_seconds": [
+            0.00011119997361674905,
+            0.00010120001388713717,
+            9.419996058568358e-05
+          ],
+          "init_median_seconds": 0.00010120001388713717,
+          "steady_samples_seconds": [
+            0.0015078999567776918,
+            0.0012666000402532518,
+            0.0012718999641947448
+          ],
+          "steady_median_seconds": 0.0012718999641947448,
+          "scalar_cold_samples_seconds": [
+            0.0002096000243909657,
+            0.00019869999960064888,
+            0.00019559997599571943
+          ],
+          "scalar_cold_median_seconds": 0.00019869999960064888
+        }
+      },
+      "radial_count": 2,
+      "cache_cleanup": "exact key removed after measurement"
+    },
+    {
+      "geometry": "dual_circle_triangle",
+      "cutoff": 3,
+      "quadrature_order": 12,
+      "fourier_order": 64,
+      "convergence_reference_q": 24,
+      "repeats": 3,
+      "warmup_per_backend": 1,
+      "reference_samples_seconds": [
+        0.389638599997852,
+        0.42929840000579134,
+        0.39121989998966455
+      ],
+      "prepared_samples_seconds": [
+        0.1477790999924764,
+        0.15033109998330474,
+        0.14353790000313893
+      ],
+      "reference_median_seconds": 0.39121989998966455,
+      "prepared_median_seconds": 0.1477790999924764,
+      "speedup": 2.6473290202036823,
+      "matrix_max_error": 0.0,
+      "eigen_set_max_error": 0.0,
+      "q12_vs_q24_matrix_max_error": 4.077411076885497e-17,
+      "q18_vs_q24_matrix_max_error": 6.630674151958849e-17,
+      "q12_vs_q24_eigen_set_max_error": 4.510831575355302e-17,
+      "q24_reference_samples_seconds": [
+        1.4727797999512404
+      ],
+      "cache_miss_seconds": 0.14816280000377446,
+      "cache_hit_samples_seconds": [
+        0.013853400014340878,
+        0.007652700005564839,
+        0.007337499991990626
+      ],
+      "cache_hit_median_seconds": 0.007652700005564839,
+      "kernel_timings": {
+        "reference": {
+          "init_samples_seconds": [
+            4.529999569058418e-05,
+            3.15000070258975e-05,
+            2.7499976567924023e-05
+          ],
+          "init_median_seconds": 3.15000070258975e-05,
+          "steady_samples_seconds": [
+            0.00946740002837032,
+            0.009526899957563728,
+            0.009437200031243265
+          ],
+          "steady_median_seconds": 0.00946740002837032,
+          "scalar_cold_samples_seconds": [
+            0.0001471999567002058,
+            0.00012750003952533007,
+            0.00011969998013228178
+          ],
+          "scalar_cold_median_seconds": 0.00012750003952533007
+        },
+        "prepared": {
+          "init_samples_seconds": [
+            0.00011119997361674905,
+            0.00010120001388713717,
+            9.419996058568358e-05
+          ],
+          "init_median_seconds": 0.00010120001388713717,
+          "steady_samples_seconds": [
+            0.0015078999567776918,
+            0.0012666000402532518,
+            0.0012718999641947448
+          ],
+          "steady_median_seconds": 0.0012718999641947448,
+          "scalar_cold_samples_seconds": [
+            0.0002096000243909657,
+            0.00019869999960064888,
+            0.00019559997599571943
+          ],
+          "scalar_cold_median_seconds": 0.00019869999960064888
+        }
+      },
+      "radial_count": 9,
+      "cache_cleanup": "exact key removed after measurement"
+    },
+    {
+      "geometry": "dual_circle_triangle",
+      "cutoff": 10,
+      "quadrature_order": 12,
+      "fourier_order": 64,
+      "convergence_reference_q": 24,
+      "repeats": 3,
+      "warmup_per_backend": 1,
+      "reference_samples_seconds": [
+        2.907012699986808,
+        2.6474142000079155,
+        2.587029699992854
+      ],
+      "prepared_samples_seconds": [
+        1.0193374999798834,
+        0.9712903000181541,
+        0.9725242999847978
+      ],
+      "reference_median_seconds": 2.6474142000079155,
+      "prepared_median_seconds": 0.9725242999847978,
+      "speedup": 2.722208792160051,
+      "matrix_max_error": 0.0,
+      "eigen_set_max_error": 0.0,
+      "q12_vs_q24_matrix_max_error": 2.62879995651394e-14,
+      "q18_vs_q24_matrix_max_error": 7.295158068138638e-17,
+      "q12_vs_q24_eigen_set_max_error": 3.562428885831159e-14,
+      "q24_reference_samples_seconds": [
+        9.398104399966542
+      ],
+      "cache_miss_seconds": 0.9607801000238396,
+      "cache_hit_samples_seconds": [
+        0.016025599965360016,
+        0.009993300016503781,
+        0.008133600000292063
+      ],
+      "cache_hit_median_seconds": 0.009993300016503781,
+      "kernel_timings": {
+        "reference": {
+          "init_samples_seconds": [
+            4.529999569058418e-05,
+            3.15000070258975e-05,
+            2.7499976567924023e-05
+          ],
+          "init_median_seconds": 3.15000070258975e-05,
+          "steady_samples_seconds": [
+            0.00946740002837032,
+            0.009526899957563728,
+            0.009437200031243265
+          ],
+          "steady_median_seconds": 0.00946740002837032,
+          "scalar_cold_samples_seconds": [
+            0.0001471999567002058,
+            0.00012750003952533007,
+            0.00011969998013228178
+          ],
+          "scalar_cold_median_seconds": 0.00012750003952533007
+        },
+        "prepared": {
+          "init_samples_seconds": [
+            0.00011119997361674905,
+            0.00010120001388713717,
+            9.419996058568358e-05
+          ],
+          "init_median_seconds": 0.00010120001388713717,
+          "steady_samples_seconds": [
+            0.0015078999567776918,
+            0.0012666000402532518,
+            0.0012718999641947448
+          ],
+          "steady_median_seconds": 0.0012718999641947448,
+          "scalar_cold_samples_seconds": [
+            0.0002096000243909657,
+            0.00019869999960064888,
+            0.00019559997599571943
+          ],
+          "scalar_cold_median_seconds": 0.00019869999960064888
+        }
+      },
+      "radial_count": 60,
+      "cache_cleanup": "exact key removed after measurement"
+    }
+  ],
+  "accuracy": "Same D/q/F/geometry and Duffy triangles; eigenvalues Hungarian matched.",
+  "cache_policy": "Explicit directory only; measured keys deleted. Scratch host policy prunes entries idle 24h."
+}

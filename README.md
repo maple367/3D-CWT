@@ -1,3 +1,20 @@
+# 3D-CWT — v3 独立纯 Python 光学核心
+
+新入口与下方保留的 v2 历史说明分开：v3 仅依赖 NumPy/SciPy，交错网格有限域本征求解无需 COMSOL/mph/GPU；不声称已移植半导体输运。
+
+```bash
+python -m pip install .
+python examples/square_finite.py --output results/v3-demo
+python examples/square_finite.py --preset liang --output results/v3-liang
+python scripts/validate_convergence.py --output results/v3-convergence
+```
+
+见 [使用/单位/导出](docs/usage.md)、[文献参数重算与收敛限制](docs/literature_validation.md)、[独立验证](docs/validation.md)、[实测性能](docs/performance.md)。D10 截断未达到预设收敛门槛；参数重算不是出版曲线认证。仅本地开发分支，未正式发布。
+
+---
+
+## 以下为完整保留的历史 README（v2）
+
 # 3D-CWT
  Three Dimension Coupled Wave Theory
 
