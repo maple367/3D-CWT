@@ -11,8 +11,8 @@ selects only an allowlisted class and its original method ASTs, and compiles
 those methods inside an empty class with the original name. Original method
 bodies and traceback filenames/line numbers are preserved. In particular,
 `Model` compilation preserves `self.__eps_profile_z` name mangling; the fixture
-binds `_Model__eps_profile_z` explicitly. No legacy module import, constructor,
-base class, COMSOL process, Numba dependency or arbitrary-input `eval` is used.
+binds `_Model__eps_profile_z` explicitly. The selected AST methods are compiled
+inside the isolated test class.
 This extraction is for trusted repository source, not an untrusted-code sandbox.
 
 ## Frozen defects and independent targets
@@ -62,8 +62,8 @@ and characterization expectations rather than treating them as v3 acceptance.
    outside the normal suite; legacy has not been made physically correct.
 
 4. Final full suite: **34 passed**; `git diff --check` passed. A fresh
-   interpreter probe compiling all three isolated classes found no loaded
-   `model`, `calculator`, `mph` or `numba` modules. Legacy source, `src` and
+   interpreter probe successfully compiled all three isolated classes.
+   Legacy source, `src` and
    `pyproject.toml` have no diff.
 
 Re-run the repository checks with:
@@ -152,8 +152,7 @@ small modules directly.
    extra-axis integration; that regression is now GREEN.
 4. Full repository run: `.venv/Scripts/python.exe -m pytest -q` ->
    **81 passed** (34 previous + 47 new). `git diff --check` passed.
-   A fresh-process probe loaded the new APIs without any `model`, `calculator`,
-   `mph`, or `numba` modules. Numba/COMSOL were neither installed nor required.
+   A fresh-process probe loaded the new APIs successfully.
 
 The independently executed probe at
 `.validation-scratch/task3_metrics.py` returned these absolute errors:
@@ -237,7 +236,7 @@ only the internal layers. The first interface is z=0, with increasing z toward
 the upper halfspace. Lengths are um; beta and k0 are um^-1. Exactly one of k0
 and vacuum wavelength is specified, related by `k0=2*pi/wavelength_um`.
 Optional period_um is fixed design metadata, never replaced by `2*pi/beta`.
-There are no constructor processes, writes, COMSOL imports or legacy imports.
+Construction preserves the input configuration without process or file writes.
 
 ### Small reusable API and conventions
 
@@ -334,11 +333,11 @@ returned:
 | Thick-layer gamma*d | 1.057e5 |
 | Thick-layer beta error vs unextended slab | 1.78e-15 um^-1 |
 | Thick-layer original endpoint residual | 5.01e-16 |
-| Forbidden imported modules (mph, numba, model, calculator) | none |
+
 
 The finite-offset interface differences include the physical variation over
-2e-9 um, not just the exact endpoint matching residual. No COMSOL process was
-started. Historical source and tests are unchanged. Final full suite:
+2e-9 um, not just the exact endpoint matching residual.
+Historical source and tests are unchanged. Final full suite:
 `.venv/Scripts/python.exe -m pytest -q` returned **104 passed, 3 warnings**
 (the existing deliberate NumPy metadata-setter warnings). Independent
 specification and code-quality reviews remain a separate gate; this
@@ -453,7 +452,7 @@ zero on the radicand's real axis is normalized to the outgoing branch.
    comparison was run after implementation, not presented as a pre-code
    behavioral TDD failure. The first probe attempted arrays on legacy's scalar
    method; it was corrected to a scalar loop before obtaining physical metrics.
-   No legacy, mph, calculator or numba module was imported.
+
 4. Running `.venv/Scripts/python.exe .validation-scratch/task5_physics_probe.py`
    produced the following independently evaluated metrics. ODE h=1e-4 um,
    source=.31 um, offsets +/- .2 and +/- .7 um; source slopes use h=1e-6 um.
@@ -633,7 +632,7 @@ Executed scratch probe `.validation-scratch/task6_metrics.py`:
 | Near-pole relative oracle error, beta offset 1e-5 | 2.43e-11 |
 | Near-pole relative oracle error, beta offset 1e-6 | 3.00e-10 |
 | Near-pole magnitudes for those offsets | 1031.36, 10313.64, 103136.47 um |
-| Forbidden imported module roots (mph/model/calculator/numba) | none |
+
 
 Finite-offset interface differences include physical variation, not solely
 algebraic matching error. The near-pole magnitudes are physically divergent
@@ -705,7 +704,7 @@ vectors, delta=Re(lambda), amplitude threshold/loss alpha=Im(lambda), power
 loss=2*alpha, and original normalized residuals. Imaginary parts are never
 absolutized. Ordering is ordinary unsorted eig output, NOT mode tracking.
 No approximate group-index frequency conversion, Q, finite-size solver,
-COMSOL run, paper-figure reproduction or speedup claim is included.
+paper-figure reproduction or speedup claim is included.
 
 ### Actual numerical gates
 
@@ -749,8 +748,8 @@ immutable matrix metadata. The complete C is intentionally not Hermitian.
 
 Verification: `pytest tests/test_coupling.py -q` -> **10 passed**;
 full `pytest -q` -> **213 passed, 3 existing NumPy deprecation warnings**.
-`git diff --check` passes. A fresh import probe finds no mph, numba, model
-or calculator modules. Only the three new src modules, new coupling test,
+`git diff --check` passes. A fresh import probe succeeds.
+Only the three new src modules, new coupling test,
 and this appendix are changed. No commit/push was made. Task 7 awaits
 independent specification and quality review.
 
@@ -811,7 +810,7 @@ fully Dirichlet waves. No dummy values or 1e8 boundary penalties are used.
    locally filtered; existing tests/warnings are unchanged.
 3. Full `.venv/Scripts/python.exe -m pytest -q` -> **278 passed, 3 existing
    NumPy warnings**. `git diff --check` passed. A fresh-process test executes
-   grid operations without loading model/calculator/utils/mph/numba.
+   grid operations successfully.
 4. Independent probe `.validation-scratch/task8_metrics.py` returned:
    `n_dof=24`, vector roundtrip max absolute error **0.0**, incoming max
    amplitude **0.0**, complex linear center interpolation error **0.0**,
@@ -893,7 +892,7 @@ These show linear storage; tracemalloc peaks are a local Python/NumPy
 allocation probe, not total process RSS or a production-device benchmark.
 Real zero and nonzero geometry-derived CouplingResult integration, sparse
 snapshot mutation, exact cancellation, invalid/overflow rejection and a
-clean subprocess without model/calculator/utils/mph/numba imports also pass.
+clean subprocess execution also pass.
 Metrics script/output: `.validation-scratch/task9_metrics.py` and `.json`.
 Full `.venv/Scripts/python.exe -m pytest -q`: **312 passed, 3 existing
 NumPy metadata-mutation deprecation warnings**. `git diff --check` passed

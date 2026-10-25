@@ -1,6 +1,6 @@
 """Pure Python finite-domain optical example. All lengths are micrometers.
 
-Run after installing cwt3d. No legacy imports, GPU, COMSOL, or implicit cache.
+Run after installing cwt3d. The calculation uses NumPy and SciPy.
 """
 import argparse
 import csv

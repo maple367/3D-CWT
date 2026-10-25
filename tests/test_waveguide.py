@@ -1,4 +1,4 @@
-"""Independent open-boundary TE acceptance tests (no legacy/COMSOL import)."""
+"""Independent open-boundary TE acceptance tests."""
 import numpy as np
 import pytest
 from scipy.integrate import quad

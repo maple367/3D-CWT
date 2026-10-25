@@ -7,7 +7,7 @@ python -m pip install -e ".[plot]"
 ```
 
 NumPy and SciPy run the calculation. Matplotlib is optional and is used only
-by the plotting script. The package does not import COMSOL or `mph`.
+by the plotting script.
 
 ## Start with the 70 µm example
 

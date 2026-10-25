@@ -2,7 +2,7 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
-**Goal:** 修正3D-CWT物理与实现错误，提高可测量性能，并以Python交错网格求解器完成不依赖COMSOL的有限尺寸光学本征计算。
+**Goal:** 修正3D-CWT物理与实现错误，提高可测量性能，并以Python交错网格求解器完成有限尺寸光学本征计算。
 
 **Architecture:** 分离结构/材料、纵向波导、Green核、耦合系数和有限域求解。先建立低速可信参考实现，再加入可选优化后端；有限域离散保留为稀疏广义非Hermitian矩阵铅笔，不显式求逆。
 
@@ -19,9 +19,9 @@
 3. Green核必须通过源外ODE、源点导数跳跃、界面连续性和外向/衰减边界测试。使用独立的辐射kz与高阶衰减gamma约定；分层核用左右满足边界的齐次解及Wronskian构造，避免原代码式混用指数基底。稳定实现可使用散射/反射递推，不能盲目相乘增大指数的T矩阵。
 4. 多层源端xi(z′)与接收端xi(z)分开；不能默认加权平均系数乘已积分场是任意纵向结构的严格结果。
 5. C矩阵全部为逆长度。chi必须含−k0²/(2beta0)；无量纲化只能在边界明确进行并回到有量纲结果。
-6. 交错网格法属于有限差分离散；原COMSOL有限元与Python有限差分应近似同一个包络PDE，但不需要复制其有限元矩阵。
+6. 交错网格法属于有限差分离散；有限元与有限差分应近似同一个包络PDE，但不需要复制其有限元矩阵。
 7. 接口区分物理尺寸L、周期a、网格Nx/Ny、高阶截断D；不沿用含混的size/resolution。
-8. 核心及完整光学示例不导入mph，不读取MPH，不要求COMSOL安装。旧SEMI_solver的载流子输运不是这次光学求解器的隐含移植内容，若需保留其功能需独立确定范围。
+8. 旧SEMI_solver的载流子输运不是这次光学求解器的隐含移植内容，若需保留其功能需独立确定范围。
 
 ## 二、建议模块
 
@@ -56,9 +56,9 @@ examples/square_finite.py
 ### Task 1：建立包与约定
 - Create: `pyproject.toml`、`src/cwt3d/__init__.py`、`src/cwt3d/conventions.py`。
 - Test: `tests/test_import.py`、`tests/test_conventions.py`。
-- 在没有mph模块的干净环境验证核心导入；用显式单位换算和Fourier重构检查符号。
+- 在干净环境验证核心导入；用显式单位换算和Fourier重构检查符号。
 - Run: `python -m pytest tests/test_import.py tests/test_conventions.py -q`。
-- Gate: 不依赖COMSOL，缺失可选Numba时有明确回退。
+- Gate: 缺失可选Numba时有明确回退。
 
 ### Task 2：冻结原错误回归
 - Create: `tests/regressions/test_chi_prefactor.py`、`test_green_operator.py`、`test_fourier_dft.py`。
@@ -127,7 +127,7 @@ examples/square_finite.py
 
 ### Task 13：端到端与文献复现
 - Create: `examples/square_finite.py`、`tests/test_end_to_end.py`、`docs/validation.md`。
-- 干净环境无COMSOL运行：结构→纵向模→C→有限域本征模→四分量场→损耗和报告。
+- 干净环境运行：结构→纵向模→C→有限域本征模→四分量场→损耗和报告。
 - 固定博士论文表3.1/第43页目标参数；注意该旧脚本目前实际加载外部历史文件，不能把头部注释当已核实运行输入。
 - 分别扫描Fourier截断、纵向积分精度、平面网格、边界策略及shift覆盖。网格/截断收敛和求解器残差分别记录。
 - 对公开文献图/表复现时记录数字化误差和预印本/期刊版本，不能凭图片目测声称高精度一致。
@@ -142,7 +142,7 @@ examples/square_finite.py
 
 ## 五、验收
 
-- 无mph/COMSOL的环境完成完整光学例子。
+- 干净环境完成完整光学例子。
 - 原始公式不一致回归与边界/场索引测试通过。
 - 非Hermitian广义本征问题与独立小矩阵参考一致，原始残差可追踪。
 - 有限域网格、辅助波截断和积分精度分别收敛；能量平衡在离散误差内闭合。

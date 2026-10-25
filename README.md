@@ -5,8 +5,8 @@ surface-emitting lasers (PCSELs). The Python package calculates the vertical
 waveguide mode, the four-wave coupling matrix, and finite-cavity modes on a
 staggered grid.
 
-The current optical solver uses NumPy and SciPy. It does not require COMSOL.
-The original COMSOL-based code and its version notes are retained below.
+The current optical solver uses NumPy and SciPy.
+The original code and its version notes are retained below.
 
 ## Example: a 70 µm square cavity
 

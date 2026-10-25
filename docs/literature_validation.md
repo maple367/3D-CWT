@@ -50,7 +50,7 @@ a=0.295 um，epsilon_air=1，epsilon_bulk=12.7449，FF=0.16，等腰直角孔腿
 
 跨网格匹配为脚本私有分析：在共同物理内域0.1L..0.9L的19×19采样点，对四个复包络插值、归一化 overlap 后 Hungarian assignment；非公开 same-grid tracker。overlap<0.8、相对其它列最佳差<0.1 或近简并间距<1e-7 时记 ambiguous，不删除。此启发式不是完备的全局唯一/简并子空间证明；模态簇不作单模收敛认证。本次 mesh 相邻12对通过此保守筛选；shift 的1对不确定不能为了曲线平滑删除。11个明确共同 shift 模差不超过9.93e-14 um^-1，仅证实近邻目标子集重复覆盖，不能排除窗外更低阈值竞争者。
 
-全部15次最大原始 pencil residual <=1.448e-12，最大功率相对闭合误差 <=4.054e-12，精确无入射边界。闭合是独立面通量/体耦合代数门槛，不是 COMSOL 或实验校验，也不替代离散化误差评估。
+全部15次最大原始 pencil residual <=1.448e-12，最大功率相对闭合误差 <=4.054e-12，精确无入射边界。闭合是独立面通量/体耦合代数门槛，不能替代外部物理验证、实验校验或离散化误差评估。
 
 ## 有限预算高D补充：仍为预发布验证
 
@@ -79,6 +79,6 @@ a=0.295 um，epsilon_air=1，epsilon_bulk=12.7449，FF=0.16，等腰直角孔腿
 
 ## 交付验证
 
-完整 pytest：550 passed，6个既有 NumPy metadata deprecation warnings（本次新增高D选项的小D真实CLI smoke，原549项保留）；新增 CLI 测试在隔离子进程中禁止 model/mph/numba 导入，检查 shape、复场积分归一化、精确入射零、独立 C 预算、JSON、失败返回码及已有目录保护。solver metadata 缺失测试先出现 KeyError: solver，再补导出后通过（行为 RED→GREEN；此前缺入口的失败不算物理 RED）。
+完整 pytest：550 passed，6个既有 NumPy metadata deprecation warnings（本次新增高D选项的小D真实CLI smoke，原549项保留）；新增 CLI 测试在隔离子进程中检查 shape、复场积分归一化、精确入射零、独立 C 预算、JSON、失败返回码及已有目录保护。solver metadata 缺失测试先出现 KeyError: solver，再补导出后通过（行为 RED→GREEN；此前缺入口的失败不算物理 RED）。
 
 wheel 在独立 scratch venv 中只安装 cwt3d+声明 numpy/scipy，从非仓库 cwd 以 `python -I` 真实执行 default 与 liang。随后仅追加声明 dev 测试依赖 pytest，将最终 source ZIP 解压到独立 scratch 目录，用 wheel 环境执行解压的全部测试：再次550 passed、6个同类 warnings；确认 AST 回归源依赖齐全。未修改 src 核心，Task12 digest 和性能数据保持原样，性能结果见 `performance.md`；本轮没有伪造重新计时速度比。待父代理规格审/质量审与最终集成复核，未 commit/push。

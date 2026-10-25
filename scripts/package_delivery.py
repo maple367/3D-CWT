@@ -126,7 +126,7 @@ def main():
         extended_coupling_finite_modes=0,extended_final_D_relative_change=extrows[3]['comparison_previous']['C']['relative_norm'],
         validation_status='pre-release; matrix D convergence gate remains unmet; no publication curve certification',
         axes=expected,artifacts=artifacts,core_unchanged=True,benchmark_digest_matches=True,
-        source_scope='new core/tests/examples/scripts/docs/benchmarks, pyproject/license/README, two legacy AST regression sources; not the historical COMSOL application/data')
+        source_scope='new core/tests/examples/scripts/docs/benchmarks, pyproject/license/README, two legacy AST regression sources')
     (OUT/'audit.json').write_text(json.dumps(audit,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(audit,indent=2))
 

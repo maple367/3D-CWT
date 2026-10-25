@@ -5,7 +5,7 @@ square-lattice photonic-crystal surface-emitting lasers (PCSELs).
 
 The package calculates normalized vertical TE waveguide modes, Fourier
 coupling coefficients, and finite-cavity envelopes using sparse staggered-grid
-eigenproblems. Runtime dependencies are NumPy and SciPy; COMSOL is not required.
+eigenproblems. Runtime dependencies are NumPy and SciPy.
 
 ## Install
 

@@ -27,7 +27,7 @@ def legacy_class(name):
 
     Callers supply only deterministic dependencies via instance attributes.
     Unknown targets and source structure drift fail closed instead of silently
-    skipping a regression. No eval, legacy import, COMSOL or Numba is involved.
+    skipping a regression. Only the selected original method ASTs are compiled.
     """
     relative_path, method_names = _TARGETS[name]
     path = _ROOT / relative_path
