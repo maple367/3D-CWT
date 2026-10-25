@@ -1,0 +1,194 @@
+{
+  "schema": "cwt3d-liang-70um-v1",
+  "status": "converged",
+  "input": {
+    "L_um": 70.0,
+    "N": 96,
+    "D": 32,
+    "q": 64,
+    "F": 64,
+    "k": 1,
+    "backend": "prepared"
+  },
+  "source": {
+    "doi": "10.14989/doctor.k18283",
+    "chapter": 4,
+    "table": "4.1",
+    "geometry": "CC circular hole",
+    "domain": "70 um square, chapter 4",
+    "cladding_model": "two homogeneous 1.5 um outer claddings replaced by halfspaces",
+    "removed_cladding_thickness_um": [
+      1.5,
+      1.5
+    ],
+    "approximation": "scalar TE full-layer Green; not an exact thesis reproduction",
+    "thesis_reference_alphaL": [
+      0.23,
+      0.52,
+      2.18,
+      2.18
+    ],
+    "reference_scope": "literature comparison only, not computed acceptance targets"
+  },
+  "structure": {
+    "period_um": 0.295,
+    "eps": [
+      10.936249,
+      12.418576,
+      12.623809,
+      12.418576,
+      10.751840999999999,
+      12.418576,
+      10.59160384,
+      12.418576,
+      10.936249
+    ],
+    "thickness_um": [
+      0.03,
+      0.064,
+      0.04,
+      0.04,
+      0.022,
+      0.118,
+      0.02
+    ],
+    "pc_layers": [
+      6
+    ],
+    "radius_um": 0.06657437085863524,
+    "center_um": [
+      0.1475,
+      0.1475
+    ],
+    "fill_fraction": 0.16,
+    "eps_background": 12.418576,
+    "eps_hole": 1.0
+  },
+  "reference": {
+    "k0_um_inverse": 6.340400202528645,
+    "wavelength_um": 0.9909761381740161,
+    "beta_um_inverse": 21.298933244676572,
+    "beta0_um_inverse": 21.298933244676565,
+    "root_bracket_um_inverse": [
+      6.336046307372037,
+      6.343013913155693
+    ],
+    "root_method": "Brent",
+    "beta_relative_mismatch": 3.336048465890622e-16,
+    "boundary_residual": 1.1158435505111183e-15
+  },
+  "environment": {
+    "python": "3.13.14",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "cwt3d": "0.1.0",
+    "algorithm_digest": "ca0a55fec89c1e6195bd2cab977ccd896b66dd36923db0b0d905bba5a615de1c",
+    "precision": "complex128",
+    "threads": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": null,
+      "NUMEXPR_NUM_THREADS": null,
+      "BLIS_NUM_THREADS": null
+    }
+  },
+  "shift_um_inverse": [
+    -0.09535037430784794,
+    0.0035714285714285713
+  ],
+  "shift_rule": "minimum real infinite-C band edge - 0.6/L + i*0.25/L",
+  "infinite_eigenvalues_um_inverse": [
+    [
+      0.12460822001886027,
+      0.02894054071169745
+    ],
+    [
+      0.0076536084558620696,
+      -1.1062779686733196e-18
+    ],
+    [
+      -0.08677894573641937,
+      -4.726087094136434e-18
+    ],
+    [
+      0.12460822001886025,
+      0.02894054071169746
+    ]
+  ],
+  "solver": {
+    "requested": 1,
+    "returned": 1,
+    "converged": true,
+    "status": "converged",
+    "sigma": [
+      -0.09535037430784794,
+      0.0035714285714285713
+    ],
+    "k": 1,
+    "tolerance": 1e-10,
+    "residual_tolerance": 1e-09,
+    "seed": 33,
+    "ncv": 20,
+    "maxiter": 10000,
+    "arpack_converged": true,
+    "candidate_count": 1,
+    "discarded_transform": 0,
+    "discarded_residual": 0,
+    "discarded_numeric_range": 0,
+    "lu_seconds": 0.08211029996164143,
+    "iteration_seconds": 0.1011716999928467,
+    "lu_nnz": 2133787,
+    "linear_solves": 21,
+    "residual_normalization": "frobenius",
+    "A_frobenius": 371.67059876389544,
+    "B_frobenius": 135.41048703848605
+  },
+  "ordering": "ascending signed Im(lambda), stable ties",
+  "spectrum_scope": "single-shift targeted subset only; not all spectrum or certified lowest threshold",
+  "normalization": "hx*hy*sum_cells,sum_components |Bv|^2 = 1",
+  "units": {
+    "length": "um",
+    "envelope": "um^-1",
+    "intensity": "um^-2",
+    "center_power": "1",
+    "power_budget": "um^-1",
+    "eigenvalue": "um^-1"
+  },
+  "modes": [
+    {
+      "index": 0,
+      "delta_um_inverse": -0.09487491875999417,
+      "alpha_um_inverse": 0.0031510204289749016,
+      "deltaL": -6.641244313199592,
+      "alphaL": 0.22057143002824312,
+      "residual": 1.668014934018395e-18,
+      "boundary_error": 0.0,
+      "reconstruction_error": 0.0,
+      "center_power": 0.9999999999999992,
+      "edge": 0.004242960522906217,
+      "coupling": 0.0020590803350438794,
+      "threshold": 0.006302040857949798,
+      "balance_signed_error": -2.983724378680108e-16,
+      "balance_absolute_error": 2.983724378680108e-16,
+      "balance_relative_error": 2.3672683547554095e-14,
+      "radiation_scope": "all radiative coupling (auxiliary orders evanescent)",
+      "C1D": -1.8446495295760315e-18,
+      "Crad": 0.0020590803350439032,
+      "C2D": 0.0,
+      "component_sum_error": -2.211772431870429e-17,
+      "all_aux_evanescent": true
+    }
+  ],
+  "timings_seconds": {
+    "reference": 0.028671300038695335,
+    "coupling": 62.60263409995241,
+    "assembly": 0.00819179997779429,
+    "finite_solve": 0.21728690003510565,
+    "lu": 0.08211029996164143,
+    "iteration": 0.1011716999928467,
+    "reconstruction": 0.018516700016334653,
+    "compute_total": 62.88910309999483
+  },
+  "cache": "disabled"
+}
