@@ -486,3 +486,163 @@ empty arrays, invalid inputs, read-only configuration and input/result mutation
 isolation. Only the two new files and this validation appendix are changed.
 No commit/push was made. Specification and quality double review are still
 required; layered Task 6 is intentionally not started.
+
+## Task 6: stable full layered scalar TE Green kernel
+
+### Public integration API and conventions
+
+```python
+from cwt3d.greens import LayeredGreen, PoleError, CutoffError
+kernel = LayeredGreen(k0, eps, thickness_um, k_parallel=0, origin_um=0)
+# Or snapshot a TEWaveguide-compatible structure, without solving/importing a mode:
+kernel = LayeredGreen.from_structure(guide, k_parallel)
+values = kernel(z[:, None], z_prime[None, :])
+receiver_derivatives = kernel.derivative(z[:, None], z_prime[None, :], side='right')
+```
+
+`eps[0]` and `eps[-1]` are semi-infinite halfspaces; only the finite internal
+layers have positive `thickness_um`. Two eps entries and an empty thickness
+sequence describe one interface. The first interface is `origin_um` (default
+zero). `k0`/`k_parallel` are um^-1, coordinates/thicknesses/G are um, epsilon
+is relative permittivity. The existing `exp(+i*omega*t)`, passive
+`Im(epsilon)<=0`, and `[d_z^2+k0^2 epsilon-k_parallel^2]G=-delta` convention
+is unchanged. Gain is explicitly rejected. Passive complex, real positive,
+and negative real epsilon are accepted.
+
+Sources and receivers can independently occupy any layer, either halfspace,
+or an interface. `eps_profile` uses the **right** material at an interface;
+G is continuous, and its receiver derivative is continuous there unless it
+is also the source. At exact source coincidence, `derivative` requires
+`side='left'` or `'right'`; their difference is -1. This convention also
+applies to interface sources. Away from the source, side has no effect.
+Lossy reciprocity is transpose symmetry `G(z,s)=G(s,z)`, not conjugation.
+
+Public `eps`, `thickness_um`, `interfaces_um` are immutable scalar tuples;
+`k0`, `k_parallel`, `origin_um` are getter-only scalars. Caller arrays are
+snapshotted. Evaluation/profile outputs own independent mutable metadata and
+data; no source, result or broadcast-shape cache is retained. Empty batches,
+scalar calls and general NumPy broadcasting are supported. `from_structure`
+snapshots only k0/eps/thickness and optional origin, with no mode dependency.
+
+### Stable algorithm and source normalization
+
+For each element of width d, gamma is on the same outgoing branch as Task 5.
+The exact outward-derivative endpoint map has diagonal `gamma*coth(gamma*d)`
+and off-diagonal `-gamma*csch(gamma*d)`. These are evaluated using only
+`exp(-gamma*d)` and `expm1(-2*gamma*d)`, never growing T-matrix products.
+Small arguments use analytic series. In particular **internal gamma=0 is
+supported**, with the exact linear-element map `[[1,-1],[-1,1]]/d`.
+
+Weakly attenuating oscillatory layers are subdivided to imaginary phase
+<=pi/3 so an element Dirichlet resonance cannot be mistaken for a physical
+pole. A layer with `Re(gamma*d)>=1` needs no subdivision, including very thick
+lossy barriers. Halfspaces contribute exact Robin terms `+gamma` on the two
+outer endpoints; they are never truncated to a finite absorbing box.
+
+The assembled matrix K is complex symmetric. An interior source loads the
+two endpoints by its exact homogeneous endpoint shape functions `N(s)`.
+Receiver evaluation is `N(z)^T K^-1 N(s)` plus the element's zero-endpoint
+Dirichlet Green kernel if both coordinates share that element. An interface
+source is a unit nodal load. Exterior sources have exponentially weighted
+boundary loads and the corresponding halfline Dirichlet Green contribution.
+The local Green term supplies the derivative kink; integration of the
+operator enforces `G'(s+)-G'(s-)=-1`, not a material-weighted jump. All
+interpolation/local Green factors are also evaluated with decaying
+exponentials and small-argument linear limits.
+
+This fixed mesh is important: an initial implementation inserting source and
+receiver nodes developed spurious ill-conditioning when coordinates were
+near existing interfaces, and inaccurate finite-difference source slopes.
+The final source/receiver shape-function construction avoids those tiny
+artificial elements without snapping physical coordinates.
+
+### Explicit limits and singularity handling
+
+- This is a scalar TE reference kernel, not TM, anisotropy, C/SGM or a mode
+  solver. It solves a dense system and computes singular values **per pair**;
+  broadcasting is provided for later quadrature correctness, not acceleration.
+  Mesh construction has a 512-node budget; over-budget oscillatory structures
+  raise `ValueError` rather than running without element-pole protection.
+- Exact **exterior** cutoff raises `CutoffError`: a threshold radiation
+  prescription is not implemented. This is a stated boundary limitation, not
+  a claim that an internal zero-kz layer makes the full problem singular.
+- `PoleError` diagnoses `s_min(K)<=32*eps_machine*s_max(K)` or a failed singular
+  solve. This includes true bound poles and numerically unresolved near poles;
+  it is a numerical diagnostic, not a proof of an exact mathematical root.
+  No imaginary regularizer, denominator clamp or finite pole value is used.
+  Resolved nonzero near poles retain large physical enhancement. Arbitrary
+  ill-conditioning/extreme scales and sub-roundoff pole separation are not
+  certified; users requiring those ranges need higher precision.
+- Harmless spatial underflow is allowed locally, even under a caller's strict
+  underflow policy; over/invalid/divide are not swallowed and global `np.seterr`
+  is never changed. Unsupported nonfinite derived phases/mesh resolution raise.
+  HomogeneousGreen behavior is unchanged, including its own underflow policy.
+
+### Actual TDD and independent physical validation
+
+1. The test module was written first. Its initial run returned **1 collection
+   error**, missing `LayeredGreen`: scaffolding RED, not a physics failure.
+2. The first numerical implementation returned **4 failed, 19 passed**:
+   coordinate-insertion conditioning triggered false pole diagnoses and the
+   source-slope check failed. Replacing coordinate insertion by exact endpoint
+   source loads plus the local Dirichlet kernel gave **23 passed**.
+3. An additional behavior-first strict intermediate-underflow regression
+   returned **1 failed, 22 deselected** (`FloatingPointError` in a tail product).
+   Scalar propagation products now allow harmless underflow without modifying
+   NumPy policy. Additional randomized/material/metadata/budget tests pass.
+4. The independent oracle in `tests/test_greens_layered.py` solves a separate
+   small interface-amplitude linear system in `exp(+/-gamma*z)`, enforcing all
+   field/derivative interface equations and source jump explicitly. It uses
+   no production DtN, interpolation, mesh or Green helpers. It is restricted
+   to moderate widths, not used as a thick-layer oracle. Single-interface
+   Fresnel formulas and homogeneous reduction are additional analytic oracles.
+5. Permanent coverage includes both source directions at a single interface,
+   lossless and lossy multi-interface systems, sources at interfaces/in both
+   halfspaces, passive randomized negative/positive materials, source-free
+   ODE on both sides, analytic receiver derivatives, independent G-based
+   slope jump, transpose reciprocity, outgoing flux, halfspace decay,
+   translation/length scaling, all broadcasting and configuration isolation.
+   A whole-layer Dirichlet resonance with gamma*d=i*pi is finite after proper
+   subdivision. Internal exact gamma=0 is checked against its linear solution
+   and a nonzero-gamma limit.
+6. The real Task 4 guide `[1,9,1]`, d=.6 um, k0=4 gives fundamental beta
+   `11.30523024349396` um^-1, at which the Green kernel raises `PoleError`.
+   Offsets 1e-4, 1e-5 and 1e-6 are finite, agree with the independent interface
+   system, and show the expected approximately tenfold enhancement per decade.
+7. A 10,000-um evanescent barrier has gamma*d=`26457.51311064591` and passes
+   with over/invalid/divide/**under** all set to raise. Its left-source
+   reflection reduces to the isolated interface Fresnel value, central
+   coincident values reduce to the homogeneous kernel, and cross-barrier
+   transmission underflows to zero. A 10,000-um passive **complex** homogeneous
+   partition also reduces correctly and transmits zero at remote points.
+
+Executed scratch probe `.validation-scratch/task6_metrics.py`:
+
+| Check | Observed error/result |
+|---|---:|
+| Multilayer G vs independent interface system, max absolute error | 7.54e-16 um |
+| Receiver derivative vs independent interface system, max absolute error | 1.30e-15 |
+| Lossy transpose reciprocity, max absolute error | 2.37e-16 um |
+| Homogeneous reduction across artificial interfaces, max absolute error | 2.02e-16 um |
+| Source-free relative ODE residual, centered h=1e-4 um | 1.38e-8 |
+| One-sided derivative jump error against -1 | 8.33e-17 |
+| Independent G slope-jump error, h=1e-7 um | 1.56e-7 |
+| Interface G difference at +/-1e-9 um | 9.53e-10 um |
+| Interface derivative difference at +/-1e-9 um | 2.50e-9 |
+| Near-pole relative oracle error, beta offset 1e-4 | 9.05e-13 |
+| Near-pole relative oracle error, beta offset 1e-5 | 2.43e-11 |
+| Near-pole relative oracle error, beta offset 1e-6 | 3.00e-10 |
+| Near-pole magnitudes for those offsets | 1031.36, 10313.64, 103136.47 um |
+| Forbidden imported module roots (mph/model/calculator/numba) | none |
+
+Finite-offset interface differences include physical variation, not solely
+algebraic matching error. The near-pole magnitudes are physically divergent
+values, not accuracy guarantees arbitrarily close to a pole.
+
+Verification commands: `pytest tests/test_greens_layered.py
+ tests/test_greens_homogeneous.py -q` -> **82 passed** (28 new layered tests,
+54 unchanged homogeneous tests); full `pytest -q` -> **203 passed, 3 existing
+NumPy metadata-setter warnings**. `git diff --check` passed. Changes are limited
+to `src/cwt3d/greens.py`, new `tests/test_greens_layered.py`, and this appendix.
+No legacy source, waveguide, C/SGM, package exports, commit or push is changed.
+Independent specification and quality double review remain a separate gate.

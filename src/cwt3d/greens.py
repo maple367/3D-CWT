@@ -11,8 +11,8 @@ G=exp(-gamma*abs(z-z'))/(2*gamma). Equivalently kz=-i*gamma has Re(kz)>=0,
 Im(kz)<=0 and G=-i*exp(-i*kz*abs(z-z'))/(2*kz). The derivative jump at the
 source is -1. No growing exponential or legacy exp(i*gamma*d) is used.
 
-Only the infinite homogeneous scalar problem is implemented, not interfaces,
-layer reflections, TM matching, harmonic enumeration or a coupling matrix.
+HomogeneousGreen and LayeredGreen implement scalar TE kernels, not TM
+matching, harmonic enumeration or a coupling matrix.
 """
 from __future__ import annotations
 
@@ -166,3 +166,292 @@ class HomogeneousGreen:
         if side is not None:
             sign = np.where(at_source, -1 if side == 'left' else 1, sign)
         return -0.5 * sign * self._exponential(difference)
+
+
+class PoleError(ValueError):
+    """Outgoing boundary system is singular or numerically unresolved near a pole."""
+
+
+def _one_minus_exp(t):
+    """1-exp(-t), resolving small t and allowing only propagation underflow."""
+    if not (math.isfinite(t.real) and math.isfinite(t.imag)):
+        raise ValueError('propagation exponent outside finite float64 range')
+    with np.errstate(under='ignore'):
+        return -complex(np.expm1(-t))
+
+
+def _layer_element(gamma, width):
+    """Exact complex endpoint DtN: outward derivatives = [[a,b],[b,a]] u.
+
+    Only nonpositive-real exponentials occur. Small arguments use analytic
+    series (including the exact gamma=0 linear element), not cutoff rejection.
+    """
+    t = gamma * width
+    if not (math.isfinite(t.real) and math.isfinite(t.imag)):
+        raise ValueError('element phase outside finite float64 range')
+    if abs(t) < 1e-3:
+        t2 = t*t
+        a = (1+t2/3-t2*t2/45+2*t2**3/945)/width
+        b = -(1-t2/6+7*t2*t2/360-31*t2**3/15120)/width
+    else:
+        # cmath.exp naturally allows harmless underflow without touching NumPy's
+        # process/thread floating-point policy; expm1 resolves thin lossy layers.
+        e = cmath.exp(-t)
+        with np.errstate(under='ignore'):
+            den = -complex(np.expm1(-2*t))
+        a = gamma*((1+e*e)/den)
+        b = -2*gamma*e/den
+    if not all(math.isfinite(x.real) and math.isfinite(x.imag) for x in (a, b)):
+        raise ValueError('element stiffness outside finite float64 range')
+    return a, b
+
+
+class LayeredGreen:
+    """Complete outgoing scalar TE Green kernel for planar passive layers.
+
+    LayeredGreen(k0, eps, thickness_um, k_parallel=0, *, origin_um=0).
+    eps[0]/eps[-1] are infinite halfspaces; thickness_um describes ONLY the
+    internal layers, and may be empty for a single interface. The first
+    interface is origin_um. Units: um, um^-1, relative epsilon. The operator,
+    time/passivity convention and source jump are those of HomogeneousGreen.
+
+    Exact endpoint DtN elements plus outgoing halfspace Robin maps solve the
+    original interface problem, not a receiver-local homogeneous approximation.
+    Exact endpoint shape functions distribute an interior delta onto the mesh;
+    adding its zero-endpoint element Green function recovers the source kink.
+    An interface delta is a unit nodal load. Thus G'(s+)-G'(s-)=-1, including
+    interface sources. Complex symmetric (not Hermitian) stiffness preserves
+    lossy transpose reciprocity. Weakly attenuating oscillatory layers are
+    subdivided to phase <=pi/3; layers with Re(gamma*d)>=1 need no splitting.
+    Evanescent elements use decaying exponentials only, however thick.
+    No growing transfer matrices or source-dependent near-duplicate nodes.
+
+    Public configuration is scalar/tuple and getter-only; calls broadcast with
+    no mutable shape/source cache. This reference implementation solves a dense
+    system per coordinate pair, with at most 512 nodes (no speed claim).
+    Exact INTERNAL gamma=0 is supported. Exact exterior cutoff is explicitly
+    unsupported (CutoffError): a threshold radiation prescription is not
+    supplied here. PoleError diagnoses singular/numerically unresolved systems
+    at 32*machine-epsilon relative singular value; it does not regularize or
+    clamp them. Resolved near poles retain their physical enhancement. Extreme
+    dynamic ranges and sub-roundoff pole separations are not certified.
+    """
+
+    __slots__ = ('_k0', '_eps', '_thickness_um', '_k_parallel', '_origin_um',
+                 '_interfaces_um', '_gamma', '_nodes')
+
+    def __init__(self, k0, eps, thickness_um, k_parallel=0, *, origin_um=0):
+        k0 = _scalar(k0, 'k0')
+        kp = _scalar(k_parallel, 'k_parallel')
+        origin = _scalar(origin_um, 'origin_um')
+        e = _numeric(eps, 'eps', complex_allowed=True)
+        d = _numeric(thickness_um, 'thickness_um')
+        if e.ndim != 1 or e.size < 2:
+            raise ValueError('eps requires two halfspaces and optional internal layers')
+        if d.ndim != 1 or d.size != e.size-2 or np.any(d <= 0):
+            raise ValueError('thickness_um requires exactly the positive internal thicknesses')
+        if k0 <= 0 or kp < 0:
+            raise ValueError('k0 must be positive and k_parallel nonnegative')
+        if np.any(e.imag > 0):
+            raise ValueError('active epsilon unsupported: Im(epsilon) must be <=0')
+        k2, p2 = k0*k0, kp*kp
+        if not math.isfinite(k2) or not math.isfinite(p2) or k2 == 0:
+            raise ValueError('squared wavenumber outside resolved float64 range')
+        epsilon = tuple(complex(v) for v in e)
+        widths = tuple(float(v) for v in d)
+        gamma = []
+        for v in epsilon:
+            rad = p2-k2*v
+            if not (math.isfinite(rad.real) and math.isfinite(rad.imag)):
+                raise ValueError('derived gamma squared outside finite float64 range')
+            gamma.append(cmath.sqrt(complex(rad.real, max(0., rad.imag))))
+        if gamma[0] == 0 or gamma[-1] == 0:
+            raise CutoffError('exterior cutoff requires a threshold radiation prescription')
+        edges = [origin]
+        nodes = [origin]
+        for width, q in zip(widths, gamma[1:-1]):
+            right = edges[-1]+width
+            if not math.isfinite(right) or right <= edges[-1]:
+                raise ValueError('interfaces outside resolved float64 coordinate range')
+            # Strongly attenuating elements have no near-sine pole even when
+            # their imaginary phase is large; do not subdivide thick barriers.
+            phase = 0. if q.real*width >= 1 else q.imag*width
+            if not math.isfinite(phase) or phase > 500*np.pi/3:
+                raise ValueError('oscillatory subdivision exceeds 512-node budget')
+            count = max(1, math.ceil(phase/(np.pi/3)))
+            nodes.extend(edges[-1]+width*j/count for j in range(1,count+1))
+            nodes[-1] = right  # exact shared material endpoint, not rounded subdivision
+            edges.append(right)
+        if len(nodes)+2 > 512 or any(b <= a for a,b in zip(nodes,nodes[1:])):
+            raise ValueError('mesh exceeds node budget or floating-point resolution')
+        self._k0, self._k_parallel, self._origin_um = k0, kp, origin
+        self._eps, self._thickness_um = epsilon, widths
+        self._interfaces_um = tuple(edges)
+        self._gamma, self._nodes = tuple(gamma), tuple(nodes)
+
+    @classmethod
+    def from_structure(cls, structure, k_parallel=0):
+        """Snapshot a k0/eps/thickness_um structure (e.g. TEWaveguide), no mode."""
+        return cls(structure.k0, structure.eps, structure.thickness_um, k_parallel,
+                   origin_um=getattr(structure, 'origin_um', 0))
+
+    @property
+    def k0(self):
+        return self._k0
+
+    @property
+    def k_parallel(self):
+        return self._k_parallel
+
+    @property
+    def eps(self):
+        return self._eps
+
+    @property
+    def thickness_um(self):
+        return self._thickness_um
+
+    @property
+    def interfaces_um(self):
+        return self._interfaces_um
+
+    @property
+    def origin_um(self):
+        return self._origin_um
+
+    def eps_profile(self, z):
+        """Right-layer convention at interfaces; returns independent values."""
+        z = _numeric(z, 'z')
+        return np.asarray(self.eps)[np.searchsorted(self.interfaces_um, z, side='right')]
+
+    def _location(self, z):
+        return int(np.searchsorted(self._nodes, z, side='right'))-1
+
+    def _shapes(self, index, z, derivative=False):
+        left, right = self._nodes[index:index+2]
+        width = right-left
+        q = self._gamma[int(np.searchsorted(self.interfaces_um,left,side='right'))]
+        x = z-left
+        t = q*width
+        if abs(t) < 1e-3:
+            def sinhc(v):
+                return 1+v*v/6+v**4/120+v**6/5040
+            den = sinhc(t)
+            if derivative:
+                return (-cmath.cosh(q*(width-x))/(width*den),
+                        cmath.cosh(q*x)/(width*den))
+            return ((width-x)/width*sinhc(q*(width-x))/den,
+                    x/width*sinhc(q*x)/den)
+        den = _one_minus_exp(2*t)
+        if derivative:
+            return (-q*cmath.exp(-q*x)*(1+cmath.exp(-2*q*(width-x)))/den,
+                    q*cmath.exp(-q*(width-x))*(1+cmath.exp(-2*q*x))/den)
+        return (cmath.exp(-q*x)*_one_minus_exp(2*q*(width-x))/den,
+                cmath.exp(-q*(width-x))*_one_minus_exp(2*q*x)/den)
+
+    def _local(self, index, receiver, source, derivative, side):
+        """Zero-endpoint element/halfline Green contribution; all exponents decay."""
+        last = len(self._nodes)-1
+        if index < 0 or index == last:
+            lower = index < 0
+            edge = self._nodes[0 if lower else -1]
+            q = self._gamma[0 if lower else -1]
+            x, s = abs(receiver-edge), abs(source-edge)
+            distance = abs(receiver-source)
+            direct = cmath.exp(-q*distance)
+            image = cmath.exp(-q*(x+s))
+            if not derivative:
+                # Difference factored to retain precision close to the boundary.
+                return direct*_one_minus_exp(q*(x+s-distance))/(2*q)
+            sign = ((-1 if side == 'left' else 1) if receiver == source
+                    else (-1 if receiver < source else 1))
+            direction = -1 if lower else 1
+            return (-sign*direct+direction*image)/2
+        left,right = self._nodes[index:index+2]
+        width = right-left
+        x,s = receiver-left, source-left
+        q = self._gamma[int(np.searchsorted(self.interfaces_um,left,side='right'))]
+        before = receiver < source or (receiver == source and side == 'left')
+        a,b = min(x,s), width-max(x,s)
+        t = q*width
+        if abs(t) < 1e-3:
+            def sinhc(v):
+                return 1+v*v/6+v**4/120+v**6/5040
+            den = sinhc(t)
+            if derivative:
+                return ((width-s)/width*cmath.cosh(q*x)*sinhc(q*(width-s))/den if before else
+                        -s/width*sinhc(q*s)*cmath.cosh(q*(width-x))/den)
+            return a*b/width*sinhc(q*a)*sinhc(q*b)/den
+        den = _one_minus_exp(2*t)
+        e = cmath.exp(-q*abs(x-s))
+        if derivative:
+            return (.5*(1+cmath.exp(-2*q*x))*_one_minus_exp(2*q*(width-s))*e/den if before else
+                    -.5*_one_minus_exp(2*q*s)*(1+cmath.exp(-2*q*(width-x)))*e/den)
+        return _one_minus_exp(2*q*a)*_one_minus_exp(2*q*b)*e/(2*q*den)
+
+    def _pair(self, receiver, source, derivative, side):
+        n = len(self._nodes)
+        matrix = np.zeros((n,n), complex)
+        for i in range(n-1):
+            left,right = self._nodes[i:i+2]
+            layer = int(np.searchsorted(self.interfaces_um,left,side='right'))
+            a,b = _layer_element(self._gamma[layer],right-left)
+            matrix[i,i] += a
+            matrix[i+1,i+1] += a
+            matrix[i,i+1] = matrix[i+1,i] = b
+        matrix[0,0] += self._gamma[0]
+        matrix[-1,-1] += self._gamma[-1]
+        singular = np.linalg.svd(matrix, compute_uv=False)
+        if singular[-1] <= 32*np.finfo(float).eps*singular[0]:
+            raise PoleError('outgoing Green system singular or numerically unresolved near a pole')
+        source_index = self._location(source)
+        receiver_index = self._location(receiver)
+        rhs = np.zeros(n,complex)
+        if source_index < 0 or source_index == n-1:
+            lower = source_index < 0
+            j = 0 if lower else -1
+            rhs[j] = cmath.exp(-self._gamma[j]*abs(source-self._nodes[j]))
+        else:
+            rhs[source_index:source_index+2] = self._shapes(source_index,source)
+        try:
+            value = np.linalg.solve(matrix,rhs)
+        except np.linalg.LinAlgError as exc:
+            raise PoleError('outgoing Green system singular at a pole') from exc
+        if derivative and receiver == source and side == 'left' and receiver in self._nodes:
+            receiver_index -= 1
+        if receiver_index < 0 or receiver_index == n-1:
+            lower = receiver_index < 0
+            j = 0 if lower else -1
+            q = self._gamma[j]
+            result = complex(value[j])*cmath.exp(-q*abs(receiver-self._nodes[j]))
+            if derivative:
+                result *= q if lower else -q
+        else:
+            a,b = self._shapes(receiver_index,receiver,derivative)
+            result = a*complex(value[receiver_index])+b*complex(value[receiver_index+1])
+        if receiver_index == source_index:
+            result += self._local(receiver_index,receiver,source,derivative,side)
+        return result
+
+    def _evaluate(self, z, z_prime, derivative=False, side=None):
+        if side is not None and (not isinstance(side,str) or side not in ('left','right')):
+            raise ValueError("side must be None, 'left' or 'right'")
+        z,s = np.broadcast_arrays(_numeric(z,'z'), _numeric(z_prime,'z_prime'))
+        if derivative and side is None and np.any(z == s):
+            raise ValueError("derivative at the source requires side='left' or 'right'")
+        result = np.empty(z.shape,complex)
+        for index in np.ndindex(z.shape):
+            result[index] = self._pair(float(z[index]),float(s[index]),derivative,side)
+        return result.item() if result.ndim == 0 else result
+
+    def __call__(self, z, z_prime):
+        """Continuous G, including interface sources; broadcasts z and z_prime."""
+        return self._evaluate(z,z_prime)
+
+    def derivative(self, z, z_prime, *, side=None):
+        """Receiver derivative; side is required only at exact source coincidence.
+
+        Interfaces use the right layer, with continuous derivative except for
+        an interface source. side='left'/'right' then selects the source limit.
+        """
+        return self._evaluate(z,z_prime,True,side)
