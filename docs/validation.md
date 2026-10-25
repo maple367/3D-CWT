@@ -1468,3 +1468,148 @@ R1 edits touch only finite/tracking.py, tests/test_finite_modes.py and this
 appendix; fields.py and the pre-existing __init__.py edit remain untouched.
 Legacy sources unchanged; no commit/push. Independent quality re-review is
 still required.
+
+## Task 12：可选 prepared backend、显式安全缓存与真实基准
+
+> 本节以下至 R1 小节之前为修复前历史执行记录，对应旧 source digest；当前测量和最终验证以文末 R1 与 performance.md 为准。原始报告已原样归档，未伪造 digest。
+
+保留 `backend='reference'` 默认回归锚点，新增 `PreparedLayeredGreen`：同一
+DtN 系统一次 SVD pole check + 一次 LU，批量去重 source RHS，不显式求逆。
+继承原 mesh、shape、局部 Green、derivative/source side、cutoff/pole/passivity
+规则。coupling 仅切换 kernel 类型，继续按 radial order 复用，source/receiver
+xi 与同层 Duffy 积分不变。增加 F/backend/sampled shape 元数据和极端 beta0²
+早期范围校验；waveguide、Fourier、quadrature 与 finite solver 数学未修改。
+
+缓存 `CouplingCache(cache_dir)` 必须用户显式指定目录，构造/key/load 不写磁盘。
+NPZ numeric + JSON、禁止 pickle，key 包含实际 mode 归一化 field/插值状态、
+完整 stack/period/geometry/sample bytes、D/q/F/backend、源码 digest、NumPy/SciPy
+版本。ZIP 和 NPY header 在分配前检查，checksum/provenance 在返回前核验，
+损坏/不匹配明确失败。写入使用同目录临时文件 + atomic replace；只读与
+过期/size prune、精确 key clear 都有独立测试，不误删无关文件。默认 7 天和
+268435456 bytes，不后台自动 prune。checksum 不是针对恶意目录写入者的签名。
+
+### 实际 RED → GREEN
+
+1. 新 backend tests 首次运行：11 failed，含 4 组真实 build API 因不接受
+   backend keyword 失败、1 组 validation 失败；余下为 prepared API 缺失。
+   不把 ImportError 计作物理数值 RED。实现后初始 11 tests 全通过。
+2. cache 初次运行 4 failed 为模块尚未实现的 scaffold RED。随后新增行为回归
+   `test_store_rejects_wrong_precision_provenance`，在生产修复前真实执行为
+   **1 failed, 7 deselected**：q4 key 可以写入 q5 result，DID NOT RAISE
+   CacheError。增加 store/load metadata 与 canonical key 参数一致性检查后
+   转 GREEN，不放宽测试或 quadrature 精度。
+3. 复用独立 layered Green interface/ODE/jump/flux/near-pole/thick/complex/
+   strict-underflow gates 对 prepared 再执行；另验证 SVD/LU 一次、多 RHS、
+   full-array/C/eigenvalue parity、read-only bytes snapshots。cache tests 覆盖
+   各 key 轴、不同实际 mode shape、采样 grid/data、源码/数值版本变化、损坏/
+   mismatch/object payload/巨型伪造 header、atomic failure、readonly、age/size
+   prune 与无关文件保护。
+4. 一个新增 sampled fixture 曾用 2×2 grid 请求 D1 Fourier band，被既有
+   Nyquist gate 正确拒绝；仅把 fixture 改为 8×8，没有改动生产 band gate。
+
+### 真实性能与精度结果
+
+详见 [performance.md](performance.md)，可重跑脚本为
+`benchmarks/bench_coupling.py`、`benchmarks/bench_finite.py`，正式 raw JSON/CSV
+位于 `docs/benchmarks/`。两个脚本顺序运行；同一 Windows 11 AMD64、16 logical
+CPU 机器，导入数值库前线程环境固定为 1，complex128，Python 3.13.14 /
+NumPy 2.5.4 / SciPy 1.18.1。无 JIT，compile 指标明确 N/A；报告不含主机名、
+账号或个人绝对路径。测量源码 digest
+`f8bd39fa2326a78b641c5e996164dcdf6548a349564e12d88a6df518ac9ae26a`。
+
+- 单层偏心圆和双层偏心圆/不等腿直角三角形，D1/D3/**D10** 全部真实执行
+  reference/prepared 各 warm-up 1 次 + repeats 3 次，q12/F64 完全相同。
+  最终 6 条中位 speedup：单层 **2.602×/2.047×/1.919×**；双层
+  **3.210×/2.647×/2.722×**。本组六条 C 和 Hungarian-matched 四 eigenvalues
+  差值实际均为 0；不承诺任意结构 bitwise 一致。
+- 独立 reference q24 与 q18 基准显示：单层 D10 q12 的 C 积分误差
+  **1.824e-11 um^-1**，q18 降至 **2.253e-16**；双层 D10 对应
+  **2.629e-14 / 7.295e-17**。parity=0 不等于积分误差=0。
+- 冷 scalar 重新构造**没有加速**：单层 reference/prepared 125.4/174.6 us，
+  双层 127.5/198.7 us。保留所有 timed samples，不只宣传最好一次。
+- cache cold miss/hit 都实测并检查完整 result equality。测后精确 key 全部
+  清理，`.validation-scratch/task12-cache` 读取验证为空；scratch 另有
+  idle 24h 清理策略，不把临时 cache 加入 git。
+- 真正 sparse finite 8²/16²/32²，固定域 40×40 um、sigma=.03+.03j、k6、
+  tol/residual_tol=1e-9、seed33、ncv30、maxiter5000，均 converged。
+  assembly 中位约 **0.391/0.487/0.939 ms**，LU **0.243/1.171/5.656 ms**，
+  iteration **4.228/22.099/96.717 ms**；nnz(A/B)、LU fill、linear solves、
+  每次结果/residual 均保存。最大原 pencil 残差 **5.254e-12**。
+  独立 traced run peaks **508807/2181653/9945178 bytes**，仅
+  tracemalloc/Python/已注册 NumPy 分配；**RSS 未测且明确 null**，不能当总
+  native 内存上限。无错误 dense/legacy baseline，无跨网格谱收敛或完整器件声明。
+
+### 最终执行验证与交付边界
+
+```text
+.venv/Scripts/python.exe benchmarks/bench_coupling.py --cache-dir .validation-scratch/task12-cache --repeats 3
+.venv/Scripts/python.exe benchmarks/bench_finite.py --repeats 3
+.venv/Scripts/python.exe -m pytest -q --basetemp=.validation-scratch/task12-full-pytest
+git diff --check
+```
+
+最终 full suite：**521 passed, 6 warnings in 7.97 s**；31 个新增 tests 加上
+原 490。warnings 都是刻意测试 ndarray shape/dtype/strides 修改的 NumPy
+弃用警告。tracked diff whitespace check 通过；新增文件另用 no-index diff
+检查，避免普通 git diff 遗漏 untracked 文件。
+
+修改仅 greens.py/coupling.py、新 cache.py、两组新 tests、三份 benchmark
+脚本、performance/validation 与四份小 raw 报告。legacy、waveguide、Fourier、
+quadrature、finite solver 不变，无新依赖安装，无 commit/push。prepared 大
+batch 内存及准备 overhead、cache writer 信任边界见 performance.md。
+**实现与自检已完成；仍待独立规格审查，之后独立质量审查。Task 13 未开展。**
+
+### Task 12 规格 R1：结果完整输入 provenance 与请求 key 绑定
+
+**真实行为 RED。** 在实现前新增 `test_store_rejects_real_input_mismatch`，实际运行：
+
+```text
+.venv/Scripts/python.exe -m pytest -q tests/test_cache.py -k 'real_input_mismatch or wrong_precision' --basetemp=.validation-scratch/task12-r1-red
+```
+
+得到 **3 failed, 3 passed, 7 deselected in 0.83 s**。不同圆中心、相同 beta 但改变实际 field、不同 beta_rtol 的已计算 result 均未触发 CacheError；geometry/field 两例先断言真实 C 差异 >1e-8，且各自 key 不同。period 与 quadrature 精度的旧保护仍通过，不是 scaffold/import 错误。
+
+**修复策略。** 保持公开 `store(key,result,document=...)` API。`build_coupling` 从真实 mode/stack/geometry/sample bytes、period、全部数值选项与 backend、算法源码 digest/数值库语义生成完整 canonical JSON，作为 frozen `CouplingResult.provenance` 不可变字符串绑定，数组继续 immutable bytes snapshots。store 写前与 document 精确比对，load 在 metadata checksum 后同样比对；不能从 xi 或单独 beta 推断输入，不重新计算 C 验证缓存。未绑定 provenance 的手工结果拒绝缓存。checksum 及 provenance 不是签名，故意篡改私有属性或重新构造伪造 dataclass 仍超出保证，不再将普通 store 误配归入恶意威胁而忽略。
+
+**GREEN 与快照检查。** 初次 targeted cache/backend tests 为 **36 passed, 3 warnings in 1.68 s**；随后加入 provenance 只读赋值拒绝、document 字典修改隔离、缺失 provenance 拒绝、完整 dataclass/bytes roundtrip、load 在 checksum 有效时仍拒绝不同 provenance，以及 provenance 损坏触发 checksum 的永久回归。误配拒绝发生在 mkdir/write 前；正确 store 后 cache.build 命中等于原结果，精确 clear 后无关文件保留。
+
+**最终代码实测。** 源码最终 digest `3bccd999a6383a8ce9db9585e5d44d19652879e068f287c18b2f969bc13b026d`。先冻结 src，再顺序真实重跑原两条 benchmark 命令（见上，均 repeats=3）；不是只更新报告 digest。当前 `docs/benchmarks/{coupling,finite}.{json,csv}` 保存完整新样本；修复前四份原文件原样保存在 `docs/benchmarks/historical-f8bd39fa2326/`，仅代表旧 digest 的历史测量。
+
+- 六组 reference/prepared 各 warm-up 1 次、正式 3 次，单层 D1/D3/D10 speedup **2.311× / 2.002× / 2.141×**；双层 **3.215× / 2.650× / 2.164×**；全部 C/eigenvalue-set parity 仍为 0。q18/q24 独立参考误差不变。cache cold miss/hit 均重跑且完整 result equality 通过。
+- 三有限网格各 3 样本及单独 traced run 均真实完成，仍 converged；完整当前数值见 performance.md。RSS 未测，仍为 null。
+- scratch cache 运行前后文件 checksum 清单完全一致且均为空；仅 clear 该轮六个精确 key，无递归目录删除；回归测试另验证无关文件保留。
+- `.venv/Scripts/python.exe -m pytest -q --basetemp=.validation-scratch/task12-r1-full-pytest`：**527 passed, 6 warnings in 9.59 s**。均为既有刻意 ndarray metadata 修改 deprecation warnings。
+- 最终 targeted GREEN：相同误配选择再加 provenance snapshot 回归，**7 passed, 7 deselected in 0.76 s**。
+- `git diff --check` 通过，新增文件另作 no-index whitespace 检查。仅 Task12 src/tests/docs/测量产物改变；没有 legacy 或物理数学变化，没有 commit/push。仍待重新独立规格审查，之后质量审查；不自称审查通过。
+
+### Task 12 质量 R2：合法 0D period canonical 与缓存边界
+
+**真实 RED → GREEN。** 在改 source 前添加 reference/prepared × Python float / NumPy float64 / 0D ndarray 的真实计算、完整 result/provenance/key/document 一致、交叉 public store/load/hit、精确 clear 回读及无关文件保护回归；另加 invalid period 和真实 checksum 损坏 prune 策略测试。
+
+```text
+.venv/Scripts/python.exe -m pytest -q tests/test_cache.py -k 'scalar_period or invalid_scalars or recognized_checksum' --basetemp=.validation-scratch/task12-r2-red
+```
+
+实际 **12 failed, 5 passed, 14 deselected in 1.28 s**。其中两个合法 0D ndarray 用例直接 `build_coupling` 成功、`cache.build` 在 `_validate_metadata.real` 真实抛 `KeyError: 'float'`；另十个失败为 cache key/document 未拒绝非法标量（含原先 bool ndarray 的 TypeError 而非一致 ValueError）。这不是缺失模块或伪造报错。
+
+最小修复只对 period 调用已有 `_positive_scalar`：cache document 在 canonical 前校验并转换为 Python float，直接 build 用已验证的 `a` 生成完整 provenance。相同数值不保留原始 scalar dtype/container 身份，Python float / np.float64 / 0D ndarray 使用同 key、provenance 与数值 metadata；没有把几何或 mode field 数组做同样归一化，先前真实 geometry/same-beta field/精度/tolerance 误配仍严格拒绝。非标量、complex（虚部零也不例外）、bool、非正、NaN/Inf 均仍拒绝。
+
+修后 `.venv/Scripts/python.exe -m pytest -q tests/test_cache.py --basetemp=.validation-scratch/task12-r2-green` 实际 **31 passed, 1 warning in 1.70 s**。命中测试 mock 禁止重新计算；clear 后 readback 为 None，唯一无关文件 bytes 保留。原子写失败旧文件无损/临时清理回归亦通过。
+
+**prune / 并发边界。** API docstring 与 performance.md 不再承诺保留所有 corrupt 文件：prune 用规范 filename、ZIP/NPY layout、schema/key document 识别 ownership，不做完整数组/metadata checksum 或 provenance 审计。新测试真实修改 C 而不更新 checksum：load 拒绝，fresh entry 暂留，过期后可 prune；malformed ZIP 和无关文件保留。没有引入昂贵 checksum 扫描或锁。atomic replace 保证完整快照，不保证并发成功；Windows reader 可阻止 replace（PermissionError/WinError 5），由调用者串行或重试，没有自动 retry / 跨进程锁。
+
+**冻结 source 后真实性能重跑。** digest 为 `ca0a55fec89c1e6195bd2cab977ccd896b66dd36923db0b0d905bba5a615de1c`。先为当前四报告记录 SHA256，再原样复制到 `docs/benchmarks/historical-3bccd999a638/` 并比对；归档 JSON 保留上一轮 digest，旧 `historical-f8bd39fa2326/` 未改。然后原命令顺序执行：
+
+```text
+.venv/Scripts/python.exe benchmarks/bench_coupling.py --cache-dir .validation-scratch/task12-cache --repeats 3
+.venv/Scripts/python.exe benchmarks/bench_finite.py --repeats 3
+.venv/Scripts/python.exe -m pytest -q --basetemp=.validation-scratch/task12-r2-full-pytest
+git diff --check
+```
+
+- coupling 六组每 backend 3 个真实样本（包括 D10），单 PC D1/D3/D10 speedup **2.225×/2.018×/1.896×**，双 PC **3.078×/2.669×/2.574×**；C/eigenvalue-set parity 均为 0，q18/q24 误差保持；cold miss/hit 完整 result 相等。
+- finite 三网格各 3 样本与独立 traced run，全为 converged；当前四 JSON/CSV 与 performance 表均同步。RSS 未测，明确 null。
+- scratch audit 脚本 `.validation-scratch/task12_r2_audit.py` 审核 6/3 行、3 repeats、逐字段 JSON/CSV 对应、median、speedup、LU fill、source digest、归档 SHA256 全通过。cache 目录运行前后均 readback 为空，脚本只 clear 本轮精确 key；永久回归另验证无关文件不删除。
+- 全套实际 **544 passed, 6 warnings in 8.84 s**，warnings 均为既有刻意 NumPy ndarray metadata 修改弃用警告。tracked diff 与新增文件 whitespace check 通过。
+
+只改 Task12 source/test/docs/测量产物，不改物理数学或 legacy，不 commit/push。仍待质量复审，不将实现者自检称为独立审查通过。

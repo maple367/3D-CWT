@@ -1,0 +1,507 @@
+{
+  "kind": "finite",
+  "environment": {
+    "source_digest": "f8bd39fa2326a78b641c5e996164dcdf6548a349564e12d88a6df518ac9ae26a",
+    "python": "3.13.14",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "system": "Windows",
+    "release": "11",
+    "machine": "AMD64",
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "logical_cpus": 16,
+    "threads": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "BLIS_NUM_THREADS": "1"
+    },
+    "precision": "complex128",
+    "jit": "N/A (no JIT)",
+    "rss_peak_bytes": null,
+    "note": "Thread environment fixed before importing NumPy; RSS not measured."
+  },
+  "rows": [
+    {
+      "Nx": 8,
+      "Ny": 8,
+      "n_dof": 256,
+      "Lx_um": 40.0,
+      "Ly_um": 40.0,
+      "sigma": [
+        0.03,
+        0.03
+      ],
+      "k": 6,
+      "tol": 1e-09,
+      "residual_tol": 1e-09,
+      "seed": 33,
+      "ncv": 30,
+      "maxiter": 5000,
+      "repeats": 3,
+      "warmup": 1,
+      "samples": [
+        {
+          "assembly_seconds": 0.00042340002255514264,
+          "solve_total_seconds": 0.007069599989335984,
+          "lu_seconds": 0.0002891999902203679,
+          "iteration_seconds": 0.004228099947795272,
+          "max_residual": 4.244759638742179e-17,
+          "nnz_A": 1920,
+          "nnz_B": 480,
+          "nnz_shift": 1920,
+          "lu_nnz": 5692,
+          "lu_fill_ratio": 2.964583333333333,
+          "linear_solves": 78,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07010232535377492,
+              0.04567076813829471
+            ],
+            [
+              0.07019189982267769,
+              0.045687940166005414
+            ],
+            [
+              0.0702093373794859,
+              0.045677229417211175
+            ],
+            [
+              0.07021574616001025,
+              0.045674573110142065
+            ],
+            [
+              0.07021861787715945,
+              0.045673604870836104
+            ],
+            [
+              0.07022004460689348,
+              0.0456731716919056
+            ]
+          ]
+        },
+        {
+          "assembly_seconds": 0.0003912000101990998,
+          "solve_total_seconds": 0.006919500010553747,
+          "lu_seconds": 0.0002427000436000526,
+          "iteration_seconds": 0.00425370002631098,
+          "max_residual": 4.244759638742179e-17,
+          "nnz_A": 1920,
+          "nnz_B": 480,
+          "nnz_shift": 1920,
+          "lu_nnz": 5692,
+          "lu_fill_ratio": 2.964583333333333,
+          "linear_solves": 78,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07010232535377492,
+              0.04567076813829471
+            ],
+            [
+              0.07019189982267769,
+              0.045687940166005414
+            ],
+            [
+              0.0702093373794859,
+              0.045677229417211175
+            ],
+            [
+              0.07021574616001025,
+              0.045674573110142065
+            ],
+            [
+              0.07021861787715945,
+              0.045673604870836104
+            ],
+            [
+              0.07022004460689348,
+              0.0456731716919056
+            ]
+          ]
+        },
+        {
+          "assembly_seconds": 0.00038410001434385777,
+          "solve_total_seconds": 0.006875900027807802,
+          "lu_seconds": 0.00024050002684816718,
+          "iteration_seconds": 0.004184000019449741,
+          "max_residual": 4.244759638742179e-17,
+          "nnz_A": 1920,
+          "nnz_B": 480,
+          "nnz_shift": 1920,
+          "lu_nnz": 5692,
+          "lu_fill_ratio": 2.964583333333333,
+          "linear_solves": 78,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07010232535377492,
+              0.04567076813829471
+            ],
+            [
+              0.07019189982267769,
+              0.045687940166005414
+            ],
+            [
+              0.0702093373794859,
+              0.045677229417211175
+            ],
+            [
+              0.07021574616001025,
+              0.045674573110142065
+            ],
+            [
+              0.07021861787715945,
+              0.045673604870836104
+            ],
+            [
+              0.07022004460689348,
+              0.0456731716919056
+            ]
+          ]
+        }
+      ],
+      "tracemalloc_peak_bytes": 508807,
+      "rss_peak_bytes": null,
+      "memory_note": "Separate traced run: Python/registered NumPy allocations, NOT process RSS or full native LU memory.",
+      "memory_run_max_residual": 4.244759638742179e-17,
+      "assembly_seconds_median": 0.0003912000101990998,
+      "solve_total_seconds_median": 0.006919500010553747,
+      "lu_seconds_median": 0.0002427000436000526,
+      "iteration_seconds_median": 0.004228099947795272,
+      "lu_fill_ratio_median": 2.964583333333333,
+      "nnz_A": 1920,
+      "nnz_B": 480,
+      "nnz_shift": 1920,
+      "lu_nnz": 5692,
+      "linear_solves": 78,
+      "max_residual": 4.244759638742179e-17,
+      "status": "converged"
+    },
+    {
+      "Nx": 16,
+      "Ny": 16,
+      "n_dof": 1024,
+      "Lx_um": 40.0,
+      "Ly_um": 40.0,
+      "sigma": [
+        0.03,
+        0.03
+      ],
+      "k": 6,
+      "tol": 1e-09,
+      "residual_tol": 1e-09,
+      "seed": 33,
+      "ncv": 30,
+      "maxiter": 5000,
+      "repeats": 3,
+      "warmup": 1,
+      "samples": [
+        {
+          "assembly_seconds": 0.00048719998449087143,
+          "solve_total_seconds": 0.026923099998384714,
+          "lu_seconds": 0.0012153999996371567,
+          "iteration_seconds": 0.021430700027849525,
+          "max_residual": 5.2537819126295585e-12,
+          "nnz_A": 7936,
+          "nnz_B": 1984,
+          "nnz_shift": 7936,
+          "lu_nnz": 33478,
+          "lu_fill_ratio": 4.218497983870968,
+          "linear_solves": 160,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07065864540489589,
+              0.04501370325586919
+            ],
+            [
+              0.07074621552666466,
+              0.045030807750675986
+            ],
+            [
+              0.07076338051900308,
+              0.04502042336734814
+            ],
+            [
+              0.07076978990444727,
+              0.045017770711182827
+            ],
+            [
+              0.07077276192231337,
+              0.045016779461213685
+            ],
+            [
+              0.07077437133593444,
+              0.045016302328863084
+            ]
+          ]
+        },
+        {
+          "assembly_seconds": 0.0004911000141873956,
+          "solve_total_seconds": 0.027569899975787848,
+          "lu_seconds": 0.0011705000069923699,
+          "iteration_seconds": 0.022098799992818385,
+          "max_residual": 5.2537819126295585e-12,
+          "nnz_A": 7936,
+          "nnz_B": 1984,
+          "nnz_shift": 7936,
+          "lu_nnz": 33478,
+          "lu_fill_ratio": 4.218497983870968,
+          "linear_solves": 160,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07065864540489589,
+              0.04501370325586919
+            ],
+            [
+              0.07074621552666466,
+              0.045030807750675986
+            ],
+            [
+              0.07076338051900308,
+              0.04502042336734814
+            ],
+            [
+              0.07076978990444727,
+              0.045017770711182827
+            ],
+            [
+              0.07077276192231337,
+              0.045016779461213685
+            ],
+            [
+              0.07077437133593444,
+              0.045016302328863084
+            ]
+          ]
+        },
+        {
+          "assembly_seconds": 0.0004764999612234533,
+          "solve_total_seconds": 0.028165700030513108,
+          "lu_seconds": 0.0011686999932862818,
+          "iteration_seconds": 0.02263159997528419,
+          "max_residual": 5.2537819126295585e-12,
+          "nnz_A": 7936,
+          "nnz_B": 1984,
+          "nnz_shift": 7936,
+          "lu_nnz": 33478,
+          "lu_fill_ratio": 4.218497983870968,
+          "linear_solves": 160,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07065864540489589,
+              0.04501370325586919
+            ],
+            [
+              0.07074621552666466,
+              0.045030807750675986
+            ],
+            [
+              0.07076338051900308,
+              0.04502042336734814
+            ],
+            [
+              0.07076978990444727,
+              0.045017770711182827
+            ],
+            [
+              0.07077276192231337,
+              0.045016779461213685
+            ],
+            [
+              0.07077437133593444,
+              0.045016302328863084
+            ]
+          ]
+        }
+      ],
+      "tracemalloc_peak_bytes": 2181653,
+      "rss_peak_bytes": null,
+      "memory_note": "Separate traced run: Python/registered NumPy allocations, NOT process RSS or full native LU memory.",
+      "memory_run_max_residual": 5.2537819126295585e-12,
+      "assembly_seconds_median": 0.00048719998449087143,
+      "solve_total_seconds_median": 0.027569899975787848,
+      "lu_seconds_median": 0.0011705000069923699,
+      "iteration_seconds_median": 0.022098799992818385,
+      "lu_fill_ratio_median": 4.218497983870968,
+      "nnz_A": 7936,
+      "nnz_B": 1984,
+      "nnz_shift": 7936,
+      "lu_nnz": 33478,
+      "linear_solves": 160,
+      "max_residual": 5.2537819126295585e-12,
+      "status": "converged"
+    },
+    {
+      "Nx": 32,
+      "Ny": 32,
+      "n_dof": 4096,
+      "Lx_um": 40.0,
+      "Ly_um": 40.0,
+      "sigma": [
+        0.03,
+        0.03
+      ],
+      "k": 6,
+      "tol": 1e-09,
+      "residual_tol": 1e-09,
+      "seed": 33,
+      "ncv": 30,
+      "maxiter": 5000,
+      "repeats": 3,
+      "warmup": 1,
+      "samples": [
+        {
+          "assembly_seconds": 0.0010687000467441976,
+          "solve_total_seconds": 0.113537399971392,
+          "lu_seconds": 0.005646599980536848,
+          "iteration_seconds": 0.0967172000091523,
+          "max_residual": 1.529799328210701e-12,
+          "nnz_A": 32256,
+          "nnz_B": 8064,
+          "nnz_shift": 32256,
+          "lu_nnz": 193092,
+          "lu_fill_ratio": 5.986235119047619,
+          "linear_solves": 201,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07079480399347857,
+              0.04484595084551773
+            ],
+            [
+              0.07088188247727298,
+              0.04486302387669515
+            ],
+            [
+              0.07089895994819775,
+              0.04485272737315105
+            ],
+            [
+              0.07090534839622527,
+              0.044850080186518385
+            ],
+            [
+              0.07090831583056022,
+              0.04484909019901054
+            ],
+            [
+              0.07090992822659789,
+              0.04484861267785728
+            ]
+          ]
+        },
+        {
+          "assembly_seconds": 0.0009393999935127795,
+          "solve_total_seconds": 0.11289220000617206,
+          "lu_seconds": 0.005789599963463843,
+          "iteration_seconds": 0.09603170002810657,
+          "max_residual": 1.529799328210701e-12,
+          "nnz_A": 32256,
+          "nnz_B": 8064,
+          "nnz_shift": 32256,
+          "lu_nnz": 193092,
+          "lu_fill_ratio": 5.986235119047619,
+          "linear_solves": 201,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07079480399347857,
+              0.04484595084551773
+            ],
+            [
+              0.07088188247727298,
+              0.04486302387669515
+            ],
+            [
+              0.07089895994819775,
+              0.04485272737315105
+            ],
+            [
+              0.07090534839622527,
+              0.044850080186518385
+            ],
+            [
+              0.07090831583056022,
+              0.04484909019901054
+            ],
+            [
+              0.07090992822659789,
+              0.04484861267785728
+            ]
+          ]
+        },
+        {
+          "assembly_seconds": 0.0008621999877505004,
+          "solve_total_seconds": 0.11482680001063272,
+          "lu_seconds": 0.005655699991621077,
+          "iteration_seconds": 0.09795610001310706,
+          "max_residual": 1.529799328210701e-12,
+          "nnz_A": 32256,
+          "nnz_B": 8064,
+          "nnz_shift": 32256,
+          "lu_nnz": 193092,
+          "lu_fill_ratio": 5.986235119047619,
+          "linear_solves": 201,
+          "status": "converged",
+          "eigenvalues": [
+            [
+              0.07079480399347857,
+              0.04484595084551773
+            ],
+            [
+              0.07088188247727298,
+              0.04486302387669515
+            ],
+            [
+              0.07089895994819775,
+              0.04485272737315105
+            ],
+            [
+              0.07090534839622527,
+              0.044850080186518385
+            ],
+            [
+              0.07090831583056022,
+              0.04484909019901054
+            ],
+            [
+              0.07090992822659789,
+              0.04484861267785728
+            ]
+          ]
+        }
+      ],
+      "tracemalloc_peak_bytes": 9945178,
+      "rss_peak_bytes": null,
+      "memory_note": "Separate traced run: Python/registered NumPy allocations, NOT process RSS or full native LU memory.",
+      "memory_run_max_residual": 1.529799328210701e-12,
+      "assembly_seconds_median": 0.0009393999935127795,
+      "solve_total_seconds_median": 0.113537399971392,
+      "lu_seconds_median": 0.005655699991621077,
+      "iteration_seconds_median": 0.0967172000091523,
+      "lu_fill_ratio_median": 5.986235119047619,
+      "nnz_A": 32256,
+      "nnz_B": 8064,
+      "nnz_shift": 32256,
+      "lu_nnz": 193092,
+      "linear_solves": 201,
+      "max_residual": 1.529799328210701e-12,
+      "status": "converged"
+    }
+  ],
+  "coupling": {
+    "geometry": "dual_circle_triangle",
+    "cutoff": 3,
+    "quadrature_order": 12,
+    "fourier_order": 64,
+    "backend": "prepared"
+  },
+  "scope": "Sparse scaling only, same target controls; no dense/legacy speed claim, no cross-grid mode matching or mesh-convergence claim."
+}

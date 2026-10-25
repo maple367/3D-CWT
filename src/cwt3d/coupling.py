@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 from .geometry import CircleHole, RightTriangleHole, SampledPermittivity, _integer
 from .fourier import shape_fourier, fft_fourier
-from .greens import LayeredGreen
+from .greens import LayeredGreen, PreparedLayeredGreen
 from .quadrature import mode_overlap, green_overlap
 from .waveguide import TEMode, _positive_scalar
 
@@ -52,10 +52,17 @@ class CouplingResult(_Snapshots):
     radial_orders: tuple
     all_aux_evanescent: bool
     units: str = 'um^-1'
+    fourier_order: int = 64
+    backend: str = 'reference'
+    sampling_shapes: tuple = ()
+    # Immutable canonical input snapshot; empty for manually constructed results.
+    # Not an authentication signature against deliberate dataclass forgery.
+    provenance: str = ''
 
 
 def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
-                   quadrature_order=12, fourier_order=64, beta_rtol=1e-8):
+                   quadrature_order=12, fourier_order=64, beta_rtol=1e-8,
+                   backend='reference'):
     """Build physical reference C using a normalized TEMode.
 
     pc_layers maps guide epsilon indices 1..len(eps)-2 to a CircleHole,
@@ -68,9 +75,15 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
     Quadrature is fixed-order per material interval. Kernels/overlaps reused
     by m²+n², never recomputed per matrix entry. Scalar TE/nonmagnetic only.
     Propagating auxiliaries allowed; C2D Hermiticity then not promised.
+    backend='reference' is the unchanged dense per-pair regression anchor;
+    'prepared' uses one pole check/LU per radial kernel and batched source RHS,
+    with identical Fourier/quadrature orders and same-layer Duffy integration.
+    fourier_order and sampled grid shapes are retained in result metadata.
     """
     if not isinstance(mode,TEMode):
         raise TypeError('mode must be a normalized TEMode')
+    if backend not in ('reference', 'prepared'):
+        raise ValueError("backend must be 'reference' or 'prepared'")
     a = _positive_scalar(period_um,'period_um')
     D = _integer(cutoff,'cutoff')
     Q = _integer(quadrature_order,'quadrature_order')
@@ -78,6 +91,8 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
     if isinstance(beta_rtol,(bool,np.bool_)) or not np.isscalar(beta_rtol) or not np.isfinite(beta_rtol) or beta_rtol < 0:
         raise ValueError('beta_rtol must be finite and nonnegative')
     b = 2*np.pi/a
+    if not np.isfinite(b) or b <= 0 or not np.isfinite(b*b) or b*b == 0:
+        raise ValueError('beta0 or beta0 squared outside resolved finite range')
     detuning = (mode.beta-b)/b
     if abs(detuning) > beta_rtol:
         raise ValueError('mode.beta does not match beta0=2*pi/period_um within beta_rtol')
@@ -98,6 +113,12 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
         mean = material.mean() if isinstance(h,SampledPermittivity) else h.mean_epsilon
         if not np.isclose(mean,guide.eps[l],rtol=1e-11,atol=1e-12):
             raise ValueError('geometry mean epsilon does not match averaged waveguide')
+    # Lazy import avoids a module-initialization cycle with the optional cache.
+    # Snapshot actual inputs, not a caller-supplied key or inferred Fourier table.
+    from .cache import _document, _json
+    provenance = _json(_document(mode, a, layers, dict(
+        cutoff=cutoff, quadrature_order=quadrature_order, fourier_order=fourier_order,
+        beta_rtol=beta_rtol, backend=backend)))
     ids = tuple(sorted(layers))
     basic = np.array([(1,0),(-1,0),(0,1),(0,-1)])
     aux = [(m,n) for m in range(-D,D+1) for n in range(-D,D+1) if m*m+n*n > 1]
@@ -118,7 +139,8 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
     J = I/np.array([guide.eps[l] for l in ids])
     K = np.empty((len(radial),len(ids),len(ids)),complex)
     for index,r2 in enumerate(radial):
-        kernel = LayeredGreen.from_structure(guide,b*np.sqrt(r2))
+        kernel_type = LayeredGreen if backend == 'reference' else PreparedLayeredGreen
+        kernel = kernel_type.from_structure(guide,b*np.sqrt(r2))
         for i,left in enumerate(bounds):
             for j,right in enumerate(bounds):
                 K[index,i,j] = green_overlap(mode,left,right,kernel,Q)
@@ -158,4 +180,7 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
                                 aux_orders=np.array(aux,dtype=int),
                                 mu=np.array(mus),nu=np.array(nus),varsigma=np.array(fields)),
                           a,b,guide.k0,float(detuning),D,Q,ids,radial,
-                          bool(all(b*b*r > guide.k0**2*max(guide.eps) for r in radial[1:])))
+                          bool(all(b*b*r > guide.k0**2*max(guide.eps) for r in radial[1:])),
+                          fourier_order=F, backend=backend, provenance=provenance,
+                          sampling_shapes=tuple((l,layers[l].values.shape) for l in ids
+                                                if isinstance(layers[l],SampledPermittivity)))

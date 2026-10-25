@@ -455,3 +455,88 @@ class LayeredGreen:
         an interface source. side='left'/'right' then selects the source limit.
         """
         return self._evaluate(z,z_prime,True,side)
+
+
+class PreparedLayeredGreen(LayeredGreen):
+    """Optional complex128 backend: one pole check/LU per structure/radial order.
+
+    Same mesh, shapes and local source Green as LayeredGreen. Sources are
+    deduplicated and solved as multiple RHS (no inverse). Broadcast output and
+    RHS storage scale with the requested batch; split very large requests at
+    the caller. Factorization is bytes-backed and cannot leak mutable headers.
+    Pole detection happens eagerly at preparation, rather than first pair.
+    No JIT, fastmath, disk cache, or global mutable kernel cache is used.
+    """
+    __slots__ = ('_lu_bytes', '_pivot_bytes')
+
+    def __init__(self, *args, **kwargs):
+        from scipy.linalg import lu_factor
+        super().__init__(*args, **kwargs)
+        n = len(self._nodes)
+        matrix = np.zeros((n, n), complex)
+        for i in range(n-1):
+            left, right = self._nodes[i:i+2]
+            layer = int(np.searchsorted(self.interfaces_um, left, side='right'))
+            a, b = _layer_element(self._gamma[layer], right-left)
+            matrix[i, i] += a
+            matrix[i+1, i+1] += a
+            matrix[i, i+1] = matrix[i+1, i] = b
+        matrix[0, 0] += self._gamma[0]
+        matrix[-1, -1] += self._gamma[-1]
+        singular = np.linalg.svd(matrix, compute_uv=False)
+        if singular[-1] <= 32*np.finfo(float).eps*singular[0]:
+            raise PoleError('outgoing Green system singular or numerically unresolved near a pole')
+        lu, pivot = lu_factor(matrix)
+        self._lu_bytes = lu.tobytes()
+        self._pivot_bytes = np.asarray(pivot, dtype=np.int32).tobytes()
+
+    def _evaluate(self, z, z_prime, derivative=False, side=None):
+        from scipy.linalg import lu_solve
+        if side is not None and (not isinstance(side, str) or side not in ('left', 'right')):
+            raise ValueError("side must be None, 'left' or 'right'")
+        z, s = np.broadcast_arrays(_numeric(z, 'z'), _numeric(z_prime, 'z_prime'))
+        if derivative and side is None and np.any(z == s):
+            raise ValueError("derivative at the source requires side='left' or 'right'")
+        if not z.size:
+            return np.empty(z.shape, complex)
+        receivers, sources = z.ravel().astype(float), s.ravel().astype(float)
+        unique, inverse = np.unique(sources, return_inverse=True)
+        n = len(self._nodes)
+        rhs = np.zeros((n, len(unique)), complex)
+        for j, source in enumerate(unique):
+            source = float(source)
+            index = self._location(source)
+            if index < 0 or index == n-1:
+                edge = 0 if index < 0 else -1
+                rhs[edge, j] = cmath.exp(-self._gamma[edge]*abs(source-self._nodes[edge]))
+            else:
+                rhs[index:index+2, j] = self._shapes(index, source)
+        lu = np.ndarray((n, n), dtype=complex, buffer=self._lu_bytes)
+        pivot = np.frombuffer(self._pivot_bytes, dtype=np.int32)
+        values = lu_solve((lu, pivot), rhs, check_finite=False)
+        result = np.empty(len(receivers), complex)
+        # Reuse endpoint shapes across the tensor/Duffy broadcast. The source
+        # coincidence left limit may use a different element at a mesh node.
+        shapes = {}
+        for j, (receiver, source) in enumerate(zip(receivers, sources)):
+            receiver, source = float(receiver), float(source)
+            ri, si = self._location(receiver), self._location(source)
+            if derivative and receiver == source and side == 'left' and receiver in self._nodes:
+                ri -= 1
+            key = (receiver, ri)
+            if key not in shapes:
+                if ri < 0 or ri == n-1:
+                    edge = 0 if ri < 0 else n-1
+                    q = self._gamma[0 if ri < 0 else -1]
+                    factor = cmath.exp(-q*abs(receiver-self._nodes[edge]))
+                    if derivative:
+                        factor *= q if ri < 0 else -q
+                    shapes[key] = ((edge,), (factor,))
+                else:
+                    shapes[key] = ((ri, ri+1), self._shapes(ri, receiver, derivative))
+            indices, factors = shapes[key]
+            result[j] = sum(factor*complex(values[index, inverse[j]]) for index, factor in zip(indices, factors))
+            if ri == si:
+                result[j] += self._local(ri, receiver, source, derivative, side)
+        result = result.reshape(z.shape)
+        return result.item() if result.ndim == 0 else result
