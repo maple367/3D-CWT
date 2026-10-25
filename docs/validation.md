@@ -646,3 +646,110 @@ NumPy metadata-setter warnings**. `git diff --check` passed. Changes are limited
 to `src/cwt3d/greens.py`, new `tests/test_greens_layered.py`, and this appendix.
 No legacy source, waveguide, C/SGM, package exports, commit or push is changed.
 Independent specification and quality double review remain a separate gate.
+
+## Task 7: physical multilayer reference coupling and infinite four modes
+
+New entry points (the package root and all historical source stay unchanged):
+
+```python
+from cwt3d.coupling import build_coupling
+from cwt3d.infinite import solve_infinite
+# mode is a normalized TEMode; a is an EXPLICIT scalar square period in um.
+# pc_layers maps finite internal EPSILON indices (1 .. len(eps)-2) to geometry.
+c = build_coupling(mode, a, pc_layers, cutoff=1, quadrature_order=12)
+r = solve_infinite(c)
+```
+
+The order is V=(Rx,Sx,Ry,Sy), harmonics=(+x,-x,+y,-y), electric
+components=(y,y,x,x). Every coupling matrix has units um^-1. `C1D`
+contains only the four counterpropagating kappa entries, `Crad` the two
+same-polarization zeta blocks, and `C2D` is chi with its full external
+`-k0**2/(2*beta0)` factor. `C2D_green` and `C2D_local` expose the nonlocal
+and negative-nu terms. The result also returns `mu`, `nu`, `varsigma`,
+`aux_orders`, `xi`, `xi_orders`, `I`, `J`, `K`, layer IDs and radial IDs.
+`mu/nu` axes are (aux, receiver layer, source basic wave); varsigma adds
+an x/y component axis before the source wave. These dimensionless fields
+are integrated over each RECEIVER layer before its Fourier coefficient
+is applied; they are not averaged-PC coefficients. Sum the receiver-layer
+axis to recover thesis (3.27)-(3.29). No term substitutes xi(z) for xi(z').
+
+`I_l=integral_l |Theta|^2`, `J_l=I_l/epsilon_l`, and
+`K_ll'=integral_l integral_l' Theta*(z) G(z,s) Theta(s)` factor each layer's
+constant Fourier coefficients exactly. Integration is partitioned at all
+material interfaces. Each same-layer double integral uses TWO Duffy
+triangles with Jacobian L^2*u, so the Green derivative cusp is a boundary,
+not an unresolved tensor-rule diagonal. Cross-layer rectangles use Gauss
+products. Kernels/overlaps are reused by m^2+n^2, not per matrix entry.
+The auxiliary square is |m|,|n|<=D excluding zero and all four basics.
+
+Input scope: positive lossless epsilon, scalar nonmagnetic TE, square period,
+CircleHole/RightTriangleHole/SampledPermittivity in finite internal layers.
+Each geometry period and mean epsilon must match the guide; imaginary
+material epsilon is rejected, never discarded. Other layers have xi=0;
+an empty PC mapping and zero contrast give exactly zero matrices. Sampled
+geometry obeys the existing canonical FFT band limits and sampling caveats.
+`beta0=2*pi/a` must match mode.beta at default relative tolerance 1e-8.
+A caller may explicitly relax `beta_rtol`; `relative_detuning` records the
+mismatch, but no a/k0 is changed and no detuning diagonal is invented.
+Propagating internal auxiliaries are allowed; `all_aux_evanescent` is the
+conservative condition that EVERY auxiliary is evanescent in EVERY layer.
+Only under that condition is C2D Hermiticity asserted in these tests.
+Inherited Green pole/cutoff/budget limits still apply. Order and cutoff are
+recorded, not claimed to be certified quadrature-error estimates.
+
+Results use frozen scalar/tuple metadata and independent ndarray headers
+backed directly by immutable bytes. Element and write-flag mutation fail;
+public ndarray metadata edits cannot alter subsequent reads or eigenpairs.
+`solve_infinite` returns actual complex `np.linalg.eig(C)` eigenvalues and column
+vectors, delta=Re(lambda), amplitude threshold/loss alpha=Im(lambda), power
+loss=2*alpha, and original normalized residuals. Imaginary parts are never
+absolutized. Ordering is ordinary unsorted eig output, NOT mode tracking.
+No approximate group-index frequency conversion, Q, finite-size solver,
+COMSOL run, paper-figure reproduction or speedup claim is included.
+
+### Actual numerical gates
+
+The new tests were written first: initial execution failed to collect because
+`cwt3d.coupling` did not exist (scaffolding RED). The completed physical tests
+pass. A separate scratch run modified only IN-MEMORY copies of the actual
+new build function: dropping chi's outer prefactor failed the real geometry
+scale gate, and reusing receiver xi at the source failed the independent
+double-layer adaptive radiation integral. Neither mutation changed disk files.
+
+Independent oracles include: single-layer kappa by adaptive integration;
+single-layer chi by source-cusp-split nested scipy.quad; a homogeneous
+constant-field analytic double integral; two unlike PC layers with average
+eps 8 and 10, different radii and lateral positions; adaptive complex source
+fields and outgoing power at both exterior interfaces. This last power test
+checks `2 Im(v† Crad v) = k0^4/beta0 * sum(kz*|u_boundary|^2)` for both
+polarizations, independently of the matrix's anti-Hermitian decomposition.
+
+Executed scratch verification `.validation-scratch/task7-verify.py`:
+
+| Check | Observed result |
+|---|---:|
+| Single-layer chi vs independent adaptive oracle, absolute error | 8.13e-20 um^-1 |
+| Double-layer radiation vs independent adaptive oracle, relative error | 1.50e-15 |
+| Independent outgoing power identity, relative error | 3.23e-15 |
+| Maximum four-mode normalized residual | 3.01e-16 |
+| C1D Hermitian max absolute difference | 0 |
+| All-evanescent C2D Hermitian max absolute difference | 4.85e-19 um^-1 |
+| Crad anti-Hermitian-part minimum eigenvalue | 2.09e-5 um^-1 |
+| All-term inverse-length scaling, length factor 3.7, max absolute error | 2.02e-17 um^-1 |
+| Quadrature Q=4 vs Q=12, matrix difference norm | 1.47e-5 um^-1 |
+| Quadrature Q=8 vs Q=12, matrix difference norm | 7.58e-12 um^-1 |
+| Cutoff D1->D2 / D2->D3 / D3->D4 difference norms | 6.48e-3 / 3.13e-3 / 5.42e-4 um^-1 |
+
+These are small physical-fixture convergence observations, not a D=4
+convergence certificate for arbitrary structures. D=10 benchmarking remains
+Task 12. Tests additionally cover diagonal phase-similarity under global
+translation, eigenvalue invariance, zero contrast, explicit detuning,
+propagating internal auxiliaries, invalid means/materials/indices, and
+immutable matrix metadata. The complete C is intentionally not Hermitian.
+
+Verification: `pytest tests/test_coupling.py -q` -> **10 passed**;
+full `pytest -q` -> **213 passed, 3 existing NumPy deprecation warnings**.
+`git diff --check` passes. A fresh import probe finds no mph, numba, model
+or calculator modules. Only the three new src modules, new coupling test,
+and this appendix are changed. No commit/push was made. Task 7 awaits
+independent specification and quality review.
