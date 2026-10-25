@@ -25,7 +25,7 @@ layer stack, and refinement checks are in the
 
 ## Install and run
 
-Use the `v3-refactor` branch and run these commands from the repository root.
+Run these commands from the repository root.
 Python 3.10 or later is required. The `plot` extra installs Matplotlib for the
 figure; the calculation itself only needs NumPy and SciPy.
 
