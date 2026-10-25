@@ -152,13 +152,16 @@ conda env create -f environment.yml
 If you use this code in your research, please cite the following papers, this will help me a lot.  
 In BibTeX format:  
 ```bibtex
-@misc{huang_Efficient_2025,
+@article{huang_Efficient_2026,
   title = {Towards Efficient {{PCSEL}} Design: A Fully {{AI-driven}} Approach},
   shorttitle = {Towards Efficient {{PCSEL}} Design},
   author = {Huang, Hai and Xu, Ziteng and Xin, Qi and Zhang, Zhaoyu},
-  year = 2025,
-  doi = {10.48550/ARXIV.2503.11022},
-  copyright = {arXiv.org perpetual, non-exclusive license},
+  journal = {Chinese Optics Letters},
+  volume = {24},
+  number = {4},
+  pages = {043602},
+  year = 2026,
+  doi = {10.3788/COL202624.043602},
   langid = {english}
 }
 
@@ -180,7 +183,7 @@ In BibTeX format:
 ```
 or in following IEEE format:  
 [1] H. Huang, C. Yang, H. Li, and Z. Zhang, ‘Unveiling the potential of photonic crystal surface emitting lasers: a concise review’, Semicond. Sci. Technol., vol. 40, no. 4, p. 43001, Apr. 2025, doi: 10.1088/1361-6641/adb7fd.  
-[2] H. Huang, Z. Xu, Q. Xin, and Z. Zhang, ‘Towards efficient PCSEL design: a fully AI-driven approach’, 2025. doi: 10.48550/ARXIV.2503.11022.
+[2] H. Huang, Z. Xu, Q. Xin, and Z. Zhang, ‘Towards efficient PCSEL design: a fully AI-driven approach’, Chinese Optics Letters, vol. 24, no. 4, Art. no. 043602, 2026, doi: 10.3788/COL202624.043602.
 
 
 
