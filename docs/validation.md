@@ -900,3 +900,345 @@ NumPy metadata-mutation deprecation warnings**. `git diff --check` passed
 (with only a Git LF/CRLF conversion notice). No legacy sources changed,
 no commit/push. Independent specification/quality reviews remain pending in
 the parent workflow. **Task 10 eigensolve is not implemented or claimed.**
+
+## Task 10: pure-Python targeted non-Hermitian sparse eigensolve
+
+### API and supported scope
+
+```python
+from cwt3d.finite import solve_generalized, solve_finite, EigenSolveError
+
+# General square sparse complex pencil; B need not be Hermitian or SPD.
+r = solve_generalized(A, B, sigma=0.02+0.3j, k=4, tol=1e-12,
+                      residual_tol=1e-8, seed=21, ncv=20, maxiter=240)
+# Actual assembled optical pencil, same options and free-face ordering:
+r = solve_finite(pencil, sigma=0.02+0.3j, k=4, seed=21)
+fields = pencil.grid.unpack(r.eigenvectors[:, 0])
+centers = pencil.grid.interpolate(fields)
+```
+
+- Production accepts sparse numeric A/B only, copies each into complex128 CSR,
+  validates equal square shape, finite coefficients and n>=3. No domain-sized
+  dense matrix, dense fallback, inverse, `eigsh`, or `eigs(A, M=B)` is used.
+- Apply `T(x)=LU.solve(B@x)`, factoring `(A-sigma*B).tocsc()` exactly once per
+  call, then `eigs(T, k=k, which='LM')` **without sigma or M**. Back-transform
+  `lambda=sigma+1/mu`. No cache, hidden shift perturbation or regularization.
+- `k=None` means `min(6,n-2)` (the smallest four-DOF grid requests two).
+  Explicit k must be an integer with `1<=k<n-1`. Complex ARPACK requires
+  `k+2<=ncv<=n`, not merely `ncv>k`; default is `min(n,max(2*k+1,20))`.
+  `maxiter=None` uses `10*n`. `tol>=0` is the ARPACK tolerance, with zero
+  meaning machine precision; `residual_tol>0` is an independent gate.
+- sigma must be finite, seed is a nonnegative integer or None (default 0),
+  and v0 is a copied finite nonzero numeric vector of exact shape `(n,)`.
+  Its real/imaginary components are scaled before normalization, accepting
+  even huge/subnormal finite vectors without a global `seterr` change.
+  Starts use a local Generator; legacy NumPy RNG state is unchanged.
+- Results contain **only a target subset**, sorted by distance from sigma;
+  this is not mode tracking, a complete spectrum or a degeneracy certificate.
+  For non-normal pencils a small residual is not an eigenvalue-error bound.
+  Retain `pencil` with the returned free eigenvectors for later field work.
+
+### Original-pencil residual, signed optical convention and failure policy
+
+Every candidate is checked independently with sparse original A and B:
+
+```text
+residual = ||A v - lambda B v||_2 /
+           ((||A||_F + |lambda| ||B||_F) ||v||_2)
+```
+
+Frobenius norms use scaled O(nnz) accumulation; there is no dense matrix norm.
+Common scaling in the residual avoids unnecessarily forming `lambda*Bv` at
+large lambda. Nonfinite residuals/vectors, zero vectors and Bv=0 are rejected.
+The matrix-norm denominator remains meaningful at a real zero eigenvalue:
+TDD exposed that an action-relative denominator incorrectly rejected this
+case, and the genuine diagonal zero-mode regression now passes. Matrix norms
+outside representable finite range cause a clear input-range error, not a
+zero residual from an infinite denominator.
+
+`eigenvalues`, column `eigenvectors`, `residuals`, `delta=Re(lambda)`,
+`alpha=Im(lambda)` and `power_loss=2*alpha` are immutable bytes snapshots with
+fresh ndarray headers on every read. No absolute value or clipping of alpha
+is applied. For optical pencils lambda=delta+i*alpha is signed **threshold
+amplitude-gain compensation**, not the sign convention for passive beta
+propagation; generic pencils receive only this algebraic labeling. Optical
+lambda/delta/alpha use um^-1, B is dimensionless. Public scalar metadata is
+read-only and independently owned, also accessible as attributes:
+
+- `requested`, `returned`, `converged`, `status`, `arpack_converged`;
+- `sigma`, `k`, `tolerance`, `residual_tolerance`, `seed`, `ncv`, `maxiter`;
+- `candidate_count`, `discarded_transform`, `discarded_residual`;
+- `lu_seconds`, `iteration_seconds`, `lu_nnz=L.nnz+U.nnz`, `linear_solves`;
+- `residual_normalization='frobenius'`, `A_frobenius`, `B_frobenius`.
+
+`ArpackNoConvergence` preserves only partial pairs passing the same original
+residual gate. Default behavior raises `EigenSolveError` carrying `.partial`.
+`allow_partial=True` explicitly permits a nonempty partial result, always
+marked `converged=False`, `status='partial'`. Zero usable pairs always raise
+(`status='failed'`), even with opt-in. ARPACK success cannot override failed
+residual/transform validation. Exact singular shift LU raises
+`FactorizationError` with the shift and chained SuperLU error; a close but
+nonzero shift is not rejected by a coarse pivot threshold.
+
+Zero/nonfinite mu and nonfinite back-transformed lambda are counted as
+`discarded_transform`: they are never manufactured into physical zero modes.
+Singular B is supported only when the shift is factorizable and the requested
+subset is finite, as verified by a diagonal singular-B fixture and dense QZ.
+This is not full infinite-eigenvalue classification for arbitrary singular,
+defective or ill-conditioned pencils; very small nonzero mu is not arbitrarily
+thresholded into infinity.
+
+### RED/GREEN and real-chain evidence
+
+1. Tests first: importing the missing eigensolver produced **one collection
+   error** (scaffolding RED). After implementation, the real zero-eigenvalue
+   case produced a numerical RED: ARPACK succeeded but the action-relative
+   residual rejected its 0/1 candidates. The normwise residual fixed this.
+   An extreme-v0 regression separately exposed NumPy complex-division
+   underflow; component-wise scaling fixed it without global error-state edits.
+2. **38 eigensolver tests passed**. Independent dense `scipy.linalg.eig(A,B)`
+   and assignment-based matching cover general complex non-Hermitian B,
+   complex finite C, a four-DOF minimum grid, integer sparse inputs, signed
+   alpha, repeatability and multiple shifts. Guards verify one CSC LU,
+   operator-only LM ARPACK, no double shift/SPD mass/dense conversion/inverse.
+   Tests mutate all public ndarray shape/dtype/strides, metadata and original
+   sparse inputs without changing saved results or subsequent solves.
+3. Controlled `ArpackNoConvergence` injections exercise partial/empty branches
+   only; they are **not evidence of successful physical ARPACK convergence**.
+   Separate real 90-DOF ARPACK run (`k=5,ncv=8,maxiter=1,tol=1e-14`) raises
+   incomplete-convergence diagnostics. Real successful ARPACK with a deliberately
+   impossible `residual_tol=1e-30` is rejected by the original residual gate.
+4. Nonmock physical chain: TE `[1,9,1]`, core thickness 0.32 um, k0=6 um^-1;
+   circle radius 0.13a, center (0.36a,0.47a), dielectric contrast 2 with mean
+   core epsilon 9. Solve the guided mode, derive **a=0.38000347595163375 um**,
+   build radiating/non-Hermitian coupling at **D=1, quadrature order 12**,
+   assemble **Nx=3, Ny=2, Lx=20a, Ly=16a, n=24**, then solve with
+   **sigma=0.02+0.3j, k=4, tol=1e-12, residual_tol=1e-8, seed=21,
+   ncv=20, maxiter=240**. Fields unpack with exact incoming zeros and their
+   interpolated centers equal Bv. Test-only dense QZ comparison gives maximum
+   eigenvalue mismatch **8.689e-16 um^-1**; maximum original residual
+   **1.621e-15**. Eigenvalues (um^-1):
+   `(0.264624099796104+0.331611502897288j)`,
+   `(0.264624199188648+0.331611179780025j)`,
+   `(0.234659923221454+0.438865862133920j)`,
+   `(0.234659824108128+0.438866015482556j)`.
+5. One measured full-suite execution: LU **8.060e-5 s**, ARPACK iteration
+   **9.810e-4 s**, **228 factor nnz**, **37 LU solves**. Physical-chain test
+   wall time including dense oracle and field assertions **0.03560 s**.
+   These are local single-run timings, not acceleration measurements or
+   large-grid performance claims. No dense oracle exists in production.
+6. Full `.venv/Scripts/python.exe -m pytest -q`: **350 passed**, three existing
+   Fourier metadata deprecation warnings, **6.05 s**. `git diff --check`
+   passed (Git's LF/CRLF notice only). Legacy sources are unchanged; no
+   commit/push. Independent specification/quality reviews remain pending.
+
+This connects the small pure-Python finite optical chain. It does **not**
+complete grid/domain/cutoff convergence, full-device validation, literature
+reproduction, mode tracking, transport porting, or non-normal sensitivity
+certification; these remain separate acceptance tasks.
+
+### Task 10 specification R1: exactly zero finite spectrum
+
+**Root cause and policy.** For A=0, B=I, sigma=0.25, k=2, real ARPACK
+back-maps to roundoff-size nonzero lambda. The ordinary original-pencil
+Frobenius ratio is then 1/sqrt(6), regardless of the absolute error. Do not
+increase residual_tol or add an absolute epsilon floor with undefined units.
+
+Only when **every stored coefficient of A is exactly zero** (not merely a
+small norm), successful existing LU of K=-sigma B establishes the regular
+special case: sigma!=0, B nonsingular, T=-I/sigma, and det(-lambda B) has
+only lambda=0. For each finite nonzero mu require
+`abs(1+sigma*mu) <= 32*float64_eps` before representing its eigenvalue by
+exact zero. This is a dimensionless conservative roundoff-consistency budget
+for LU/Arnoldi, independent of both user tolerances. It is not an absolute
+small-eigenvalue cutoff or an eigenvalue error bound. Poor numerical
+consistency can reject an ill-conditioned special pencil; no condition-number
+certification or regularization is claimed. The sigma*mu product has no units
+(mu has inverse eigenvalue units); no large-shift scale is added to the usual
+residual denominator. Nonzero A always follows the unchanged residual path.
+
+For each returned exact (0,v), the original Av-lambda Bv is actually computed;
+its absolute residual is zero. The degenerate 0/0 normalization is defined as
+zero **only after** finite nonzero-vector and nonzero Bv checks. Thus arbitrary
+nonzero vectors are valid for this regular all-zero pencil, but zero vectors
+are not modes. Invalid/nonfinite transforms remain discarded before the
+certificate. Failed certificates count as discarded_residual. Partial-result
+and no-available-pair failure rules are unchanged. A=0 with singular/zero B,
+or sigma=0, fails LU; it does not imply an enumerable regular finite spectrum.
+
+**Behavior-first evidence.** New tests were run before the production edit:
+`.venv/Scripts/python.exe -m pytest tests/test_eigensolver.py -q -k
+'all_zero_finite or zero_pencil_undefined or true_tiny or large_shift or zero_spectrum_still' --tb=short`
+returned **4 failed, 7 passed, 38 deselected**. The four numerical failures
+were real ARPACK A=0 runs with B=I or invertible upper-triangular non-Hermitian
+B, each with allow_partial=False/True; all lost 2/2 candidates at the residual
+gate. After the fix the identical selection returned **11 passed, 38
+deselected**. A further controlled test covers mixed certificate success and
+failure, default exception versus explicit partial return, and sigma=0.
+
+**Measured original-pencil residuals**, from the real-ARPACK recording probe
+`.validation-scratch/task10_r1_metrics.py` (controlled injections only for
+the final two negative controls):
+
+| Case | Raw absolute residual (Euclidean norm) | Raw normwise ratio | Returned representation / gate |
+|---|---:|---:|---|
+| A=0, B=I, first pair | 6.71558e-18 | 0.4082482905 | lambda=0, absolute=0, normalized=0 |
+| A=0, B=I, second pair | 2.42157e-20 | 0.4082482905 | lambda=0, absolute=0, normalized=0 |
+| A=0, B=I+0.3i upper diagonal, first | 3.97412e-18 | 0.4329437305 | lambda=0, absolute=0, normalized=0 |
+| Same, second | 4.18261e-18 | 0.4094706755 | lambda=0, absolute=0, normalized=0 |
+| diag(1..6)*1e-24, B=I, first | 1.26437e-39 | 1.05462e-16 | lambda=1.000000000000001e-24+1.74e-42i, unchanged |
+| Same, second | 4.86082e-39 | 3.36660e-16 | lambda=2.0000000000000046e-24-1.61e-41i, unchanged |
+| Wrong lambda=1000, v=ones, A=diag(1..6), sigma=1e12 | 2440.9201 | 0.4052418287 | rejected; 0 returned even with allow_partial |
+| Wrong lambda=1000, v=ones, A=0, sigma=1e12 | 2449.4897 | 0.4082482905 | consistency=9.999999e-10 fails certificate; 0 returned |
+
+For the genuine zero pairs, the dimensionless consistency errors are
+2.68623e-17, 9.68628e-20 (identity B) and 1.44574e-17, 1.60881e-17
+(non-Hermitian B). The raw back-mapped lambdas/residuals above are probe
+measurements, not the residuals of the exact returned zero pairs. The two bad
+pairs would pass a naive shift-scaled denominator at residual_tol=1e-8;
+they do not pass this implementation. Tiny nonzero eigenvalues are tested
+relative to their own pencil scale with atol=0, not an absolute tolerance
+that could accidentally accept zeros.
+
+Final verification after the additional partial-certificate test:
+`.venv/Scripts/python.exe -m pytest -q` returned **362 passed, 3 warnings in
+6.24 s** (only existing Fourier metadata deprecations); `git diff --check`
+passed (only Git LF/CRLF notices). Only Task 10 solver/tests and this validation
+appendix were changed
+for R1; the pre-existing finite/__init__.py Task 10 edit was left intact.
+No commit/push; independent specification re-review is next, then quality
+review if specification passes.
+
+### Task 10 quality R2: scale-safe original-pencil residual
+
+**Numerical RED.** The residual numerator used an unscaled Euclidean norm:
+its sum of squared tiny components underflowed to zero even though the
+Frobenius matrix norms were scaled. With A=s*diag(1..6), B=s*I, sigma=0,
+controlled mu=1/1.5 and v=e1, the wrong lambda=1.5 passed at s=1e-170.
+Its independent dimensionless residual is **0.03783972516125606**, well above
+the unchanged default residual_tol=1e-8. The new common-pencil regressions,
+run before the production repair, returned **11 failed, 9 passed, 50
+deselected**. These were behavioral failures, including wrong-pair acceptance,
+false zero correct-pair residuals, and real strict-gate acceptance.
+
+**Policy and implementation.** Evaluate the same original-pencil ratio
+`||Av-lambda Bv||2 / ((||A||F+|lambda| ||B||F)*||v||2)` on residual-only sparse
+copies `A/c, B/c`, where c is their shared largest real/imaginary coefficient.
+Use these same copies for both matvecs and sparse Frobenius norms; the common
+factor c cancels algebraically. Remove vector amplitude before matvecs, another
+factor which cancels. Norms scale real/imaginary components before squaring;
+the denominator terms are also scaled before their sum and final division.
+No unitful floor, relaxed tolerance, altered eigenvalue, or large-shift
+normalization is introduced. **The physical A-sigma B LU and inverse action
+are unchanged**, as is the strict stored-A=0 R1 certificate. Original-unit
+A_frobenius/B_frobenius metadata is preserved. Residual-only copies add O(nnz)
+memory, not dense matrices. Their setup remains outside the LU/iteration
+reported timings.
+
+If normalization would erase a nonzero matrix coefficient, raise an explicit
+numeric-range ValueError rather than silently changing the pencil. Invalid
+candidate vectors, detected nonfinite/range failures in residual arithmetic,
+or an underflowed nonzero final ratio fail closed. NumPy errstate alone does
+not detect SciPy sparse-kernel underflow; the R3 checks and support limits below
+supersede the earlier blanket underflow claim. The degenerate zero normalization
+is restricted to the certified A=0, lambda=0 case with nonzero Bv. Arbitrarily
+extreme dynamic range is not promised; conservative rejection is preferable
+to manufacturing a zero residual.
+
+**Measured raw values.** The executable probe and raw candidate values are
+`.validation-scratch/task10_r2_metrics.py` and `task10_r2_metrics.json`.
+The historical column deliberately uses the unsafe unscaled NumPy numerator
+for comparison; it is not used to accept candidates. The independent oracle
+uses the standard-scale diagonal pencil and Python `math.hypot`, not any
+production residual/norm helper.
+
+| Case | s | Historical unscaled numerator | Fixed residual | Independent residual | Gate |
+|---|---:|---:|---:|---:|---|
+| wrong lambda=1.5, e1 | 1 | 0.5 | 0.03783972516125606 | 0.03783972516125606 | reject |
+| same | 1e-170 | 0 | 0.03783972516125606 | 0.03783972516125606 | reject |
+| same | 1e170 | inf | 0.03783972516125607 | 0.03783972516125606 | reject |
+| near-correct lambda=1+1e-10, v=(1,2e-10i,0,...) | 1 | 2.2360680143235242e-10 | 1.8651180816140854e-11 | 1.8651180815767828e-11 | accept |
+| same | 1e-170 | 0 | 1.8651180816140854e-11 | 1.8651180815767828e-11 | accept |
+| same | 1e170 | inf | 1.8651180816140854e-11 | 1.8651180815767828e-11 | accept |
+| real ARPACK strict, first pair | 1e-170 | 0 | 1.2805060245507373e-16 | 1.3256579553441177e-16 | reject at 1e-30 |
+| real ARPACK strict, second pair | 1e-170 | 0 | 2.0503159475827967e-16 | 2.0500896942551253e-16 | reject at 1e-30 |
+
+Roundoff-size residuals need not be bit-identical across algebraic reorderings;
+the strict real-ARPACK test records every candidate, independently recomputes
+its residual, compares reported magnitudes, and checks that the acceptance
+counts match that oracle. It does not assert that an accidentally exact
+floating-point pair must fail. At s=1 and 1e170 the measured real strict pairs
+also all fail at 1e-30, with fixed residuals between 1.12e-16 and 1.16e-16.
+
+**Persistent coverage and GREEN.** The 20 initial common-scale cases passed
+after the repair (**20 passed, 50 deselected**). Added coverage also checks
+scaled real A=0/non-Hermitian B, mixed valid/invalid ARPACK partial candidates,
+and explicit exhausted-range failure. Tests cover vector amplitudes 1,
+1e-170 and 1e170 independently of pencil scaling, preserve the nonzero
+1e-24 spectrum under both extreme pencil scales, and reject wrong pairs
+with either allow_partial setting. Full `.venv/Scripts/python.exe -m pytest
+-q --tb=short` returned **385 passed, 3 existing Fourier deprecation warnings,
+6.29 s**. `git diff --check` passed (only existing LF/CRLF notices).
+
+Only Task 10 eigensolver/tests and this validation appendix were edited for
+R2; the prior finite/__init__.py edit was left intact. No commit/push.
+Independent quality re-review remains a separate gate; a green test suite is
+not represented as an independent reviewer approval.
+
+### Task 10 quality R3: sparse-product range guard
+
+**Actual RED.** With A=diag(1e-200,0,0,0,0,0), B=I,
+v=(1e-150,1,0,0,0,0), controlled mu=1 and sigma=-1, the candidate lambda
+is zero. Its true normalized residual is approximately 1e-150, representable
+and above residual_tol=1e-200. SciPy computes the nonzero 1e-350 product as
+zero without raising under np.errstate(all='raise'), so R2 wrongly accepted
+it. The new behavior-first selection `-k 'sparse_residual or
+scalar_product_range' --tb=short` returned **25 failed, 73 deselected**:
+15 wrong-pair cases failed with DID NOT RAISE EigenSolveError, one downstream
+scalar-product case failed with DID NOT RAISE ValueError, and nine safe-product
+cases lacked the newly required diagnostic. These are distinct from a
+collection/setup failure.
+
+**Conservative policy.** Before residual-only CSR matvecs, inspect all four
+real/imaginary component products for each stored coefficient and its indexed
+vector entry. frexp supplies exponents without forming a trial product.
+Nonzero factors with exponent sum below -1020 are rejected: mantissas in
+[1/2,1) otherwise guarantee a product >=2^-1022. This intentionally rejects
+some normal boundary products as well as subnormal/zero-underflow products.
+Zero factors are exempt, including explicit stored zeros and zero components;
+no dense or arbitrary-precision fallback is added. The same pre-product guard
+covers (lambda/scale)*Bv and the eigenvalue-dependent denominator product.
+Scaling checks retain nonzero components, and subnormal nonzero outputs at
+matvec, scaled-action/eigenvalue, difference and denominator-term boundaries
+are conservatively rejected. NumPy arithmetic exceptions remain an additional
+check, not a substitute for inspecting SciPy kernel operands.
+
+Range-rejected candidates increment both discarded_residual and its new
+subset discarded_numeric_range. Exceptions include the numeric-range count;
+no residual zero is reported for these candidates. Existing partial/no-pair
+rules, physical LU/operator, eigenvalue mapping and user tolerances are
+unchanged. This is a normal-product working-range guard, **not** a general
+correctly-rounded/cancellation-error certificate for arbitrarily extreme
+pencils. It does not inspect every internal sparse accumulator operation.
+Scaled norms still permit loss of negligible components relative to their
+maximum before squaring; they do not ban all subnormal norm intermediates.
+The final nonzero-to-zero ratio check remains in place. Unsupported extreme
+ranges may therefore be conservatively rejected rather than solved.
+
+**GREEN and verification.** Expanded coverage exercises real, imaginary and
+mixed complex phases independently in coefficients and vectors; CSR, CSC,
+COO, DIA and BSR inputs; both partial flags; unchanged np.errstate; exact zero
+products; safe 1e-250 products; the downstream complex scalar product; and
+the conservative normal/subnormal exponent boundary. Initial implementation
+passed all **98** then-present eigensolver tests. After the extra coefficient
+phases and boundary coverage, the full command
+`.venv/Scripts/python.exe -m pytest -q --tb=short` returned **441 passed,
+3 existing Fourier metadata deprecation warnings in 6.44 s**. This includes
+the existing 1e-24 spectra and optical chain: dense-oracle eigenvalue error
+8.69e-16, maximum returned residual 1.62e-15. `git diff --check` passed with
+only existing LF/CRLF notices.
+
+R3 edits are limited to src/cwt3d/finite/eigensolver.py,
+tests/test_eigensolver.py and this document. The prior finite/__init__.py edit
+is untouched. No commit or push was made; independent quality re-review is
+still required.
