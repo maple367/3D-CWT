@@ -384,3 +384,105 @@ although its stored beta did not change.
   Changes are limited to `src/cwt3d/waveguide.py`, `tests/test_waveguide.py`,
   and this document. Legacy source is untouched; no commit or push was made.
   Independent quality re-review is still required.
+
+## Task 5: homogeneous outgoing passive Green kernel
+
+`cwt3d.greens.HomogeneousGreen(k0, epsilon, k_parallel=0)` is an independent
+infinite-homogeneous scalar kernel. Lengths are um, wavenumbers are um^-1,
+epsilon is relative permittivity, and G has units um. Public configuration
+and the derived scalar properties `gamma` and `kz` are getter-only; no internal
+array metadata is exposed. Zero-dimensional input arrays are converted to
+independent Python scalars. The package root and historical source are unchanged.
+
+### Convention, API, and explicit limits
+
+For `exp(+i*omega*t)`, passive epsilon requires `Im(epsilon)<=0`; active
+materials are explicitly rejected, never conjugated or silently converted.
+The operator and outgoing branch are
+
+```text
+[d_z^2 + k0^2*epsilon - k_parallel^2] G = -delta(z-z')
+gamma = sqrt(k_parallel^2 - k0^2*epsilon), Re(gamma)>=0, Im(gamma)>=0
+kz = -i*gamma, Re(kz)>=0, Im(kz)<=0
+G(z,z') = exp(-gamma*abs(z-z'))/(2*gamma)
+```
+
+Thus lossless zero-parallel radiation is exactly
+`-i/(2*k0*sqrt(epsilon))*exp(-i*k0*sqrt(epsilon)*abs(z-z'))` for positive
+epsilon. High-parallel orders are genuinely decaying, not oscillatory. Signed
+zero on the radicand's real axis is normalized to the outgoing branch.
+
+- Call `kernel(z,z_prime)` with finite real scalar/array coordinates. Standard
+  broadcasting, including independent grids `z[:,None]` and `z_prime[None,:]`,
+  produces complex output; there is no callback vectorization or shape cache.
+- `kernel.derivative(z,z_prime,side=None)` is the receiver derivative. At an
+  exact source coincidence the default raises; `side='left'` gives +1/2 and
+  `side='right'` gives -1/2, so the jump is -1. Elsewhere `side` has no effect.
+  G itself is continuous and defined at the source.
+- Exact float64 zero radicand raises `CutoffError` (a `ValueError`). Its message
+  explicitly covers unresolved near-cutoff cancellation as well as exact
+  cutoff. A nonzero gamma is not tolerance-clamped: tests retain gamma=1e-14
+  and the large amplitude from the immediate float64 neighbor of cutoff.
+- Nonfinite, boolean, nonnumeric, wrongly dimensional configuration, active
+  epsilon, nonpositive k0, negative k_parallel and complex coordinates raise
+  `ValueError`. Extreme squared wavenumbers or propagation intermediates
+  outside the resolved float64 range are rejected. Arbitrary extreme dynamic
+  range and sub-float64 cutoff separation are not certified.
+- Only decaying spatial exponentials occur. With `over/invalid/divide='raise'`,
+  both fields and derivatives remain finite (zero after harmless underflow)
+  at distances of 1e6 um in the tested evanescent passive materials.
+- No interfaces, layered Green functions, C matrix, harmonic-order API,
+  anisotropic/TM physics or measured performance acceleration are implemented.
+
+### Actual RED/GREEN and physical-regression evidence
+
+1. `tests/test_greens_homogeneous.py` was written before `greens.py`.
+   `.venv/Scripts/python.exe -m pytest tests/test_greens_homogeneous.py -q`
+   first returned **1 collection error**, `ModuleNotFoundError: cwt3d.greens`.
+   This is scaffolding RED, not a numerical failure of a new implementation.
+   Adding the implementation made the suite GREEN.
+2. The permanent new-API test repeats the Task 2 fixture: k0=1, epsilon=1,
+   beta0=3, order=(2,0), hence k_parallel=6 and gamma=sqrt(35). It actually
+   calls `HomogeneousGreen`, checks the independent real exponential, both
+   source-free sides, spatial decay and the derivative jump. It does not
+   mistake the historical oracle-only tests for a new implementation fix.
+3. A separate same-gate comparison was also actually executed:
+   `.venv/Scripts/python.exe -m pytest .validation-scratch/task5_physics_probe.py -q --tb=short`
+   returned **1 failed, 1 passed**: actual isolated legacy methods failed
+   the physical residual threshold, and the real new API passed. This
+   comparison was run after implementation, not presented as a pre-code
+   behavioral TDD failure. The first probe attempted arrays on legacy's scalar
+   method; it was corrected to a scalar loop before obtaining physical metrics.
+   No legacy, mph, calculator or numba module was imported.
+4. Running `.venv/Scripts/python.exe .validation-scratch/task5_physics_probe.py`
+   produced the following independently evaluated metrics. ODE h=1e-4 um,
+   source=.31 um, offsets +/- .2 and +/- .7 um; source slopes use h=1e-6 um.
+
+| Check | Observed result |
+|---|---:|
+| Actual isolated legacy maximum relative ODE residual | 1.9999999709031708 |
+| New API maximum relative ODE residual | 2.9342765235256057e-8 |
+| Exact one-sided receiver derivative jump error versus -1 | 0.0 |
+| Independent G finite-difference source-slope jump error | 2.9580217155711352e-6 |
+| G source-side continuity difference at +/-h | 0.0 |
+| Forbidden imported module roots | none |
+
+Final commands:
+
+```text
+.venv/Scripts/python.exe -m pytest tests/test_greens_homogeneous.py -q
+.venv/Scripts/python.exe -m pytest -q
+git diff --check
+```
+
+Results: **54 passed** in the new module and **175 passed, 3 existing warnings**
+in the full suite; diff whitespace validation passed. The new result-metadata
+mutation test locally filters only the expected NumPy shape-setter deprecation,
+not floating-point warnings. Tests additionally cover passive complex branch
+oracles and outgoing flux sign, lossless radiation, negative epsilon,
+independent finite-difference derivatives/ODE/source jumps, symmetry,
+translation and length scaling, equivalent parallel wavevectors, broadcasting,
+empty arrays, invalid inputs, read-only configuration and input/result mutation
+isolation. Only the two new files and this validation appendix are changed.
+No commit/push was made. Specification and quality double review are still
+required; layered Task 6 is intentionally not started.
