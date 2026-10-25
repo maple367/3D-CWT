@@ -1,0 +1,192 @@
+{
+  "schema": "cwt3d-liang70-refinement-v1",
+  "algorithm_digest": "ca0a55fec89c1e6195bd2cab977ccd896b66dd36923db0b0d905bba5a615de1c",
+  "reference": "summary.json: selected mode 0",
+  "coupling_refinement": [
+    {
+      "D": 8,
+      "q": 48,
+      "F": 64,
+      "coupling_seconds": 3.1046744999475777,
+      "C_norm": 0.1946075459332854,
+      "N": 64,
+      "deltaL": -6.650993154140392,
+      "alphaL": 0.22929719307000931,
+      "residual": 2.714653983970411e-18,
+      "balance_relative_error": 1.496056549064126e-14,
+      "edge_power_rate": 0.004413698982080402,
+      "radiation_power_rate": 0.002137649391348629,
+      "finite_seconds": 31.802193299983628,
+      "sigma": [
+        -0.08678002315876603,
+        0.005714285714285714
+      ]
+    },
+    {
+      "D": 16,
+      "q": 48,
+      "F": 64,
+      "coupling_seconds": 10.728347999975085,
+      "C_norm": 0.19850968185168338,
+      "D_refinement_relative_C": 0.027913181843758243,
+      "N": 64,
+      "deltaL": -6.645557890097491,
+      "alphaL": 0.22375503390449805,
+      "residual": 2.5906120828747645e-18,
+      "balance_relative_error": 1.8790799704167798e-14,
+      "edge_power_rate": 0.004305507706334736,
+      "radiation_power_rate": 0.0020874932623654576,
+      "finite_seconds": 26.490007999993395,
+      "sigma": [
+        -0.0867897003434019,
+        0.005714285714285714
+      ]
+    },
+    {
+      "D": 24,
+      "q": 48,
+      "F": 64,
+      "coupling_seconds": 23.761059399985243,
+      "C_norm": 0.2000447771232915,
+      "D_refinement_relative_C": 0.010382339466981869,
+      "N": 64,
+      "deltaL": -6.642757139494414,
+      "alphaL": 0.22166009623619054,
+      "residual": 2.551476099673256e-18,
+      "balance_relative_error": 1.3901025157547854e-14,
+      "edge_power_rate": 0.004264630894051535,
+      "radiation_power_rate": 0.0020685147126969436,
+      "finite_seconds": 34.4456358999596,
+      "sigma": [
+        -0.08678310825820723,
+        0.005714285714285714
+      ]
+    },
+    {
+      "D": 32,
+      "q": 48,
+      "F": 64,
+      "coupling_seconds": 35.34512479999103,
+      "C_norm": 0.20079514419285183,
+      "D_refinement_relative_C": 0.005091820542364033,
+      "N": 64,
+      "deltaL": -6.6413356328336945,
+      "alphaL": 0.22065312669037435,
+      "residual": 2.6409802615364325e-18,
+      "balance_relative_error": 1.3895673221487665e-14,
+      "edge_power_rate": 0.004244986528179539,
+      "radiation_power_rate": 0.0020593885201170437,
+      "finite_seconds": 32.415573800040875,
+      "sigma": [
+        -0.0867789457364192,
+        0.005714285714285714
+      ]
+    },
+    {
+      "D": 32,
+      "q": 64,
+      "F": 64,
+      "coupling_seconds": 60.79618569999002,
+      "C_norm": 0.20079514419285183,
+      "q_refinement_relative_C": 1.2218994593905575e-15,
+      "N": 64,
+      "deltaL": -6.641335632833692,
+      "alphaL": 0.22065312669038484,
+      "residual": 2.650635011883611e-18,
+      "balance_relative_error": 8.461226763578902e-15,
+      "edge_power_rate": 0.0042449865281795444,
+      "radiation_power_rate": 0.002059388520117055,
+      "finite_seconds": 30.73773530003382,
+      "sigma": [
+        -0.0867789457364192,
+        0.005714285714285714
+      ]
+    }
+  ],
+  "coupling_refinement_search": {
+    "k": 12,
+    "shift": "minimum real infinite-C eigenvalue + 0.4j/L",
+    "selection": "lowest signed alpha in the returned subset"
+  },
+  "mesh_refinement": [
+    {
+      "N": 32,
+      "D": 32,
+      "q": 64,
+      "F": 64,
+      "k": 1,
+      "deltaL": -6.641829005620103,
+      "alphaL": 0.22109496414552018,
+      "residual": 4.580548189644101e-18,
+      "balance_relative_error": 5.2862802482018866e-15,
+      "edge_power_rate": 0.0042559455455154944,
+      "radiation_power_rate": 0.002061053430070863,
+      "finite_seconds": 0.02818600001046434,
+      "field_overlap_with_N96": 0.999999755252399,
+      "overlap_scope": "linear interpolation on shared interior N96 centers, normalized complex four-component overlap"
+    },
+    {
+      "N": 64,
+      "D": 32,
+      "q": 64,
+      "F": 64,
+      "k": 1,
+      "deltaL": -6.641335632833702,
+      "alphaL": 0.22065312669038709,
+      "residual": 2.5872047891967427e-18,
+      "balance_relative_error": 1.5133901528352493e-14,
+      "edge_power_rate": 0.00424498652817952,
+      "radiation_power_rate": 0.002059388520117049,
+      "finite_seconds": 0.10128140001324937,
+      "field_overlap_with_N96": 0.9999999961068314,
+      "overlap_scope": "linear interpolation on shared interior N96 centers, normalized complex four-component overlap"
+    },
+    {
+      "N": 96,
+      "D": 32,
+      "q": 64,
+      "F": 64,
+      "k": 1,
+      "deltaL": -6.641244313199592,
+      "alphaL": 0.22057143002824312,
+      "residual": 1.668014934018395e-18,
+      "balance_relative_error": 2.3672683547554095e-14,
+      "edge_power_rate": 0.004242960522906217,
+      "radiation_power_rate": 0.0020590803350439032,
+      "finite_seconds": 0.2599812999833375,
+      "field_overlap_with_N96": 0.9999999999999982,
+      "overlap_scope": "linear interpolation on shared interior N96 centers, normalized complex four-component overlap"
+    },
+    {
+      "N": 128,
+      "D": 32,
+      "q": 64,
+      "F": 64,
+      "k": 1,
+      "deltaL": -6.641212354704177,
+      "alphaL": 0.22054284542138777,
+      "residual": 1.2032628451547721e-18,
+      "balance_relative_error": 1.2388474763001638e-14,
+      "edge_power_rate": 0.004242251674902844,
+      "radiation_power_rate": 0.002058972479994135,
+      "finite_seconds": 0.5095875000115484,
+      "field_overlap_with_N96": 0.9999999997361811,
+      "overlap_scope": "linear interpolation on shared interior N96 centers, normalized complex four-component overlap"
+    }
+  ],
+  "mesh_search": {
+    "k": 1,
+    "shift_um_inverse": [
+      -0.09535037430784794,
+      0.0035714285714285713
+    ]
+  },
+  "scope": "selected single-lobed mode; not a complete-spectrum convergence study",
+  "changes": {
+    "D24_to_D32_relative_C": 0.005091820542364033,
+    "D24_to_D32_relative_alphaL": 0.004563586117812858,
+    "q48_to_q64_relative_C": 1.2218994593905575e-15,
+    "N96_to_N128_relative_alphaL": 0.00012961022063865077,
+    "N96_to_N128_abs_deltaL": 3.195849541537399e-05
+  }
+}
