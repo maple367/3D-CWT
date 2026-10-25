@@ -80,7 +80,14 @@ def test_scale_phase_immutable_and_partial():
             a.strides = (0,)
         np.testing.assert_array_equal(getattr(base,name),before)
     with pytest.raises(TypeError): base.budget['edge'] = 0
-    with pytest.raises(AttributeError): base.alpha = 99
+    # Older CPython frozen+slots dataclasses raise this specific TypeError
+    # for non-field properties; the invariant is rejection without mutation.
+    alpha_before = base.alpha
+    with pytest.raises((AttributeError, TypeError)) as frozen:
+        base.alpha = 99
+    if isinstance(frozen.value, TypeError):
+        assert str(frozen.value) == 'super(type, obj): obj must be an instance or subtype of type'
+    assert base.alpha == alpha_before
     partial = EigenResult(r.eigenvalues[:1],r.eigenvectors[:,:1],r.residuals[:1],
                           {'returned':1,'requested':3,'converged':False})
     assert len(reconstruct_modes(p,partial)) == 1
