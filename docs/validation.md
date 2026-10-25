@@ -822,3 +822,81 @@ Legacy code remains untouched. No commit/push. Independent specification
 and quality reviews are pending in the parent workflow. This is layout and
 boundary elimination only: no PDE A/B assembly (Task 9), finite-domain
 eigenvalue solver (Task 10), or completed finite-domain eigenproblem.
+
+## Task 9: direct sparse staggered generalized pencil
+
+Public API: `from cwt3d.finite import assemble_pencil, FinitePencil`.
+`assemble_pencil(grid, coupling)` accepts a finite numeric `(4,4)` matrix
+in um^-1 or the actual `CouplingResult` (`.C`, not `.C_total`; units checked).
+It returns `A v = lambda B v`, `lambda = delta + i alpha`, with
+`A = C_lift B + i D`, using the thesis (4.21) signs
+`D=(+d_x Rx,-d_x Sx,+d_y Ry,-d_y Sy)`. Rows are component-major cell
+centers; columns retain Task 8's component-major free faces, C order.
+Both matrices are square complex128 CSR with dimension `4*Nx*Ny`.
+B is a neighbor-face average and is generally non-Hermitian, not SPD.
+
+Local one-dimensional COO triplets are converted directly to canonical CSR;
+no dense domain matrix, large Kronecker product, explicit inverse, linear
+solve, eigenvalue solve, ghost value or penalty is used. Incoming faces are
+omitted exactly. D is also exposed before multiplication by i. For generic
+nonzero uniform coupling, `nnz(B)=nnz(D)=8*Nx*Ny-2*Nx-2*Ny` and
+`nnz(A)=4*nnz(B)`; exact cancellations/zero coupling reduce A's nnz.
+Index/allocation representability and finite inverse spacings are checked
+before allocation, without imposing an arbitrary int32 grid-size cap.
+
+The grid is immutable; C is saved in immutable bytes and returns fresh
+ndarray metadata. Each public A/B/D getter returns an independent full CSR
+copy (O(nnz) time/storage), including data, indices, indptr and shape.
+Caller input changes, sparse-buffer edits and public resizing cannot alter
+later reads. A future solver should fetch A/B only once.
+
+### Independent gates and actual results
+
+- RED before implementation: `tests/test_assembly.py` failed collection with
+  `ModuleNotFoundError: cwt3d.finite.assembly` (scaffolding RED, not a
+  numerical defect claim). GREEN: **34 new tests passed**.
+- Hand-written 1x1 oracle checks `B=.5 I`,
+  `D=diag(1/hx,1/hx,1/hy,1/hy)` and full complex A, including S signs.
+- A separate slow dense oracle enumerates full faces without production
+  free-index/templates, on 2x3, 1x7, 8x1 and rectangular grids, with complex
+  and zero C. A second oracle uses real `grid.unpack` fields and direct
+  averaging/differencing for random complex vectors.
+- 2x3, Lx=7,Ly=11: **24 free unknowns**, A/B shape **(24,24)**,
+  nnz(A/B/D)=**152/38/38**. Maximum matrix-oracle errors are **0/0/0**;
+  action errors are **1.78e-15/0/5.55e-17**.
+- For arbitrary complex v, `U=Bv`, the exact telescoping flux gate checks
+  `2*hx*hy*Im[U^H*(A*v-C_lift*U)]` against outgoing edge intensity
+  `hy*sum(|Rx_right|^2+|Sx_left|^2)` plus
+  `hx*sum(|Ry_top|^2+|Sy_bottom|^2)`. This covers general complex C and
+  Hermitian C, without incorrectly requiring A to be Hermitian. The 2x3
+  probe gives **64.77031440887399 vs 64.77031440887403**,
+  relative difference **6.58e-16**.
+- BC-compatible linear fields match analytic center values/derivatives;
+  the only globally constant BC-compatible envelope is zero. Cubic fields
+  are compared to **continuous analytic center** values, not a discrete
+  self-oracle. For `(Nx,Ny)=(8,16),(16,32),(32,64)`, relative errors in
+  B/D/A are respectively `(4.7423e-3,9.0970e-4,4.1818e-3)`,
+  `(1.1831e-3,2.2712e-4,1.0435e-3)`,
+  `(2.9561e-4,5.6760e-5,2.6074e-4)`; measured orders lie in
+  **[2.00049,2.00308]**.
+- Allocation guards reject dense 2-D domain allocations and monkeypatch
+  dense/sparse inverses, solvers, eigensolvers, sparse densification and
+  Kronecker construction to fail. Three-grid storage probe:
+
+| Nx x Ny | Free DoF | nnz A / B / D | CSR bytes A / B / D | traced assembly peak bytes |
+|---|---:|---:|---:|---:|
+| 8 x 11 | 352 | 2664 / 666 / 666 | 54692 / 14732 / 14732 | 238132 |
+| 16 x 22 | 1408 | 10960 / 2740 / 2740 | 224836 / 60436 / 60436 | 929604 |
+| 32 x 44 | 5632 | 44448 / 11112 / 11112 | 911492 / 244772 / 244772 | 3719236 |
+
+These show linear storage; tracemalloc peaks are a local Python/NumPy
+allocation probe, not total process RSS or a production-device benchmark.
+Real zero and nonzero geometry-derived CouplingResult integration, sparse
+snapshot mutation, exact cancellation, invalid/overflow rejection and a
+clean subprocess without model/calculator/utils/mph/numba imports also pass.
+Metrics script/output: `.validation-scratch/task9_metrics.py` and `.json`.
+Full `.venv/Scripts/python.exe -m pytest -q`: **312 passed, 3 existing
+NumPy metadata-mutation deprecation warnings**. `git diff --check` passed
+(with only a Git LF/CRLF conversion notice). No legacy sources changed,
+no commit/push. Independent specification/quality reviews remain pending in
+the parent workflow. **Task 10 eigensolve is not implemented or claimed.**
