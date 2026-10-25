@@ -1242,3 +1242,229 @@ R3 edits are limited to src/cwt3d/finite/eigensolver.py,
 tests/test_eigensolver.py and this document. The prior finite/__init__.py edit
 is untouched. No commit or push was made; independent quality re-review is
 still required.
+
+## Task 11: finite complex fields, signed power and same-grid tracking
+
+### Public API and amplitude convention
+
+```python
+from cwt3d.finite import reconstruct_field, reconstruct_mode, reconstruct_modes, track_modes
+modes = reconstruct_modes(pencil, eigen_result, coupling=coupling_result)
+m = reconstruct_mode(pencil, eigen_result, 0)
+t = track_modes(modes, newer_modes, min_overlap=.8)
+```
+
+`reconstruct_field(pencil, vector, eigenvalue, coupling=None, phase_fix=True)`
+is the single-vector diagnostic primitive. Reconstruction handles only actual
+returned columns, including partial results, without padding missing modes.
+Negative/out-of-range/bool/noninteger indices, wrong shapes, zero/nonfinite
+vectors, and nonfinite eigenvalues are rejected. Optional CouplingResult must
+match pencil.C and units exactly; its components must be finite (4,4) arrays
+summing to C within component-scaled floating-point error.
+
+Normalize free faces with `Pcenter=hx*hy*sum_cells,sum_4 |U|^2=1`, `U=Bv`.
+Remove common input amplitude before squaring (tested factors 1e200/1e-200).
+Default global phase makes the largest free component real positive;
+phase_fix=False retains the input phase. Never edit lambda or imaginary signs.
+The returned immutable FiniteMode exposes:
+
+- free_vector, four full complex faces with exact incoming zeros, four complex
+  centers, center_vector, component_intensities (4,Ny,Nx), intensity (Ny,Nx);
+- eigenvalue, delta, signed alpha, normalization and read-only units;
+- recomputed original-pencil Frobenius normwise residual, boundary_error
+  (max incoming amplitude), reconstruction_error (max interpolation-minus-Bv);
+- read-only scalar budget. Every ndarray getter uses independent metadata
+  directly over immutable bytes, including face/center and tracking arrays.
+
+This chosen amplitude convention gives envelopes um^-1, intensity um^-2,
+dimensionless Pcenter, and budget rates um^-1, **not electromagnetic watts**.
+Intensity sums squared envelopes, not microscopic interference-resolved fields.
+Arbitrary diagnostic vectors are allowed: large residual/balance errors are
+reported, not hidden. A forged EigenResult residual of zero cannot bypass
+recomputation. Arbitrarily extreme physical units/dynamic ranges are not
+certified; detected nonfinite/exhausted normalization or residual arithmetic
+raises ValueError. No correctly-rounded arbitrary-range power guarantee.
+
+### Signed power identity and independent physical tests
+
+```text
+Pedge = hy*sum(|Rx_right|^2+|Sx_left|^2)
+      + hx*sum(|Ry_top|^2+|Sy_bottom|^2)
+Pc = 2*hx*hy*Im sum_cells U^H C U
+2*Im(lambda)*Pcenter = Pc + Pedge
+```
+
+Budget keys: center_power, edge, signed coupling, threshold,
+balance_signed_error, balance_absolute_error, balance_relative_error.
+The relative denominator is `abs(threshold)+abs(coupling)+edge`, with explicit
+zero-scale handling and **no 1.0 floor**. A 1e12 length-rescaling regression
+with a deliberately wrong small imaginary eigenvalue checks this distinction.
+Generic complex C may contain gain: Pc is never absolutized; no invented
+absorption/radiation decomposition is provided.
+
+With matching CouplingResult, add C1D, Crad, C2D signed quadratic powers,
+component_sum_error, all_aux_evanescent and radiation_scope. Only under the
+actual all-evanescent auxiliary condition is Crad called all radiative coupling
+in this lossless TE model. Otherwise scope explicitly states zero-order only,
+auxiliary orders may radiate. That label branch uses controlled metadata in a
+test, not a new propagating-auxiliary physical experiment.
+
+Full-face integrals are independently computed without B/budget, for actual
+finite sparse eigenmodes on 1x1, 1x4, 4x1, 3x2 grids. Hermitian C gives edge-only
+threshold; generic gain/loss retains signed coupling. Real dual-PC-layer
+waveguide/geometry/Green coupling on 4x3, 15x12 um verifies rad+edge threshold
+and negligible C1D/C2D powers under its lossless all-evanescent hypotheses.
+
+### Field overlaps, crossings and degenerate subspaces
+
+`track_modes(old,new,min_overlap=.7,degeneracy_atol=1e-8,degeneracy_rtol=1e-6)`
+requires identical grids AND physical domains. It uses normalized complex
+center-field amplitude overlap `abs(hx*hy*sum conj(U_old)*U_new)`, not squared
+power, frequency ordering or intensity-only overlap. Eligibility is imposed
+BEFORE Hungarian optimization, with dummy unmatched entries; maximize match
+count first and then summed scores.
+
+- assignment is per-old index or -1; scores is assigned amplitude or NaN;
+  overlap is the full pair score matrix. matched, unmatched_old, unmatched_new
+  account for differing returned counts and low-overlap missing/new entries.
+- aligned_vectors contains only globally phase-adjusted NEW free vectors for
+  definite pairs (None otherwise). Preserve the new eigenvalue; actual sweep
+  aligned pairs are checked again against the new pencil.
+- Connected eigenvalue clusters use complex lambda distance <= atol +
+  rtol*max(abs(lambda_i),abs(lambda_j)). Equal-dimensional full-rank clusters
+  use SVD principal overlaps; minimum principal overlap must pass min_overlap.
+- clusters reports only forced member correspondences/principal_overlaps;
+  ambiguous/ambiguous_new combine eigenvalue-cluster and global-assignment
+  ambiguity, explicitly denying strong individual identity. Cluster-covered
+  and assignment-ambiguous entries are not
+  called lost/new. Return no cluster basis rotation and never mix nondegenerate
+  vectors. Exact and near-degenerate unitary basis rotations retain subspace
+  identity when all individual overlaps fail the threshold. Rank-deficient
+  bases cannot certify a full subspace.
+
+Limits: same-grid returned-subset correspondence only, not complete global
+mode identification. Cross-grid matching explicitly raises. Connected chains
+can conservatively mark broad clusters ambiguous; truncated/unequal clusters
+cannot be certified. Ambiguous unmatched entries do not prove physical
+mode disappearance. Cross-grid common-sample matching, convergence, far field,
+performance benchmarks, D=10 and full-paper/device validation remain separate.
+
+### Executed RED/GREEN and measured evidence
+
+Initial tests failed collection because fields.py was absent: scaffolding RED,
+not a numerical failure. Additional malformed-component tests then gave
+**3 failed, 29 deselected**: NaN accepted, wrong shape error, inconsistent
+component sum accepted. Explicit validation fixed this behavioral RED.
+Final targeted suite: **33 passed**, no new warnings. Full
+`.venv/Scripts/python.exe -m pytest -q --tb=short`: **474 passed, 3 existing
+Fourier metadata-setter warnings, 6.93 s**. `git diff --check` passes.
+
+Real metrics probe: `.validation-scratch/task11_metrics.py`, raw JSON
+`task11_metrics.json`. Existing dual-PC-layer physical fixture, D=1,
+quadrature order 10, sigma=.025+.12j, k=6, tol=1e-12. Contrast changes 2 to
+2.001 at fixed grid/domain; both are real geometry-to-finite-mode solves.
+
+| Six actual finite modes | Maximum error / observed result |
+|---|---:|
+| Independent full-face integrated normalization error | 6.66e-16 |
+| Independent full-face power-balance absolute error | 2.71e-16 um^-1 |
+| Reported relative power-balance error | 5.18e-16 |
+| Incoming boundary / face-center reconstruction errors | 0 / 0 |
+| Recomputed original-pencil residual | 1.33e-16 |
+| Absolute C1D / C2D power | 1.63e-18 / 7.62e-20 um^-1 |
+| Perturbed contrast matched subset | 6 of 6, none missing/new |
+| Minimum complex-field overlap amplitude | 0.999999987316115 |
+
+Reordered power sums differ at rounding scale from reported balance errors;
+they need not be bit-identical. The real sweep has no ambiguous clusters at
+these tolerances. Degeneracies and frequency crossings are controlled fixtures,
+not mislabeled physical-device experiments.
+
+New files: finite/fields.py, finite/tracking.py, tests/test_finite_modes.py;
+modified finite/__init__.py exports and this appendix. No results.py needed
+merely for layering. Existing numerical implementations/historical source are
+unchanged. No commit/push. **Await independent specification review followed
+by independent quality review in the parent workflow; tests are not approval.**
+
+### Task 11 quality R1: global assignment ambiguity and unit overlap
+
+**Behavioral RED.** Before editing tracking.py, the new normal-pencil test
+on grid 1x1, Lx=Ly=1, C=diag(0,1,2,3), Cnew=Q C Q.T (Hadamard first
+two components) failed both reorder/phase variants: the original tracker
+called both tied nondegenerate edges definite. These are real valid pencil
+eigenpairs (maximum measured residual 1.6738104569903572e-17), not arbitrary
+diagnostic vectors. Their 2x2 overlaps are all 0.7071067811865476; eigenvalues
+0+2j and 1+2j are not clustered. A third unchanged mode demonstrates that
+the forced (2,2) edge survives. The first targeted execution returned
+12 failed, 33 deselected: two actual false-identity assertions, nine missing
+helper imports, and one missing diagnostic attribute. The import failures
+are new-API scaffolding, not additional numerical RED evidence.
+
+**Policy/algorithm.** Keep eligibility-before-optimization and maximum match
+count first, summed overlap second. For each edge of one optimal assignment,
+forbid it and re-solve; an equal-cardinality alternative within
+`64*float64_eps*max(1,matched_count)` of the optimum makes that edge non-forced.
+Only forced edges enter matched/assignment/scores/aligned_vectors or clusters.
+No frequency tie-break, vector rotation/mixing, or eigenvalue change occurs.
+Score sums use math.fsum; the tolerance is a fixed dimensionless roundoff
+budget, not a user-defined physical closeness criterion.
+
+Rectangular assignments also force each initially unmatched vertex to
+participate (using an objective-dominating bonus) and compare its best
+original objective against the optimum. This identifies *all* uncertain
+matched/unmatched vertices: merely recording one forbidden-edge witness can
+miss a third tied candidate. Both single-mode and principal-subspace cluster
+assignments use the same analysis. assignment_ambiguous_old/new isolate this
+cause; ambiguous/ambiguous_new combine it with eigenvalue-cluster ambiguity.
+Uncertain participants are not asserted lost/new; genuinely never-matched
+vertices remain unmatched. A definite cluster still denies individual identity.
+
+**Unit-overlap policy.** Single and subspace eligibility both allow only
+`32*float64_eps` absolute amplitude roundoff below min_overlap. No relative
+or unrestricted relaxation; a deficit 1e-10 at min_overlap=1 is rejected.
+The actual deterministic self-overlap probe measured 0.9999999999999999:
+restoring only the original strict comparison in memory gives no match;
+the corrected predicate returns (0,0). This controlled predicate comparison
+was executed after implementation, not represented as a pre-code TDD run.
+
+**Persistent checks.** Reorder/global phase; valid nondegenerate tied pencil
+plus forced edge; unique optimum despite row-local tie; strict maximum
+cardinality; rectangular count changes including three tied candidates;
+inferior unmatched candidate; near-tie inside/outside score tolerance; exact
+degenerate subspace; tied cluster selection plus forced cluster; bounded
+single/subspace threshold; and 72 small random score/eligibility matrices
+checked against independent exhaustive test-only partial-match enumeration.
+The real dual-PC contrast 2 -> 2.001 chain now explicitly requires **6/6**
+definite matches and no ambiguity, rather than only at least four matches.
+
+**Cost/support limits.** A score matrix n x m with k optimal eligible pairs
+needs at most `1+k+(n-k)+(m-k)` Hungarian solves (often fewer for ineligible
+unmatched vertices), each on padded (n+m) x (n+m) weights. Thus O(n+m)
+solves, O((n+m)^4) worst-case time, O((n+m)^2) assignment workspace, not
+exponential enumeration in production. This is a small returned-mode-set
+reference path, not a large-k accelerated tracker or certified interval
+assignment solver. Local 30-repeat median timings of assignment analysis
+alone, excluding overlap construction, SVD and eigensolves:
+
+| Matrix / case | Hungarian calls | Median seconds |
+|---|---:|---:|
+| 6 x 6 unique | 7 | 0.0000627 |
+| 24 x 24 tied | 25 | 0.00062265 |
+| 6 x 24 tied | 25 | 0.00039385 |
+| 48 x 48 unique | 49 | 0.00333435 |
+
+Raw executable/output: .validation-scratch/task11_r1_metrics.py and
+task11_r1_metrics.json. These are local synthetic assignment timings only;
+no mesh/domain/D=10/device convergence or speedup claim follows.
+
+**Final GREEN:** targeted tests/test_finite_modes.py: **49 passed in 0.99 s**;
+full `.venv/Scripts/python.exe -m pytest -q --tb=short`: **490 passed,
+3 existing Fourier metadata deprecation warnings in 6.94 s**. The physical
+contrast chain passes its strengthened 6/6 gate. `git diff --check` passes;
+untracked tracking/tests are additionally checked with no-index diffs against
+/dev/null so Git's ordinary tracked-only diff cannot omit their whitespace.
+
+R1 edits touch only finite/tracking.py, tests/test_finite_modes.py and this
+appendix; fields.py and the pre-existing __init__.py edit remain untouched.
+Legacy sources unchanged; no commit/push. Independent quality re-review is
+still required.
