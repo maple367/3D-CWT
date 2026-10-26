@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Preserve embedded streams and byte offsets in validation reports.
+*.pdf binary

@@ -1,0 +1,25 @@
+model,shape,reference_method,quantity,n,mean_abs_difference,max_abs_difference,rmse,mean_relative_percent,max_relative_percent,relative_denominator_note
+package_default,CC,CWT,alpha_r_cm_inverse,18,1.8634761007772345e-13,6.938893903907228e-13,2.842414462035078e-13,,,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,CC,CWT,frequency_ca,18,3.501716018125853e-06,9.733591879002024e-06,4.378712327526036e-06,0.001182357197273046,0.003271068453742577,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,CC,FDTD,alpha_r_cm_inverse,12,0.47701114650111426,2.6896532115966783,0.8505978712106166,,,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,CC,FDTD,frequency_ca,18,0.0003350569956862713,0.0008618521154730718,0.0004009011154992299,0.113123988063067,0.287091015079216,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,ET,CWT,alpha_r_cm_inverse,18,6.4519935189186075,33.92703926250431,11.978629780273668,14.502279193330597,23.328486060068368,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,ET,CWT,frequency_ca,18,6.739551444787415e-06,1.8368091823761645e-05,8.642913368706193e-06,0.0022708876327595237,0.006163215634257084,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,ET,FDTD,alpha_r_cm_inverse,18,6.344745414640191,22.870191006338388,9.01610112690584,18.49318818678332,47.75854780724846,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,ET,FDTD,frequency_ca,18,0.0002645209786457165,0.0008369595713491051,0.00031733514422752947,0.08916783117110806,0.27906587665677385,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,RIT,CWT,alpha_r_cm_inverse,18,17.631027190824245,57.86472815383215,26.679206431771227,17.40326410222103,23.189253798991395,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,RIT,CWT,frequency_ca,18,6.568753322888643e-06,2.0292200473559507e-05,8.425424035917085e-06,0.00221377226726221,0.006806986825344362,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,RIT,FDTD,alpha_r_cm_inverse,16,14.49670274822713,40.67299859989325,20.517734289654445,22.923335834858076,53.0099013170401,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+package_default,RIT,FDTD,frequency_ca,18,0.00046611453518815817,0.0014248078230669758,0.0005759212337959044,0.1567626565942012,0.47451056418669285,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,CC,CWT,alpha_r_cm_inverse,18,8.84043202321771e-14,2.7755575615628914e-13,1.1635634440376708e-13,,,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,CC,CWT,frequency_ca,18,7.4892529809504156e-06,1.77832605547934e-05,9.425863874876497e-06,0.002531559919193151,0.00600573109480837,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,CC,FDTD,alpha_r_cm_inverse,12,0.4770111465010305,2.689653211596527,0.8505978712105463,,,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,CC,FDTD,frequency_ca,18,0.000341355354735346,0.000863600902081374,0.0004076465269221632,0.11525323765031444,0.2876735522842896,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,ET,CWT,alpha_r_cm_inverse,18,0.24209591851170975,0.670177881434924,0.31189159855385784,2.300121590706645,8.070088970859013,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,ET,CWT,frequency_ca,18,9.545770842623992e-06,1.9456151987229386e-05,1.1513911658829153e-05,0.003218775060201231,0.006569601491866312,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,ET,FDTD,alpha_r_cm_inverse,18,3.50054631763072,22.426769179479976,5.919484459557401,12.506749016664708,52.55971651494584,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,ET,FDTD,frequency_ca,18,0.0002713071442700079,0.0008381728255277276,0.00032358924097778747,0.09145637721686115,0.2794704097460114,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,RIT,CWT,alpha_r_cm_inverse,18,0.4125958522725639,0.949813788435165,0.5356182322915654,0.7721005971788082,3.7817246469149235,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,RIT,CWT,frequency_ca,18,6.412652375633845e-06,1.3986396510679011e-05,7.313543542683835e-06,0.0021609589831660743,0.004691714775156378,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,RIT,FDTD,alpha_r_cm_inverse,16,11.84330930283892,72.0623590953901,20.92310362939643,18.398324891709937,57.32540620863612,radiation: only |paper|>3 cm^-1; frequency: all nonzero points
+thesis_Green_control,RIT,FDTD,frequency_ca,18,0.0004694257163236533,0.0014237960735736244,0.0005779389359862923,0.15788613539508387,0.47417361641371364,radiation: only |paper|>3 cm^-1; frequency: all nonzero points

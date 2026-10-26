@@ -8,6 +8,8 @@ FF.csv
 
 # Reproducible README figures; simulation outputs remain local.
 !/docs/images/*.png
+!/docs/validation/liang-reproduction/analysis/*.png
+!/docs/validation/liang-reproduction/finite/*.png
 /results/
 
 

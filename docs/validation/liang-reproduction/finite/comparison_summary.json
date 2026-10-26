@@ -1,0 +1,352 @@
+{
+  "main_mode_rows": 60,
+  "dense_spectrum_rows": 1568,
+  "sensitivity_rows": 24,
+  "grid_comparison": [
+    {
+      "shape": "CC",
+      "branch": "A",
+      "alphaL_N64": 0.2271412036319232,
+      "alphaL_N96": 0.22705755390537444,
+      "relative_change_percent": -0.036827191725330444,
+      "deltaL_change": 9.152398592959798e-05
+    },
+    {
+      "shape": "CC",
+      "branch": "B",
+      "alphaL_N64": 0.5251708119810468,
+      "alphaL_N96": 0.5250198356675253,
+      "relative_change_percent": -0.02874803970006612,
+      "deltaL_change": 7.103042018974381e-05
+    },
+    {
+      "shape": "CC",
+      "branch": "C",
+      "alphaL_N64": 2.172239948586043,
+      "alphaL_N96": 2.1721184899074766,
+      "relative_change_percent": -0.005591402489646402,
+      "deltaL_change": -0.0001489471017261934
+    },
+    {
+      "shape": "CC",
+      "branch": "D",
+      "alphaL_N64": 2.1722399485860433,
+      "alphaL_N96": 2.1721184899074775,
+      "relative_change_percent": -0.005591402489624198,
+      "deltaL_change": -0.0001489471017261934
+    },
+    {
+      "shape": "ET",
+      "branch": "A",
+      "alphaL_N64": 0.42744122552554736,
+      "alphaL_N96": 0.4273227253352205,
+      "relative_change_percent": -0.027723154260839156,
+      "deltaL_change": 9.289616011987079e-05
+    },
+    {
+      "shape": "ET",
+      "branch": "B",
+      "alphaL_N64": 0.5681887111024475,
+      "alphaL_N96": 0.5680329639482986,
+      "relative_change_percent": -0.027411166590529668,
+      "deltaL_change": 6.443654847138047e-05
+    },
+    {
+      "shape": "ET",
+      "branch": "C",
+      "alphaL_N64": 1.9348336355990776,
+      "alphaL_N96": 1.9347319613380363,
+      "relative_change_percent": -0.005254935575371711,
+      "deltaL_change": -0.00013678741154699026
+    },
+    {
+      "shape": "ET",
+      "branch": "D",
+      "alphaL_N64": 2.0086532086348274,
+      "alphaL_N96": 2.0085067813103543,
+      "relative_change_percent": -0.007289826030876245,
+      "deltaL_change": -0.00014405696289365721
+    }
+  ],
+  "table_comparison": [
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "C",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 2.1721184899074766,
+      "reference": 2.18,
+      "error_percent": -0.3615371602075035
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "D",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 2.1721184899074775,
+      "reference": 2.18,
+      "error_percent": -0.3615371602074591
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "A",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 0.22705755390537444,
+      "reference": 0.23,
+      "error_percent": -1.2793243889676398
+    },
+    {
+      "table": "4.3",
+      "shape": "CC",
+      "branch": "A",
+      "N": 96,
+      "L": 70.0,
+      "control": "D10 q32 F64",
+      "computed": 0.6735445271704393,
+      "reference": 0.67,
+      "error_percent": 0.5290339060357141
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "B",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 0.5250198356675253,
+      "reference": 0.52,
+      "error_percent": 0.9653530129856369
+    },
+    {
+      "table": "4.3",
+      "shape": "CC",
+      "branch": "B",
+      "N": 96,
+      "L": 70.0,
+      "control": "D10 q32 F64",
+      "computed": 0.6862708848096891,
+      "reference": 0.69,
+      "error_percent": -0.5404514768566404
+    },
+    {
+      "table": "4.3",
+      "shape": "CC",
+      "branch": "A",
+      "N": 96,
+      "L": 400.0,
+      "control": "D10 q32 F64",
+      "computed": 0.2576657852745972,
+      "reference": 0.26,
+      "error_percent": -0.8977748943856945
+    },
+    {
+      "table": "4.3",
+      "shape": "CC",
+      "branch": "B",
+      "N": 96,
+      "L": 400.0,
+      "control": "D10 q32 F64",
+      "computed": 0.25923721508628067,
+      "reference": 0.26,
+      "error_percent": -0.2933788129689807
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "A",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 0.4273227253352205,
+      "reference": 0.43,
+      "error_percent": -0.6226220150649997
+    },
+    {
+      "table": "4.3",
+      "shape": "ET",
+      "branch": "A",
+      "N": 96,
+      "L": 70.0,
+      "control": "D10 q32 F64",
+      "computed": 0.5733389400385662,
+      "reference": 0.58,
+      "error_percent": -1.1484586140403041
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "B",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 0.5680329639482986,
+      "reference": 0.57,
+      "error_percent": -0.34509404415813405
+    },
+    {
+      "table": "4.3",
+      "shape": "ET",
+      "branch": "B",
+      "N": 96,
+      "L": 70.0,
+      "control": "D10 q32 F64",
+      "computed": 0.7053287925578898,
+      "reference": 0.71,
+      "error_percent": -0.6579165411422783
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "C",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 1.9347319613380363,
+      "reference": 2.08,
+      "error_percent": -6.984040320286722
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "D",
+      "N": 96,
+      "L": 70,
+      "control": "D10 q32 F64",
+      "computed": 2.0085067813103543,
+      "reference": 2.01,
+      "error_percent": -0.07428948704704119
+    },
+    {
+      "table": "4.3",
+      "shape": "ET",
+      "branch": "A",
+      "N": 96,
+      "L": 400.0,
+      "control": "D10 q32 F64",
+      "computed": 0.018062797899532374,
+      "reference": 0.02,
+      "error_percent": -9.686010502338128
+    },
+    {
+      "table": "4.3",
+      "shape": "ET",
+      "branch": "B",
+      "N": 96,
+      "L": 400.0,
+      "control": "D10 q32 F64",
+      "computed": 0.18679206525454276,
+      "reference": 0.19,
+      "error_percent": -1.688386708135392
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "A",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 0.22166009623619826,
+      "reference": 0.23,
+      "error_percent": -3.626045114696419
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "B",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 0.5257729071114241,
+      "reference": 0.52,
+      "error_percent": 1.1101744445046302
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "C",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 2.170988130951301,
+      "reference": 2.18,
+      "error_percent": -0.4133884884724437
+    },
+    {
+      "table": "4.2",
+      "shape": "CC",
+      "branch": "D",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 2.1709881309513004,
+      "reference": 2.18,
+      "error_percent": -0.4133884884724659
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "A",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 0.4335741187484892,
+      "reference": 0.43,
+      "error_percent": 0.8311904066254039
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "B",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 0.5649726151322988,
+      "reference": 0.57,
+      "error_percent": -0.8819973452107277
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "C",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 1.9320751387693555,
+      "reference": 2.08,
+      "error_percent": -7.111772174550213
+    },
+    {
+      "table": "4.2",
+      "shape": "ET",
+      "branch": "D",
+      "N": 64,
+      "L": 70,
+      "control": "D24 q48 F64",
+      "computed": 2.0076400596570116,
+      "reference": 2.01,
+      "error_percent": -0.11740996731284259
+    }
+  ],
+  "max_residual": 1.1775216254305028e-15,
+  "max_energy_balance_relative": 2.989820718711402e-13,
+  "max_grid_change_percent": 0.036827191725330444,
+  "timing_sum_mode_records_seconds": 45.78502079984173,
+  "timing_note": "dense eigensolve seconds repeated once per selected mode; cluster seconds per member: sum is not true elapsed. Structure files record reference+coupling; individual records contain finite time.",
+  "infinite_alpha_reference_cm_inverse": {
+    "CC": [
+      0,
+      0
+    ],
+    "ET": [
+      12.35,
+      0.82
+    ]
+  }
+}
