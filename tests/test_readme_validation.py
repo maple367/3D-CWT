@@ -41,3 +41,16 @@ def test_readme_thresholds_match_archived_measurements():
         assert f"{float(row['alphaL']):.6f}" in text
     assert '6.98%' in text
     assert 'not' in text and 'convergence' in text
+
+
+def test_readme_documents_default_on_reciprocity_and_fallback():
+    text = (ROOT / 'README.md').read_text(encoding='utf-8')
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
+    version = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['project']['version']
+    for value in (version, '--no-reciprocity', 'reciprocity=False',
+                  'enabled by default', 'geometric symmetry',
+                  'docs/validation/reciprocal-green-overlap/README.md'):
+        assert value in text

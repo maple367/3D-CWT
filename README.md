@@ -7,6 +7,8 @@ staggered grid.
 
 The current optical solver uses NumPy and SciPy.
 
+Current release: **1.3.1**.
+
 ## Citing 3D-CWT
 
 If you use this code in your research, please cite:
@@ -132,6 +134,27 @@ Fourier cutoff, and `--q` is the vertical integration order. They control
 different numerical errors. The quick run and the plotted run use the same
 physical structure. The plotted introductory example uses `D=32`; the validation
 table above deliberately uses the thesis's `D=10` for comparison.
+
+### Reciprocity acceleration
+
+Reciprocal Green-value reuse is **enabled by default**. It does not require
+geometric symmetry of the holes or layer stack within the supported scalar TE
+model. To use the original two-evaluation formula, add `--no-reciprocity`:
+
+```bash
+python examples/liang_70um.py --no-reciprocity --output results/liang-70um-no-reciprocity
+```
+
+The Python setting is `reciprocity=False`, for example
+`run_case(N=64, D=10, q=32, reciprocity=False)`. The selected setting is recorded
+in the output and uses a separate cache key. Both paths keep the same precision
+and integration controls.
+
+Three matched-precision benchmarks (circle, asymmetric two-layer patterns, and
+an irregular sampled hole) gave **1.59–1.85× coupling speedups**, or **1.54–1.78×
+for coupling plus the finite solve and field reconstruction**. These are
+workload-dependent measurements, not a universal twofold speedup. See the
+[derivation, accuracy tests and raw timing records](docs/validation/reciprocal-green-overlap/README.md).
 
 ## Use the calculation from Python
 

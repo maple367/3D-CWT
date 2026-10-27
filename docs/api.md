@@ -131,6 +131,29 @@ integration. `fourier_order` controls shape integration where used; circular
 holes use analytic Fourier coefficients. `reference` and `prepared` evaluate
 the same equations; `prepared` reuses the vertical Green-function systems.
 
+### Calculation setting: reciprocity reuse
+
+`reciprocity=True` is the default for both backends. It reuses identical-interval
+Green values using scalar reciprocity, without requiring geometric symmetry.
+Set `reciprocity=False` to restore the original two-evaluation formula:
+
+```python
+coupling = build_coupling(
+    vertical_mode, period, {6: hole},
+    cutoff=16, quadrature_order=48, fourier_order=64,
+    backend="prepared", reciprocity=False,
+)
+```
+
+Both `examples/liang_70um.py` and `examples/square_finite.py` expose
+`--no-reciprocity` to disable it and `--reciprocity` to explicitly enable it.
+The chapter-4 `run_case(...)` API accepts the same `reciprocity` boolean.
+`coupling.reciprocity`, the provenance and exported `summary.json` input record
+retain the selected setting. Cache keys distinguish enabled and disabled runs,
+so disabling reuse cannot return an enabled-run cache entry. Unknown kernels
+and overriding subclasses keep the original formula even when enabled.
+Precision and quadrature controls are unchanged.
+
 For an infinite periodic structure, use
 `cwt3d.infinite.solve_infinite(coupling)`. Its four eigenvalues describe the
 periodic band edges, without finite-cavity edge loss.

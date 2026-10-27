@@ -1,0 +1,250 @@
+{
+  "scope": "Same-precision implementation parity, not physical/truncation convergence certification; original path is process-local override of old quadrature only; no disk cache; total includes coupling, pencil, solve and field reconstruction, excludes guide setup/imports/exports",
+  "environment": {
+    "python": "3.13.14",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "precision": "complex128",
+    "threads": 1,
+    "algorithm_digest": "613174c83ff7672f8d376d3263fe439a81fff042e1d8b564d50195d700cd8f7a"
+  },
+  "rows": [
+    {
+      "case": "liang_CC",
+      "controls": {
+        "N": 64,
+        "L_um": 70.0,
+        "D": 10,
+        "q": 32,
+        "F": 64,
+        "k": 1,
+        "pc_layers": [
+          6
+        ],
+        "period_um": 0.295,
+        "eps": [
+          10.936249,
+          12.418576,
+          12.623809,
+          12.418576,
+          10.751840999999999,
+          12.418576,
+          10.59160384,
+          12.418576,
+          10.936249
+        ],
+        "thickness_um": [
+          0.03,
+          0.064,
+          0.04,
+          0.04,
+          0.022,
+          0.118,
+          0.02
+        ]
+      },
+      "medians": {
+        "original": {
+          "coupling": 2.083933800109662,
+          "total": 2.184509400045499
+        },
+        "reciprocal": {
+          "coupling": 1.373426399892196,
+          "total": 1.476585799944587
+        }
+      },
+      "coupling_speedup": 1.517324699942593,
+      "total_speedup": 1.4794327563812946,
+      "max_C_error": 1.88079096131566e-37,
+      "max_finite_eigenvalue_error": 0.0,
+      "samples": [
+        {
+          "original": {
+            "coupling": 2.083933800109662,
+            "total": 2.184509400045499
+          },
+          "reciprocal": {
+            "coupling": 1.373426399892196,
+            "total": 1.476585799944587
+          },
+          "array_max_errors": {
+            "C1D": 0.0,
+            "Crad": 0.0,
+            "C2D": 1.966214729959856e-37,
+            "C2D_green": 1.9662147299598594e-37,
+            "C2D_local": 0.0,
+            "C": 1.88079096131566e-37,
+            "I": 0.0,
+            "J": 0.0,
+            "K": 8.470329472543003e-22,
+            "xi": 0.0,
+            "mu": 1.6940658945086007e-21,
+            "nu": 0.0,
+            "varsigma": 1.2037062152420224e-35
+          },
+          "infinite_eigenvalue_error": 0.0,
+          "finite_eigenvalue_error": 0.0,
+          "max_residual": 2.402471024036893e-18,
+          "budget_errors": {
+            "edge": 0.0,
+            "coupling": 0.0,
+            "threshold": 0.0,
+            "balance_relative_error": 0.0,
+            "Crad": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "case": "asymmetric_two_PC_circle_scalene_triangle",
+      "controls": {
+        "N": 32,
+        "L_um": 30.0,
+        "D": 6,
+        "q": 20,
+        "F": 32,
+        "k": 1,
+        "pc_layers": [
+          1,
+          2
+        ],
+        "period_um": 0.3695461030516613,
+        "eps": [
+          1.0,
+          8.0,
+          10.0,
+          2.25
+        ],
+        "thickness_um": [
+          0.13,
+          0.19
+        ]
+      },
+      "medians": {
+        "original": {
+          "coupling": 0.927895599976182,
+          "total": 0.9864837999921292
+        },
+        "reciprocal": {
+          "coupling": 0.5850422000512481,
+          "total": 0.6352208000607789
+        }
+      },
+      "coupling_speedup": 1.586031913415649,
+      "total_speedup": 1.552977799054661,
+      "max_C_error": 1.0842021724855044e-19,
+      "max_finite_eigenvalue_error": 0.0,
+      "samples": [
+        {
+          "original": {
+            "coupling": 0.927895599976182,
+            "total": 0.9864837999921292
+          },
+          "reciprocal": {
+            "coupling": 0.5850422000512481,
+            "total": 0.6352208000607789
+          },
+          "array_max_errors": {
+            "C1D": 0.0,
+            "Crad": 1.0842021724855044e-19,
+            "C2D": 1.4226962018585015e-21,
+            "C2D_green": 1.4226962018585015e-21,
+            "C2D_local": 0.0,
+            "C": 1.0842021724855044e-19,
+            "I": 0.0,
+            "J": 0.0,
+            "K": 2.168404344971009e-19,
+            "xi": 0.0,
+            "mu": 2.7939250479261703e-20,
+            "nu": 0.0,
+            "varsigma": 1.0842021724855044e-19
+          },
+          "infinite_eigenvalue_error": 0.0,
+          "finite_eigenvalue_error": 0.0,
+          "max_residual": 5.437220807538735e-14,
+          "budget_errors": {
+            "edge": 0.0,
+            "coupling": 0.0,
+            "threshold": 0.0,
+            "balance_relative_error": 0.0,
+            "Crad": 5.421010862427522e-20
+          }
+        }
+      ]
+    },
+    {
+      "case": "asymmetric_sampled_bent_inclusion",
+      "controls": {
+        "N": 32,
+        "L_um": 30.0,
+        "D": 6,
+        "q": 20,
+        "F": 32,
+        "k": 1,
+        "pc_layers": [
+          1
+        ],
+        "period_um": 0.40990098073641174,
+        "eps": [
+          1.0,
+          8.37060546875,
+          2.25
+        ],
+        "thickness_um": [
+          0.25
+        ]
+      },
+      "medians": {
+        "original": {
+          "coupling": 0.37060979998204857,
+          "total": 0.40928460005670786
+        },
+        "reciprocal": {
+          "coupling": 0.20449749997351319,
+          "total": 0.23888960003387183
+        }
+      },
+      "coupling_speedup": 1.8122950159784375,
+      "total_speedup": 1.7132792720933685,
+      "max_C_error": 3.469446951953614e-18,
+      "max_finite_eigenvalue_error": 0.0,
+      "samples": [
+        {
+          "original": {
+            "coupling": 0.37060979998204857,
+            "total": 0.40928460005670786
+          },
+          "reciprocal": {
+            "coupling": 0.20449749997351319,
+            "total": 0.23888960003387183
+          },
+          "array_max_errors": {
+            "C1D": 0.0,
+            "Crad": 3.469446951953614e-18,
+            "C2D": 0.0,
+            "C2D_green": 0.0,
+            "C2D_local": 0.0,
+            "C": 3.469446951953614e-18,
+            "I": 0.0,
+            "J": 0.0,
+            "K": 1.0842021724855044e-19,
+            "xi": 0.0,
+            "mu": 0.0,
+            "nu": 0.0,
+            "varsigma": 0.0
+          },
+          "infinite_eigenvalue_error": 6.844873246762001e-18,
+          "finite_eigenvalue_error": 0.0,
+          "max_residual": 4.765082427273153e-16,
+          "budget_errors": {
+            "edge": 0.0,
+            "coupling": 0.0,
+            "threshold": 0.0,
+            "balance_relative_error": 0.0,
+            "Crad": 6.505213034913027e-19
+          }
+        }
+      ]
+    }
+  ]
+}

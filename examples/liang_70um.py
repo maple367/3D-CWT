@@ -133,7 +133,7 @@ def _json_value(value):
 
 
 def run_case(*, L_um=70, N=64, D=16, q=48, F=64, k=1, sigma=None,
-             backend='prepared', output=None):
+             backend='prepared', output=None, reciprocity=True):
     """Compute one square domain; optionally export into a fresh directory.
 
     N is cells per side, D auxiliary cutoff, q vertical quadrature, F shape
@@ -148,7 +148,8 @@ def run_case(*, L_um=70, N=64, D=16, q=48, F=64, k=1, sigma=None,
     reference_seconds = perf_counter() - started
     stage = perf_counter()
     coupling = build_coupling(reference.mode, period, layers, cutoff=D,
-                              quadrature_order=q, fourier_order=F, backend=backend)
+                              quadrature_order=q, fourier_order=F, backend=backend,
+                              reciprocity=reciprocity)
     coupling_seconds = perf_counter() - stage
     infinite_values = np.linalg.eigvals(coupling.C)
     automatic_shift = sigma is None
@@ -177,7 +178,8 @@ def run_case(*, L_um=70, N=64, D=16, q=48, F=64, k=1, sigma=None,
     hole = layers[6]
     summary = _json_value(dict(
         schema='cwt3d-liang-70um-v1', status=eigenpairs.status,
-        input=dict(L_um=L_um, N=N, D=D, q=q, F=F, k=k, backend=backend),
+        input=dict(L_um=L_um, N=N, D=D, q=q, F=F, k=k, backend=backend,
+                   reciprocity=coupling.reciprocity),
         source=dict(doi='10.14989/doctor.k18283', chapter=4, table='4.1', geometry='CC circular hole',
                     domain=f'{L_um:g} um square; thesis chapter-4 reference is 70 um',
                     cladding_model='two homogeneous 1.5 um outer claddings replaced by halfspaces',
@@ -254,6 +256,8 @@ def parser():
     p.add_argument('--sigma', type=complex, default=None,
                    help='delta+i*alpha in um^-1; default: minimum-real infinite-C edge - 0.6/L + i*0.25/L')
     p.add_argument('--backend', choices=('reference', 'prepared'), default='prepared')
+    p.add_argument('--reciprocity', action=argparse.BooleanOptionalAction, default=True,
+                   help='reuse reciprocal Green values (default: enabled); --no-reciprocity restores two evaluations')
     p.add_argument('--output', type=Path, default=Path('results/liang-70um'))
     return p
 
@@ -261,7 +265,8 @@ def parser():
 def main(argv=None):
     args = parser().parse_args(argv)
     result = run_case(L_um=args.L_um, N=args.N, D=args.D, q=args.q, F=args.F,
-                      k=args.k, sigma=args.sigma, backend=args.backend, output=args.output)
+                      k=args.k, sigma=args.sigma, backend=args.backend, output=args.output,
+                      reciprocity=args.reciprocity)
     print(f"Reference wavelength: {result.summary['reference']['wavelength_um']:.9f} um")
     print('Modes near the selected shift (ordered by alpha):')
     print('index       deltaL       alphaL       residual')

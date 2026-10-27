@@ -10,7 +10,7 @@ import numpy as np
 from .geometry import CircleHole, RightTriangleHole, SampledPermittivity, _integer
 from .fourier import shape_fourier, fft_fourier
 from .greens import LayeredGreen, PreparedLayeredGreen
-from .quadrature import mode_overlap, green_overlap
+from .quadrature import mode_overlap, green_overlap, _reciprocity_option
 from .waveguide import TEMode, _positive_scalar
 
 
@@ -58,11 +58,12 @@ class CouplingResult(_Snapshots):
     # Immutable canonical input snapshot; empty for manually constructed results.
     # Not an authentication signature against deliberate dataclass forgery.
     provenance: str = ''
+    reciprocity: bool = True
 
 
 def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
                    quadrature_order=12, fourier_order=64, beta_rtol=1e-8,
-                   backend='reference'):
+                   backend='reference', reciprocity=True):
     """Build physical reference C using a normalized TEMode.
 
     pc_layers maps guide epsilon indices 1..len(eps)-2 to a CircleHole,
@@ -79,7 +80,10 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
     'prepared' uses one pole check/LU per radial kernel and batched source RHS,
     with identical Fourier/quadrature orders and same-layer Duffy integration.
     fourier_order and sampled grid shapes are retained in result metadata.
+    reciprocity=True reuses same-interval built-in Green values. Set False
+    for the original two-evaluation formula; precision and orders are unchanged.
     """
+    reciprocity = _reciprocity_option(reciprocity)
     if not isinstance(mode,TEMode):
         raise TypeError('mode must be a normalized TEMode')
     if backend not in ('reference', 'prepared'):
@@ -118,7 +122,7 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
     from .cache import _document, _json
     provenance = _json(_document(mode, a, layers, dict(
         cutoff=cutoff, quadrature_order=quadrature_order, fourier_order=fourier_order,
-        beta_rtol=beta_rtol, backend=backend)))
+        beta_rtol=beta_rtol, backend=backend, reciprocity=reciprocity)))
     ids = tuple(sorted(layers))
     basic = np.array([(1,0),(-1,0),(0,1),(0,-1)])
     aux = [(m,n) for m in range(-D,D+1) for n in range(-D,D+1) if m*m+n*n > 1]
@@ -143,7 +147,7 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
         kernel = kernel_type.from_structure(guide,b*np.sqrt(r2))
         for i,left in enumerate(bounds):
             for j,right in enumerate(bounds):
-                K[index,i,j] = green_overlap(mode,left,right,kernel,Q)
+                K[index,i,j] = green_overlap(mode,left,right,kernel,Q,reciprocity=reciprocity)
     f = -guide.k0**2/(2*b)
     c1,cr,cg,cl = [np.zeros((4,4),complex) for _ in range(4)]
     for i,p in enumerate(basic):
@@ -181,6 +185,6 @@ def build_coupling(mode, period_um, pc_layers, *, cutoff=1,
                                 mu=np.array(mus),nu=np.array(nus),varsigma=np.array(fields)),
                           a,b,guide.k0,float(detuning),D,Q,ids,radial,
                           bool(all(b*b*r > guide.k0**2*max(guide.eps) for r in radial[1:])),
-                          fourier_order=F, backend=backend, provenance=provenance,
+                          fourier_order=F, backend=backend, provenance=provenance, reciprocity=reciprocity,
                           sampling_shapes=tuple((l,layers[l].values.shape) for l in ids
                                                 if isinstance(layers[l],SampledPermittivity)))

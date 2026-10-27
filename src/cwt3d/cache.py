@@ -24,6 +24,7 @@ import scipy
 from .coupling import CouplingResult, build_coupling, _pack
 from .geometry import CircleHole, RightTriangleHole, SampledPermittivity
 from .waveguide import TEMode, _positive_scalar
+from .quadrature import _reciprocity_option
 
 SCHEMA = 'cwt3d-coupling-v1'
 DEFAULT_MAX_BYTES = 256*1024*1024
@@ -80,6 +81,7 @@ def _document(mode, period_um, pc_layers, options):
         raise TypeError('mode must be a normalized TEMode')
     bound = _BUILD_SIGNATURE.bind(mode, period_um, pc_layers, **options)
     bound.apply_defaults()
+    bound.arguments['reciprocity'] = _reciprocity_option(bound.arguments['reciprocity'])
     # Match the real build's scalar semantics, not the caller's container/dtype.
     # Do not generalize this normalization to geometry or solved-field arrays.
     period_um = _positive_scalar(period_um, 'period_um')
@@ -118,7 +120,9 @@ def _validate_metadata(metadata, document):
     if metadata.get('provenance') != _json(document):
         raise CacheError('result metadata provenance does not match complete key inputs')
     options = document['options']
-    for name in ('cutoff', 'quadrature_order', 'fourier_order', 'backend'):
+    if type(metadata.get('reciprocity')) is not bool:
+        raise CacheError('result metadata reciprocity must be boolean')
+    for name in ('cutoff', 'quadrature_order', 'fourier_order', 'backend', 'reciprocity'):
         if _canonical(metadata[name]) != options[name]:
             raise CacheError('result metadata does not match key numerical controls')
     def real(value):

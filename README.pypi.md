@@ -36,6 +36,14 @@ library.
 
 ## Scope
 
+Reciprocal Green-value reuse is enabled by default. Pass `reciprocity=False`
+to `build_coupling(...)` to use the original two-evaluation formula. The
+repository examples also accept `--no-reciprocity`. Both settings keep the
+same precision and integration orders; selected settings are recorded and
+separated in the optional cache. The optimization does not require geometric
+symmetry within the supported scalar TE model. See the
+[validation and benchmark notes](https://github.com/maple367/3D-CWT/blob/latest/docs/validation/reciprocal-green-overlap/README.md).
+
 The current model uses lossless scalar TE waves on a square lattice.
 It returns modes near a selected complex shift, not the complete cavity
 spectrum. The example's auxiliary-harmonic refinement is still finite, as

@@ -53,6 +53,8 @@ def parser():
     p.add_argument('--L-um',type=float,default=14.75,help='physical square domain length, chosen 50a; not a verified thesis domain')
     p.add_argument('--sigma',type=complex,default=.03+.03j,help='delta+i*alpha target shift in um^-1 (not frequency)')
     p.add_argument('--backend',choices=['reference','prepared'],default='prepared')
+    p.add_argument('--reciprocity',action=argparse.BooleanOptionalAction,default=True,
+        help='reuse reciprocal Green values (default: enabled); --no-reciprocity restores two evaluations')
     p.add_argument('--output',type=Path,default=Path('results/v3-demo'))
     p.add_argument('--overwrite',action='store_true',help='replace only the four named output files; requires existing v3 summary')
     return p
@@ -73,7 +75,9 @@ def compute(args,coupling=None,source=None):
     start=perf_counter()
     if coupling is None:
         mode,a,holes,source=physical()
-        coupling=build_coupling(mode,a,holes,cutoff=args.D,quadrature_order=args.q,fourier_order=args.F,backend=args.backend)
+        coupling=build_coupling(mode,a,holes,cutoff=args.D,quadrature_order=args.q,fourier_order=args.F,backend=args.backend,reciprocity=args.reciprocity)
+    if coupling.reciprocity != args.reciprocity:
+        raise ValueError('precomputed coupling reciprocity does not match calculation setting')
     coupling_seconds=perf_counter()-start
     g=StaggeredGrid(args.Nx,args.Ny,args.L_um,args.L_um)
     p=FinitePencil(g,coupling)
