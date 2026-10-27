@@ -31,6 +31,11 @@ REQUIRED_SDIST = frozenset({
     "examples/plot_liang_70um.py", "tests/test_end_to_end.py",
     "tests/regressions/_legacy.py", "model/_Model.py", "calculator/_calc.py",
     "docs/images/liang-70um.png", "docs/api.md",
+    "examples/active_cavity.py", "scripts/plot_active_trajectory.py",
+    "tests/test_active_integration.py", "tests/test_active_plot.py",
+    "docs/active-cavity.md", "docs/validation/active-cavity/README.md",
+    "docs/validation/active-cavity/refinement.png", "docs/validation/active-cavity/refinement.json",
+    "docs/validation/active-cavity/long-n4.png", "docs/validation/active-cavity/long-n4.json",
 })
 MAX_FILE_SIZE = 32 * 1024 * 1024
 MAX_TOTAL_SIZE = 128 * 1024 * 1024

@@ -3,11 +3,12 @@
 Three-dimensional coupled-wave calculations for square-lattice photonic-crystal
 surface-emitting lasers (PCSELs). The Python package calculates the vertical
 waveguide mode, the four-wave coupling matrix, and finite-cavity modes on a
-staggered grid.
+staggered grid. The optional `cwt3d.active` module adds gain/absorption and
+spatial carrier-photon dynamics on the same passive optical operator.
 
 The current optical solver uses NumPy and SciPy.
 
-Current release: **1.3.1**.
+Current release: **1.4.0**.
 
 ## Citing 3D-CWT
 
@@ -188,22 +189,55 @@ spectrum; one search is not a survey of all competing modes. Eigenvalues are
 `delta + 1j*alpha`, where `alpha` is an amplitude-loss coefficient. Power loss
 is `2*alpha`.
 
+## Active-cavity analysis
+
+`cwt3d.active` adds frozen-carrier gain/index eigenanalysis and deterministic
+spatial carrier-photon dynamics. The implicit sparse solver retains the full
+four-wave field and staggered mass matrix; it is not a fixed-mode rate equation.
+Material maps support gain/absorption, saturation, index feedback, injection,
+ABC recombination and no-flux carrier diffusion.
+
+```bash
+python examples/active_cavity.py --N 4 --D 3 --q 12 --duration-ns .5 --output results/active-cavity
+python scripts/plot_active_trajectory.py --reference results/active-cavity --output results/active-cavity.png --metrics results/active-cavity-metrics.json
+```
+
+![Illustrative active-cavity dynamics over 10 ns](docs/validation/active-cavity/long-n4.png)
+
+The figure is a separate **N=4, 10 ns** validation run; the quick command above
+runs only 0.5 ns. For the longer trajectory use `--duration-ns 10 --samples 1001`
+and a fresh output directory. Active material parameters are **illustrative,
+not calibrated to the passive example's device**. The deterministic example
+starts from a prebiased carrier distribution with an explicit optical seed.
+A zero initial field remains zero; spontaneous noise, thermal transport and full electrical
+drift-diffusion are not modeled. Nearly stationary intensity is not a certificate
+of single-frequency CW stability.
+
+See the [active-cavity model, units and Python APIs](docs/active-cavity.md) and
+[executed conservation, installation and time-refinement checks](docs/validation/active-cavity/README.md).
+Photon/carrier densities, overlap and active thickness use a common declared
+normalization; optical power gain has the amplitude factor one-half, and loss
+already present in the passive coupling matrix must not be counted again.
+
 ## Documentation
 
 - [Running examples and reading the output](docs/usage.md)
 - [Python interfaces and a complete custom calculation](docs/api.md)
-- [Active-cavity module: gain, carriers and deterministic dynamics (development)](docs/active-cavity.md)
+- [Active-cavity module: gain, carriers and deterministic dynamics](docs/active-cavity.md)
 - [70 µm structure, results, and numerical checks](docs/examples/liang-70um.md)
 - [Liang thesis reproduction report, figures, and comparison tables](docs/validation/liang-reproduction/README.md)
 - [Model conventions and earlier literature checks](docs/literature_validation.md)
 - [Numerical tests](docs/validation.md) and [performance measurements](docs/performance.md)
 - [Publishing releases to PyPI](docs/publishing.md)
 
-The current model covers lossless scalar TE waves on a square lattice. The
-70 µm calculation uses a layered outgoing Green function and halfspace
-claddings. The report above separates these modeling assumptions from the
-thesis approximation. Carrier transport and above-threshold laser dynamics
-are not included in the new package.
+The passive coupling calculation covers lossless scalar TE reference modes
+on a square lattice, with a layered outgoing Green function and halfspace
+claddings. The report above separates these assumptions from the thesis
+approximation. Active gain/absorption and index changes are local perturbations
+of that fixed reference mode; this does not extend the passive coupling builder
+to arbitrary gain permittivities. Spatial carrier rate/diffusion dynamics are
+included, while the historical full semiconductor transport solver has not
+been ported.
 
 To run the tests:
 

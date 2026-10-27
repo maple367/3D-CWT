@@ -1,6 +1,6 @@
-# Active-cavity analysis (development module)
+# Active-cavity analysis
 
-This opt-in module adds carrier and gain/absorption physics on top of the existing passive spatial operator. The passive eigenproblem, examples and public interfaces remain unchanged. This development branch is not the published `cwt3d 1.3.1` release; install the checkout to use the module.
+This opt-in module adds carrier and gain/absorption physics on top of the existing passive spatial operator. The passive eigenproblem, examples and public interfaces remain unchanged. The module is included in `cwt3d 1.4.0` and later. The source distribution and repository include the executable examples; the wheel installs the library.
 
 ## Scope
 
@@ -47,7 +47,7 @@ from cwt3d.active import (
 )
 ```
 
-Given an existing `FinitePencil`, construct an `ActiveCavity` with explicit group index, k0, total active thickness and scalar confinement. Internal material loss can be scalar or a cell-shaped map. An optional physical `CouplingResult` must match the passive matrix and supplies the provenance needed for radiative-output diagnostics; its `k0` must be a finite positive real scalar exactly equal to `k0_um_inverse` after float conversion (no tolerance), while a bare numeric C has no frequency metadata and uses the user-declared k0.
+Given an existing `FinitePencil`, construct an `ActiveCavity` with explicit group index, k0, total active thickness and scalar confinement. Internal material loss can be scalar or a cell-shaped map. An optional physical `CouplingResult` must match the passive matrix and supplies the provenance needed for radiative-output diagnostics; its `k0` must be a finite positive real scalar exactly equal to `k0_um_inverse` after float conversion (no tolerance), while a bare numeric C has no frequency metadata and uses the user-declared k0. When retaining a physical result named `coupling`, pass `k0_um_inverse=coupling.k0` to avoid a rounded-frequency mismatch.
 
 `CarrierMaterial` evaluates
 

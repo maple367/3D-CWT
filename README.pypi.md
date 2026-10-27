@@ -5,7 +5,9 @@ square-lattice photonic-crystal surface-emitting lasers (PCSELs).
 
 The package calculates normalized vertical TE waveguide modes, Fourier
 coupling coefficients, and finite-cavity envelopes using sparse staggered-grid
-eigenproblems. Runtime dependencies are NumPy and SciPy.
+eigenproblems. Version1.4.0 also provides `cwt3d.active`: frozen gain/index
+analysis and deterministic spatial four-wave/carrier dynamics. Runtime
+dependencies are NumPy and SciPy.
 
 ## Install
 
@@ -34,6 +36,21 @@ solve a finite cavity, and access the complex fields. Examples are included
 in the source distribution and repository; the wheel installs the `cwt3d`
 library.
 
+## Active cavities
+
+`cwt3d.active` exposes `CarrierMaterial`, `ActiveCavity`, `ActiveState`,
+`simulate`, `solve_active_modes`, and `uniform_threshold_gain`. It retains
+the passive spatial operator and supports signed gain/absorption, gain
+compression, carrier-induced index changes, injection, ABC recombination
+and lateral carrier diffusion. Photon and carrier normalization is explicit.
+
+The [active-cavity guide](https://github.com/maple367/3D-CWT/blob/latest/docs/active-cavity.md)
+describes units, physics and APIs. A runnable `examples/active_cavity.py` and
+`scripts/plot_active_trajectory.py` are shipped in the source distribution.
+Their active parameters are illustrative, not measured device fits. A nonzero
+optical seed is required for nonzero deterministic emission; noise, linewidth,
+thermal transport and full electrical drift-diffusion are outside the model.
+
 ## Scope
 
 Reciprocal Green-value reuse is enabled by default. Pass `reciprocity=False`
@@ -44,11 +61,14 @@ separated in the optional cache. The optimization does not require geometric
 symmetry within the supported scalar TE model. See the
 [validation and benchmark notes](https://github.com/maple367/3D-CWT/blob/latest/docs/validation/reciprocal-green-overlap/README.md).
 
-The current model uses lossless scalar TE waves on a square lattice.
-It returns modes near a selected complex shift, not the complete cavity
-spectrum. The example's auxiliary-harmonic refinement is still finite, as
-reported in its notes. Carrier transport and above-threshold dynamics from
-the historical application are not part of this package.
+The passive coupling builder uses lossless scalar TE reference modes on a
+square lattice. Active gain and index feedback are local perturbations of
+that fixed vertical reference, not a full-vector or strong-index-rebuilt model.
+Eigenanalysis returns modes near a selected complex shift, not the complete
+cavity spectrum. The example's auxiliary-harmonic refinement is still finite,
+as reported in its notes. Time stepping does not certify spatial convergence,
+experimental output or stable single-frequency CW operation. The historical
+full electrical transport solver is not included.
 
 The code is distributed under the MIT license. The formulation follows
 [Yong Liang's doctoral thesis](https://doi.org/10.14989/doctor.k18283);

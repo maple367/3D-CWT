@@ -1,6 +1,6 @@
 # Active-cavity implementation validation
 
-This records the first local development implementation of `cwt3d.active`. It does **not** change the published `cwt3d 1.3.1` release. The original 16 passive-core Python files remain unchanged. See [model, normalization and API scope](../../active-cavity.md).
+This records the initial pre-1.4 validation of `cwt3d.active`, now included in `cwt3d 1.4.0`. These original trajectory exports retain `cwt3d=0.1.0` in their installed-distribution metadata because that editable environment's metadata had not been rebuilt after version changes. The recorded active-source and example fingerprints, rather than that stale package label, identify the actual pre-1.4 implementation; values and provenance have not been relabeled. The installation totals below describe the initial suite, before additional release-documentation gates. The original 16 passive-core Python files remain unchanged. See [model, normalization and API scope](../../active-cavity.md).
 
 ## Implementation gates
 

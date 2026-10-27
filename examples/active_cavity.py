@@ -2,7 +2,7 @@
 
 The active material law is illustrative, not calibrated to Liang's device.
 All lengths are um, times ns, densities um^-3 and current densities A/um^2.
-Install this development checkout before running; no noise/thermal model.
+Install cwt3d before running this source-distribution example; no noise/thermal model.
 """
 import argparse
 import hashlib
