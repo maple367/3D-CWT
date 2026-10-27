@@ -192,6 +192,7 @@ is `2*alpha`.
 
 - [Running examples and reading the output](docs/usage.md)
 - [Python interfaces and a complete custom calculation](docs/api.md)
+- [Active-cavity module: gain, carriers and deterministic dynamics (development)](docs/active-cavity.md)
 - [70 µm structure, results, and numerical checks](docs/examples/liang-70um.md)
 - [Liang thesis reproduction report, figures, and comparison tables](docs/validation/liang-reproduction/README.md)
 - [Model conventions and earlier literature checks](docs/literature_validation.md)

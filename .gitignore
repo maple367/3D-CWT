@@ -10,6 +10,8 @@ FF.csv
 !/docs/images/*.png
 !/docs/validation/liang-reproduction/analysis/*.png
 !/docs/validation/liang-reproduction/finite/*.png
+!/docs/validation/active-cavity/refinement.png
+!/docs/validation/active-cavity/long-n4.png
 /results/
 
 

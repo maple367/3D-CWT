@@ -1,0 +1,39 @@
+{
+  "schema": "cwt3d-active-refinement-v1",
+  "scope": "Pairwise trajectory agreement only; the reference is not an exact solution or spatial-convergence certificate",
+  "reference_environment": {
+    "cwt3d": "0.1.0",
+    "algorithm_digest": "1246949eb8aff2fe38cd5130d371a5bd47385633f9baacf675a0cb01ea3c38a7",
+    "active_algorithm_digest": "6d55d1f86639a31d8ae185732dfe5df439a81f502b022307875a427b6863b890",
+    "example_sha256": "0aa1a7faec432edc846b88d5988741d48fe5221cb6cc094778c0ea3c8c77db1c"
+  },
+  "rows": [
+    {
+      "case": "fine",
+      "rtol": 4e-08,
+      "max_step_ns": 0.0025,
+      "max_photon_difference_over_reference_peak": 0.0,
+      "max_carrier_difference_over_reference_peak": 0.0,
+      "final_photon_number": 12694.69134110587,
+      "final_window_relative_photon_variation": 2.2721717507727424
+    },
+    {
+      "case": "base",
+      "rtol": 1e-06,
+      "max_step_ns": 0.01,
+      "max_photon_difference_over_reference_peak": 1.3050045263337805e-05,
+      "max_carrier_difference_over_reference_peak": 1.1260994826769715e-06,
+      "final_photon_number": 12694.96394698953,
+      "final_window_relative_photon_variation": 2.2721915062150533
+    },
+    {
+      "case": "refined",
+      "rtol": 2e-07,
+      "max_step_ns": 0.005,
+      "max_photon_difference_over_reference_peak": 1.8768525411564685e-06,
+      "max_carrier_difference_over_reference_peak": 1.9386326581335195e-07,
+      "final_photon_number": 12694.539434052263,
+      "final_window_relative_photon_variation": 2.272164782126044
+    }
+  ]
+}
